@@ -22,8 +22,8 @@ var _ InMemoryCache[string, int] = (*SafeInMemoryCache[string, int])(nil)
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) Set(key K, value V) {
 	c.Lock()
-	defer c.Unlock()
 	c.InMemoryCache.Set(key, value)
+	c.Unlock()
 }
 
 // implements base.InMemoryCache
@@ -35,6 +35,7 @@ func (c *SafeInMemoryCache[K, V]) Has(key K) bool {
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) Get(key K) (value V, ok bool) {
+	// not read-only lock, because underlying cache may change the item
 	c.Lock()
 	defer c.Unlock()
 	return c.InMemoryCache.Get(key)
@@ -64,8 +65,8 @@ func (c *SafeInMemoryCache[K, V]) Values() []V {
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) Range(f func(K, V) bool) {
 	c.RLock()
-	defer c.RUnlock()
 	c.InMemoryCache.Range(f)
+	c.RUnlock()
 }
 
 // implements base.InMemoryCache
@@ -78,19 +79,27 @@ func (c *SafeInMemoryCache[K, V]) Delete(key K) bool {
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) Purge() {
 	c.Lock()
-	defer c.Unlock()
 	c.InMemoryCache.Purge()
+	c.Unlock()
 }
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) SetMany(items map[K]V) {
+	if len(items) == 0 {
+		return
+	}
+
 	c.Lock()
-	defer c.Unlock()
 	c.InMemoryCache.SetMany(items)
+	c.Unlock()
 }
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) HasMany(keys []K) map[K]bool {
+	if len(keys) == 0 {
+		return map[K]bool{}
+	}
+
 	c.RLock()
 	defer c.RUnlock()
 	return c.InMemoryCache.HasMany(keys)
@@ -98,6 +107,10 @@ func (c *SafeInMemoryCache[K, V]) HasMany(keys []K) map[K]bool {
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) GetMany(keys []K) (map[K]V, []K) {
+	if len(keys) == 0 {
+		return map[K]V{}, []K{}
+	}
+
 	c.Lock()
 	defer c.Unlock()
 	return c.InMemoryCache.GetMany(keys)
@@ -105,6 +118,10 @@ func (c *SafeInMemoryCache[K, V]) GetMany(keys []K) (map[K]V, []K) {
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
+	if len(keys) == 0 {
+		return map[K]V{}, []K{}
+	}
+
 	c.RLock()
 	defer c.RUnlock()
 	return c.InMemoryCache.PeekMany(keys)
@@ -112,6 +129,10 @@ func (c *SafeInMemoryCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) DeleteMany(keys []K) map[K]bool {
+	if len(keys) == 0 {
+		return map[K]bool{}
+	}
+
 	c.Lock()
 	defer c.Unlock()
 	return c.InMemoryCache.DeleteMany(keys)

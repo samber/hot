@@ -1,12 +1,12 @@
 package hot
 
 import (
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/samber/go-singleflightx"
+	"github.com/samber/hot/base"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,17 +14,24 @@ func TestNewHotCache(t *testing.T) {
 	is := assert.New(t)
 
 	lru := NewInternalCache[int, int](LRU, 42)
+	safeLru := base.NewSafeInMemoryCache[int, *item[int]](
+		NewInternalCache[int, int](LRU, 42),
+	)
 
 	// locking
-	cache := newHotCache(false, lru, false, nil, 0, 0, 0, nil, nil, nil, nil)
-	is.EqualValues(&mutexMock{}, cache.mu)
-	cache = newHotCache(true, lru, false, nil, 0, 0, 0, nil, nil, nil, nil)
-	is.EqualValues(&sync.RWMutex{}, cache.mu)
+	cache := newHotCache(lru, false, nil, 0, 0, 0, nil, nil, nil, nil)
+	_, ok := cache.cache.(*base.SafeInMemoryCache[int, *item[int]])
+	is.False(ok)
+	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, nil, nil, nil, nil)
+	_, ok = cache.cache.(*base.SafeInMemoryCache[int, *item[int]])
+	is.True(ok)
+	_, ok = cache.missingCache.(*base.SafeInMemoryCache[int, *item[int]])
+	is.True(ok)
 
 	// ttl, stale, jitter
-	cache = newHotCache(true, lru, false, nil, 42_000, 21_000, 0.1, nil, nil, nil, nil)
+	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 0.1, nil, nil, nil, nil)
 	cache.metrics = nil
-	is.EqualValues(&HotCache[int, int]{&sync.RWMutex{}, nil, lru, false, nil, 42, 21, 0.1, nil, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.EqualValues(&HotCache[int, int]{nil, safeLru, false, nil, 42, 21, 0.1, nil, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests
@@ -1260,6 +1267,26 @@ func TestHotCache_Janitor(t *testing.T) {
 	is.Equal(1, cache.Len())
 	time.Sleep(10 * time.Millisecond)
 	is.Equal(1, cache.Len())
+	time.Sleep(20 * time.Millisecond)
+	is.Equal(0, cache.Len())
+
+	cache.StopJanitor()
+
+	// with dedicated missing
+	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+		WithTTL(3*time.Millisecond).
+		WithRevalidation(20*time.Millisecond, func(keys []string) (found map[string]int, err error) {
+			return map[string]int{"a": 2}, nil
+		}).
+		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+		WithJanitor().
+		Build()
+
+	cache.Set("a", 1)
+	cache.SetMissing("b")
+	is.Equal(2, cache.Len())
+	time.Sleep(10 * time.Millisecond)
+	is.Equal(2, cache.Len())
 	time.Sleep(20 * time.Millisecond)
 	is.Equal(0, cache.Len())
 

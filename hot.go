@@ -1,7 +1,6 @@
 package hot
 
 import (
-	"sync"
 	"time"
 
 	"github.com/samber/go-singleflightx"
@@ -13,8 +12,6 @@ import (
 var DebounceRevalidationFactor = 0.2
 
 func newHotCache[K comparable, V any](
-	locking bool,
-
 	cache base.InMemoryCache[K, *item[V]],
 	missingSharedCache bool,
 	missingCache base.InMemoryCache[K, *item[V]],
@@ -28,16 +25,7 @@ func newHotCache[K comparable, V any](
 	copyOnRead func(V) V,
 	copyOnWrite func(V) V,
 ) *HotCache[K, V] {
-	// Using a mutexMock cost ~3ns per operation. Which is more than the cost of calling base.SafeCache abstraction (1ns).
-	// Using mutexMock is more performant for this lib when locking is enabled most of time.
-	var mu rwMutex = &mutexMock{}
-	if locking {
-		mu = &sync.RWMutex{}
-	}
-
 	return &HotCache[K, V]{
-		mu: mu, // @TODO: separate for cache and cacheMissing ?
-
 		cache:              cache,
 		missingSharedCache: missingSharedCache,
 		missingCache:       missingCache,
@@ -58,7 +46,6 @@ func newHotCache[K comparable, V any](
 }
 
 type HotCache[K comparable, V any] struct {
-	mu     rwMutex
 	ticker *time.Ticker
 
 	cache              base.InMemoryCache[K, *item[V]]
@@ -85,9 +72,7 @@ func (c *HotCache[K, V]) Set(key K, v V) {
 		v = c.copyOnWrite(v)
 	}
 
-	c.mu.Lock()
 	c.setUnsafe(key, true, v, c.ttlMicro)
-	c.mu.Unlock()
 }
 
 // SetMissing adds a key to the `missing` cache. If the key already exists, its value is dropped. It uses the default ttl or none.
@@ -96,9 +81,7 @@ func (c *HotCache[K, V]) SetMissing(key K) {
 		panic("missing cache is not enabled")
 	}
 
-	c.mu.Lock()
 	c.setUnsafe(key, false, zero[V](), c.ttlMicro)
-	c.mu.Unlock()
 }
 
 // SetWithTTL adds a value to the cache. If the key already exists, its value is updated. It uses the given ttl.
@@ -107,9 +90,7 @@ func (c *HotCache[K, V]) SetWithTTL(key K, v V, ttl time.Duration) {
 		v = c.copyOnWrite(v)
 	}
 
-	c.mu.Lock()
 	c.setUnsafe(key, true, v, ttl.Microseconds())
-	c.mu.Unlock()
 }
 
 // SetMissingWithTTL adds a key to the `missing` cache. If the key already exists, its value is dropped. It uses the given ttl.
@@ -118,9 +99,7 @@ func (c *HotCache[K, V]) SetMissingWithTTL(key K, ttl time.Duration) {
 		panic("missing cache is not enabled")
 	}
 
-	c.mu.Lock()
 	c.setUnsafe(key, false, zero[V](), ttl.Microseconds())
-	c.mu.Unlock()
 }
 
 // SetMany adds many values to the cache. If the keys already exist, values are updated. It uses the default ttl or none.
@@ -131,9 +110,7 @@ func (c *HotCache[K, V]) SetMany(items map[K]V) {
 		}
 	}
 
-	c.mu.Lock()
 	c.setManyUnsafe(items, []K{}, c.ttlMicro)
-	c.mu.Unlock()
 }
 
 // SetMissingMany adds many keys to the cache. If the keys already exist, values are dropped. It uses the default ttl or none.
@@ -142,9 +119,7 @@ func (c *HotCache[K, V]) SetMissingMany(missingKeys []K) {
 		panic("missing cache is not enabled")
 	}
 
-	c.mu.Lock()
 	c.setManyUnsafe(map[K]V{}, missingKeys, c.ttlMicro)
-	c.mu.Unlock()
 }
 
 // SetManyWithTTL adds many values to the cache. If the keys already exist, values are updated. It uses the given ttl.
@@ -155,9 +130,7 @@ func (c *HotCache[K, V]) SetManyWithTTL(items map[K]V, ttl time.Duration) {
 		}
 	}
 
-	c.mu.Lock()
 	c.setManyUnsafe(items, []K{}, ttl.Microseconds())
-	c.mu.Unlock()
 }
 
 // SetManyWithTTL adds many keys to the cache. If the keys already exist, values are dropped. It uses the given ttl.
@@ -166,27 +139,20 @@ func (c *HotCache[K, V]) SetMissingManyWithTTL(missingKeys []K, ttl time.Duratio
 		panic("missing cache is not enabled")
 	}
 
-	c.mu.Lock()
 	c.setManyUnsafe(map[K]V{}, missingKeys, ttl.Microseconds())
-	c.mu.Unlock()
 }
 
 // Has checks if a key exists in the cache.
 // Missing values are not valid, even if cached.
 func (c *HotCache[K, V]) Has(key K) bool {
-	c.mu.RLock()
 	v, ok := c.cache.Peek(key)
-	c.mu.RUnlock()
-
 	return ok && v.hasValue
 }
 
 // HasMany checks if keys exist in the cache.
 // Missing values are not valid, even if cached.
 func (c *HotCache[K, V]) HasMany(keys []K) map[K]bool {
-	c.mu.RLock()
 	values, missing := c.cache.PeekMany(keys)
-	c.mu.RUnlock()
 
 	output := make(map[K]bool, len(keys))
 	for k, v := range values {
@@ -206,10 +172,8 @@ func (c *HotCache[K, V]) Get(key K) (value V, ok bool, err error) {
 
 // GetWithCustomLoaders returns a value from the cache, a boolean indicating whether the key was found and an error when loaders fail.
 func (c *HotCache[K, V]) GetWithCustomLoaders(key K, customLoaders LoaderChain[K, V]) (value V, ok bool, err error) {
-	c.mu.RLock()
 	// the item might be found, but without value
 	cached, revalidate, found := c.getUnsafe(key)
-	c.mu.RUnlock()
 
 	if found {
 		if revalidate {
@@ -249,11 +213,9 @@ func (c *HotCache[K, V]) GetMany(keys []K) (map[K]V, []K, error) {
 
 // GetManyWithCustomLoaders returns many values from the cache, a slice of missing keys and an error when loaders fail.
 func (c *HotCache[K, V]) GetManyWithCustomLoaders(keys []K, customLoaders LoaderChain[K, V]) (map[K]V, []K, error) {
-	c.mu.RLock()
 	// Some items might be found in cached, but without value.
 	// Other items will be returned in `missing`.
 	cached, missing, revalidate := c.getManyUnsafe(keys)
-	c.mu.RUnlock()
 
 	loaded, err := c.loadAndSetMany(missing, c.loaderFns)
 	if err != nil {
@@ -271,10 +233,8 @@ func (c *HotCache[K, V]) GetManyWithCustomLoaders(keys []K, customLoaders Loader
 // Peek is similar to Get, but do not check expiration and do not call loaders/revalidation.
 // Missing values are not returned, even if cached.
 func (c *HotCache[K, V]) Peek(key K) (value V, ok bool) {
-	c.mu.RLock()
 	// no need to check missingCache, since it will be missing anyway
 	item, ok := c.cache.Peek(key)
-	c.mu.RUnlock()
 
 	if ok && item.hasValue {
 		if c.copyOnRead != nil {
@@ -293,10 +253,8 @@ func (c *HotCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
 	cached := make(map[K]V)
 	missing := []K{}
 
-	c.mu.RLock()
 	// no need to check missingCache, since it will be missing anyway
 	items, _ := c.cache.PeekMany(keys)
-	c.mu.RUnlock()
 
 	for _, key := range keys {
 		if item, ok := items[key]; ok && item.hasValue {
@@ -316,9 +274,6 @@ func (c *HotCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
 // Keys returns all keys in the cache.
 // Missing keys are not included.
 func (c *HotCache[K, V]) Keys() []K {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	output := []K{}
 
 	c.cache.Range(func(k K, v *item[V]) bool {
@@ -334,11 +289,21 @@ func (c *HotCache[K, V]) Keys() []K {
 // Values returns all values in the cache.
 // Missing values are not included.
 func (c *HotCache[K, V]) Values() []V {
-	c.mu.RLock()
 	values := c.cache.Values()
-	c.mu.RUnlock()
 
-	return itemSlicesToValues(c.copyOnRead, values)
+	output := []V{}
+
+	for _, v := range values {
+		if v.hasValue {
+			if c.copyOnRead != nil {
+				output = append(output, c.copyOnRead(v.value))
+			} else {
+				output = append(output, v.value)
+			}
+		}
+	}
+
+	return output
 }
 
 // Range calls a function for each key/value pair in the cache.
@@ -346,9 +311,6 @@ func (c *HotCache[K, V]) Values() []V {
 // @TODO: loop over missingCache? Use a different callback?
 // Missing values are not included.
 func (c *HotCache[K, V]) Range(f func(K, V) bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	c.cache.Range(func(k K, v *item[V]) bool {
 		if !v.hasValue { // equalivant to testing `missingSharedCache`
 			return true
@@ -362,23 +324,17 @@ func (c *HotCache[K, V]) Range(f func(K, V) bool) {
 
 // Delete removes a key from the cache.
 func (c *HotCache[K, V]) Delete(key K) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.cache.Delete(key) || (c.missingCache != nil && c.missingCache.Delete(key))
 }
 
 // DeleteMany removes many keys from the cache.
 func (c *HotCache[K, V]) DeleteMany(keys []K) map[K]bool {
-	c.mu.Lock()
-
+	// @TODO: should be done in a single call to avoid multiple locks
 	a := c.cache.DeleteMany(keys)
 	b := map[K]bool{}
 	if c.missingCache != nil {
 		b = c.missingCache.DeleteMany(keys)
 	}
-
-	c.mu.Unlock()
 
 	output := map[K]bool{}
 	for _, key := range keys {
@@ -390,11 +346,9 @@ func (c *HotCache[K, V]) DeleteMany(keys []K) map[K]bool {
 
 // Purge removes all items from the cache.
 func (c *HotCache[K, V]) Purge() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.cache.Purge()
 	if c.missingCache != nil {
+		// @TODO: should be done in a single call to avoid multiple locks
 		c.missingCache.Purge()
 	}
 }
@@ -402,6 +356,7 @@ func (c *HotCache[K, V]) Purge() {
 // Capacity returns the cache capacity.
 func (c *HotCache[K, V]) Capacity() (int, int) {
 	if c.missingCache != nil {
+		// @TODO: should be done in a single call to avoid multiple locks
 		return c.cache.Capacity(), c.missingCache.Capacity()
 	}
 
@@ -411,6 +366,7 @@ func (c *HotCache[K, V]) Capacity() (int, int) {
 // Algorithm returns the cache algo.
 func (c *HotCache[K, V]) Algorithm() (string, string) {
 	if c.missingCache != nil {
+		// @TODO: should be done in a single call to avoid multiple locks
 		return c.cache.Algorithm(), c.missingCache.Algorithm()
 	}
 
@@ -420,10 +376,9 @@ func (c *HotCache[K, V]) Algorithm() (string, string) {
 // Len returns the number of items in the cache.
 // Missing items are included.
 func (c *HotCache[K, V]) Len() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
 
 	if c.missingCache != nil {
+		// @TODO: should be done in a single call to avoid multiple locks
 		return c.cache.Len() + c.missingCache.Len()
 	}
 
@@ -447,50 +402,46 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 		panic("missing cache is not enabled")
 	}
 
-	c.mu.Lock()
 	c.setManyUnsafe(items, missing, c.ttlMicro)
-	c.mu.Unlock()
 
 	return nil
 }
 
 // Janitor runs a background goroutine to clean up the cache.
 func (c *HotCache[K, V]) Janitor() {
-	c.mu.Lock()
 	c.ticker = time.NewTicker(time.Duration(c.ttlMicro) * time.Microsecond)
-	c.mu.Unlock()
 
 	go func() {
 		for range c.ticker.C {
 			nowMicro := internal.NowMicro()
 
-			c.mu.Lock()
-
-			c.cache.Range(func(k K, v *item[V]) bool {
-				if v.isExpired(nowMicro) {
-					c.cache.Delete(k)
-				}
-				return true
-			})
-
-			if c.missingCache != nil {
-				c.missingCache.Range(func(k K, v *item[V]) bool {
+			{
+				toDelete := []K{}
+				c.cache.Range(func(k K, v *item[V]) bool {
 					if v.isExpired(nowMicro) {
-						c.missingCache.Delete(k)
+						toDelete = append(toDelete, k)
 					}
 					return true
 				})
+				c.cache.DeleteMany(toDelete)
 			}
 
-			c.mu.Unlock()
+			if c.missingCache != nil {
+				toDelete := []K{}
+				c.missingCache.Range(func(k K, v *item[V]) bool {
+					if v.isExpired(nowMicro) {
+						toDelete = append(toDelete, k)
+					}
+					return true
+				})
+				c.missingCache.DeleteMany(toDelete)
+			}
 		}
 	}()
 }
 
 func (c *HotCache[K, V]) StopJanitor() {
-	c.mu.Lock()
 	c.ticker.Stop()
-	c.mu.Unlock()
 }
 
 func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64) {
@@ -500,12 +451,17 @@ func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64
 
 	ttlMicro = applyJitter(ttlMicro, c.jitter)
 
+	// since we don't know where is the previous key, we need to delete prempetively
 	if c.missingCache != nil {
-		// since we don't know where is the previous key, we need to delete all of them
-		c.cache.Delete(key)
-		c.missingCache.Delete(key)
+		// @TODO: should be done in a single call to avoid multiple locks
+		if hasValue {
+			c.missingCache.Delete(key)
+		} else {
+			c.cache.Delete(key)
+		}
 	}
 
+	// @TODO: should be done in a single call to avoid multiple locks
 	if hasValue || c.missingSharedCache {
 		c.cache.Set(key, newItem(value, hasValue, ttlMicro, c.staleMicro))
 	} else if c.missingCache != nil {
@@ -514,15 +470,41 @@ func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64
 }
 
 func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlMicro int64) {
-	for k, v := range items {
-		c.setUnsafe(k, true, v, ttlMicro)
+	if c.missingCache == nil && !c.missingSharedCache {
+		missing = []K{}
 	}
 
-	if c.missingCache != nil || c.missingSharedCache {
-		z := zero[V]()
-		for _, k := range missing {
-			c.setUnsafe(k, false, z, ttlMicro)
+	if c.missingCache != nil {
+		keysHavingValues := make([]K, 0, len(items))
+		for k := range items {
+			keysHavingValues = append(keysHavingValues, k)
 		}
+
+		// since we don't know where is the previous key, we need to delete all of them
+		// @TODO: should be done in a single call to avoid multiple locks
+		c.cache.DeleteMany(missing)
+		c.missingCache.DeleteMany(keysHavingValues)
+	}
+
+	values := map[K]*item[V]{}
+	for k, v := range items {
+		values[k] = newItemWithValue(v, ttlMicro, c.staleMicro)
+	}
+
+	if c.missingSharedCache {
+		for _, k := range missing {
+			values[k] = newItemNoValue[V](ttlMicro, c.staleMicro)
+		}
+	}
+
+	c.cache.SetMany(values)
+
+	if c.missingCache != nil {
+		values = map[K]*item[V]{}
+		for _, k := range missing {
+			values[k] = newItemNoValue[V](ttlMicro, c.staleMicro)
+		}
+		c.missingCache.SetMany(values)
 	}
 }
 
@@ -530,6 +512,7 @@ func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlMicro int6
 func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, found bool) {
 	nowMicro := internal.NowMicro()
 
+	// @TODO: should be done in a single call to avoid multiple locks
 	if item, ok := c.cache.Get(key); ok {
 		if !item.isExpired(nowMicro) {
 			return item, item.shouldRevalidate(nowMicro), true
@@ -539,6 +522,7 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 	}
 
 	if c.missingCache != nil {
+		// @TODO: should be done in a single call to avoid multiple locks
 		if item, ok := c.missingCache.Get(key); ok {
 			if !item.isExpired(nowMicro) {
 				return item, item.shouldRevalidate(nowMicro), true
@@ -558,34 +542,45 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 	missing = []K{}
 	revalidate = []K{}
 
-	for _, key := range keys {
-		if item, ok := c.cache.Get(key); ok {
-			if !item.isExpired(nowMicro) {
-				cached[key] = item
-				if item.shouldRevalidate(nowMicro) {
-					revalidate = append(revalidate, key)
+	toDeleteCache := []K{}
+	toDeleteMissingCache := []K{}
+
+	tmp, keys := c.cache.GetMany(keys)
+	for k, v := range tmp {
+		if !v.isExpired(nowMicro) {
+			cached[k] = v
+			if v.shouldRevalidate(nowMicro) {
+				revalidate = append(revalidate, k)
+			}
+			continue
+		}
+
+		toDeleteCache = append(toDeleteCache, k)
+	}
+
+	if len(toDeleteCache) > 0 {
+		// @TODO: should be done in a single call to avoid multiple locks
+		c.cache.DeleteMany(toDeleteCache)
+	}
+
+	if c.missingCache != nil {
+		tmp, missing = c.missingCache.GetMany(keys)
+		for k, v := range tmp {
+			if !v.isExpired(nowMicro) {
+				cached[k] = v
+				if v.shouldRevalidate(nowMicro) {
+					revalidate = append(revalidate, k)
 				}
 				continue
 			}
 
-			c.cache.Delete(key)
+			toDeleteMissingCache = append(toDeleteMissingCache, k)
 		}
 
-		if c.missingCache != nil {
-			if item, ok := c.missingCache.Get(key); ok {
-				if !item.isExpired(nowMicro) {
-					cached[key] = item
-					if item.shouldRevalidate(nowMicro) {
-						revalidate = append(revalidate, key)
-					}
-					continue
-				}
-
-				c.missingCache.Delete(key)
-			}
+		if len(toDeleteMissingCache) > 0 {
+			// @TODO: should be done in a single call to avoid multiple locks
+			c.missingCache.DeleteMany(toDeleteMissingCache)
 		}
-
-		missing = append(missing, key)
 	}
 
 	return cached, missing, revalidate
@@ -606,6 +601,7 @@ func (c *HotCache[K, V]) loadAndSetMany(keys []K, loaders LoaderChain[K, V]) (ma
 	// go-singleflightx is used to avoid calling the loaders multiple times for concurrent loads.
 	// go-singleflightx returns all keys, so we don't need to keep track of missing keys.
 	// Instead of looping over every loaders, we should return the valid keys as soon as possible (and it will reduce errors).
+	// @TODO: a custom implem of go-singleflightx could be used to avoid some loops.
 	results := c.group.DoX(keys, func(missing []K) (map[K]V, error) {
 		results, stillMissing, err := loaders.run(missing)
 		if err != nil {
@@ -613,26 +609,15 @@ func (c *HotCache[K, V]) loadAndSetMany(keys []K, loaders LoaderChain[K, V]) (ma
 		}
 
 		// Checking if a results is not empty before call to setManyUnsafe ensure we don't call mutex for nothing.
-		if len(results) > 0 {
-			if c.copyOnWrite != nil {
-				for k, v := range results {
-					results[k] = c.copyOnWrite(v)
-				}
+		if c.copyOnWrite != nil && len(results) > 0 {
+			for k, v := range results {
+				results[k] = c.copyOnWrite(v)
 			}
-
-			c.mu.Lock()
-			// any values in `results` that were not requested in `keys` are cached
-			c.setManyUnsafe(results, []K{}, c.ttlMicro)
-			c.mu.Unlock()
 		}
 
 		// We keep track of missing keys to avoid calling the loaders again.
-		// Checking if a missing cache exist before call to setManyUnsafe ensure we don't call mutex for nothing.
-		if len(stillMissing) > 0 && (c.missingCache != nil || c.missingSharedCache) {
-			c.mu.Lock()
-			c.setManyUnsafe(map[K]V{}, stillMissing, c.ttlMicro)
-			c.mu.Unlock()
-		}
+		// Any values in `results` that were not requested in `keys` are cached
+		c.setManyUnsafe(results, stillMissing, c.ttlMicro)
 
 		return results, nil
 	})

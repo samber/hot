@@ -18,6 +18,7 @@ func newItemWithValue[V any](v V, ttlMicro int64, staleMicro int64) *item[V] {
 	var expiry int64
 	var staleExpiry int64
 	if ttlMicro != 0 {
+		// @TODO: current time should be passed as an argument to make it faster in batch operations
 		expiry = int64(internal.NowMicro()) + ttlMicro
 		staleExpiry = expiry + staleMicro
 	}
@@ -35,6 +36,7 @@ func newItemNoValue[V any](ttlMicro int64, staleMicro int64) *item[V] {
 	var expiry int64
 	var staleExpiry int64
 	if ttlMicro != 0 {
+		// @TODO: current time should be passed as an argument to make it faster in batch operations
 		expiry = int64(internal.NowMicro()) + ttlMicro
 		staleExpiry = expiry + staleMicro
 	}
@@ -88,24 +90,6 @@ func itemMapsToValues[K comparable, V any](copyOnRead func(V) V, maps ...map[K]*
 	}
 
 	return
-}
-
-func itemSlicesToValues[V any](copyOnRead func(V) V, slices ...[]*item[V]) []V {
-	values := []V{}
-
-	for _, s := range slices {
-		for _, v := range s {
-			if v.hasValue {
-				if copyOnRead != nil {
-					values = append(values, copyOnRead(v.value))
-				} else {
-					values = append(values, v.value)
-				}
-			}
-		}
-	}
-
-	return values
 }
 
 func applyJitter(ttlMicro int64, jitter float64) int64 {

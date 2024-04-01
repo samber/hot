@@ -134,9 +134,16 @@ func (cfg HotCacheConfig[K, V]) WithCopyOnWrite(copyOnWrite func(V) V) HotCacheC
 func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	assertValue(!cfg.janitorEnabled || !cfg.lockingDisabled, "lockingDisabled and janitorEnabled cannot be used together")
 
-	hot := newHotCache(
-		!cfg.lockingDisabled,
+	if !cfg.lockingDisabled {
+		// Using mutexMock cost ~3ns per operation. Which is more than the cost of calling base.SafeInMemoryCache abstraction (1ns).
+		// Using mutexMock is more performant for this lib when locking is enabled most of time.
+		cfg.cache = base.NewSafeInMemoryCache[K, *item[V]](cfg.cache)
+		if cfg.missingCache != nil {
+			cfg.missingCache = base.NewSafeInMemoryCache[K, *item[V]](cfg.missingCache)
+		}
+	}
 
+	hot := newHotCache(
 		cfg.cache,
 		cfg.missingSharedCache,
 		cfg.missingCache,
