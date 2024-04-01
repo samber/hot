@@ -18,22 +18,30 @@ const (
 	ARC
 )
 
-func NewInternalCache[K comparable, V any](algorithm CacheAlgorithm, capacity int) base.InMemoryCache[K, *item[V]] {
+func newInternalCache[K comparable, V any](locking bool, algorithm CacheAlgorithm, capacity int) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
+
+	var cache base.InMemoryCache[K, *item[V]]
 
 	switch algorithm {
 	case LRU:
-		return lru.NewLRUCache[K, *item[V]](capacity)
+		cache = lru.NewLRUCache[K, *item[V]](capacity)
 	case LFU:
-		return lfu.NewLFUCache[K, *item[V]](capacity)
+		cache = lfu.NewLFUCache[K, *item[V]](capacity)
 	case TwoQueue:
-		return twoqueue.New2QCache[K, *item[V]](capacity)
+		cache = twoqueue.New2QCache[K, *item[V]](capacity)
 	case ARC:
 		panic("ARC is not implemented yet")
 		// return arc.NewARC(capacity)
+	default:
+		panic("unknown cache algorithm")
 	}
 
-	panic("unknown cache algorithm")
+	if locking {
+		return base.NewSafeInMemoryCache(cache)
+	}
+
+	return cache
 }
 
 func assertValue(ok bool, msg string) {
@@ -42,16 +50,19 @@ func assertValue(ok bool, msg string) {
 	}
 }
 
-func NewHotCache[K comparable, V any](cache base.InMemoryCache[K, *item[V]]) HotCacheConfig[K, V] {
+func NewHotCache[K comparable, V any](algorithm CacheAlgorithm, capacity int) HotCacheConfig[K, V] {
 	return HotCacheConfig[K, V]{
-		cache: cache,
+		cacheAlgo:     algorithm,
+		cacheCapacity: capacity,
 	}
 }
 
 type HotCacheConfig[K comparable, V any] struct {
-	cache              base.InMemoryCache[K, *item[V]]
-	missingSharedCache bool
-	missingCache       base.InMemoryCache[K, *item[V]]
+	cacheAlgo            CacheAlgorithm
+	cacheCapacity        int
+	missingSharedCache   bool
+	missingCacheAlgo     CacheAlgorithm
+	missingCacheCapacity int
 
 	ttl    time.Duration
 	stale  time.Duration
@@ -74,8 +85,9 @@ func (cfg HotCacheConfig[K, V]) WithMissingSharedCache() HotCacheConfig[K, V] {
 }
 
 // WithMissingCache enables cache of missing keys. The missing keys are stored in a separate cache.
-func (cfg HotCacheConfig[K, V]) WithMissingCache(missingCache base.InMemoryCache[K, *item[V]]) HotCacheConfig[K, V] {
-	cfg.missingCache = missingCache
+func (cfg HotCacheConfig[K, V]) WithMissingCache(algorithm CacheAlgorithm, capacity int) HotCacheConfig[K, V] {
+	cfg.missingCacheAlgo = algorithm
+	cfg.missingCacheCapacity = capacity
 	return cfg
 }
 
@@ -134,19 +146,13 @@ func (cfg HotCacheConfig[K, V]) WithCopyOnWrite(copyOnWrite func(V) V) HotCacheC
 func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	assertValue(!cfg.janitorEnabled || !cfg.lockingDisabled, "lockingDisabled and janitorEnabled cannot be used together")
 
-	if !cfg.lockingDisabled {
-		// Using mutexMock cost ~3ns per operation. Which is more than the cost of calling base.SafeInMemoryCache abstraction (1ns).
-		// Using mutexMock is more performant for this lib when locking is enabled most of time.
-		cfg.cache = base.NewSafeInMemoryCache[K, *item[V]](cfg.cache)
-		if cfg.missingCache != nil {
-			cfg.missingCache = base.NewSafeInMemoryCache[K, *item[V]](cfg.missingCache)
-		}
-	}
+	// Using mutexMock cost ~3ns per operation. Which is more than the cost of calling base.SafeInMemoryCache abstraction (1ns).
+	// Using mutexMock is more performant for this lib when locking is enabled most of time.
 
 	hot := newHotCache(
-		cfg.cache,
+		newInternalCache[K, V](!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity),
 		cfg.missingSharedCache,
-		cfg.missingCache,
+		newInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity),
 
 		cfg.ttl,
 		cfg.stale,

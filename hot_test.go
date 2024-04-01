@@ -13,10 +13,8 @@ import (
 func TestNewHotCache(t *testing.T) {
 	is := assert.New(t)
 
-	lru := NewInternalCache[int, int](LRU, 42)
-	safeLru := base.NewSafeInMemoryCache[int, *item[int]](
-		NewInternalCache[int, int](LRU, 42),
-	)
+	lru := newInternalCache[int, int](false, LRU, 42)
+	safeLru := newInternalCache[int, int](true, LRU, 42)
 
 	// locking
 	cache := newHotCache(lru, false, nil, 0, 0, 0, nil, nil, nil, nil)
@@ -41,7 +39,7 @@ func TestHotCache_Set(t *testing.T) {
 	is := assert.New(t)
 
 	// simple set
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.Set("a", 1)
 	is.Equal(1, cache.cache.Len())
@@ -50,7 +48,7 @@ func TestHotCache_Set(t *testing.T) {
 	is.EqualValues(&item[int]{true, 1, 8, 0, 0}, v)
 
 	// simple set with copy on write
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(v int) int {
 			return v * 2
 		}).
@@ -62,7 +60,7 @@ func TestHotCache_Set(t *testing.T) {
 	is.EqualValues(&item[int]{true, 2, 8, 0, 0}, v)
 
 	// simple set with default ttl + stale + jitter
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithTTL(1 * time.Second).
 		WithRevalidation(1 * time.Second).
 		WithJitter(0.1).
@@ -85,15 +83,15 @@ func TestHotCache_SetMissing(t *testing.T) {
 	is := assert.New(t)
 
 	// no missing cache
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.Panics(func() {
 		cache.SetMissing("a")
 	})
 
 	// dedicated cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 42).
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
 		WithJitter(0.1).
@@ -111,7 +109,7 @@ func TestHotCache_SetMissing(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
 
 	// shared cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
@@ -135,7 +133,7 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 	is := assert.New(t)
 
 	// simple set
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.SetWithTTL("a", 1, 10*time.Second)
 	is.Equal(1, cache.cache.Len())
@@ -147,7 +145,7 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
 
 	// simple set with copy on write
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(v int) int {
 			return v * 2
 		}).
@@ -162,7 +160,7 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
 
 	// simple set with default ttl + stale + jitter
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
 		WithJitter(0.1).
@@ -185,15 +183,15 @@ func TestHotCache_SetMissingWithTTL(t *testing.T) {
 	is := assert.New(t)
 
 	// no missing cache
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.Panics(func() {
 		cache.SetMissingWithTTL("a", 10*time.Second)
 	})
 
 	// dedicated cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 42).
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
 		WithJitter(0.1).
@@ -211,7 +209,7 @@ func TestHotCache_SetMissingWithTTL(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
 
 	// shared cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
@@ -235,7 +233,7 @@ func TestHotCache_SetMany(t *testing.T) {
 	is := assert.New(t)
 
 	// simple set
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.SetMany(map[string]int{"a": 1, "b": 2})
 	is.Equal(2, cache.cache.Len())
@@ -247,7 +245,7 @@ func TestHotCache_SetMany(t *testing.T) {
 	is.EqualValues(&item[int]{true, 2, 8, 0, 0}, v)
 
 	// simple set with copy on write
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(v int) int {
 			return v * 2
 		}).
@@ -262,7 +260,7 @@ func TestHotCache_SetMany(t *testing.T) {
 	is.EqualValues(&item[int]{true, 4, 8, 0, 0}, v)
 
 	// simple set with default ttl + stale + jitter
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
 		WithJitter(0.1).
@@ -293,15 +291,15 @@ func TestHotCache_SetMissingMany(t *testing.T) {
 	is := assert.New(t)
 
 	// no missing cache
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.Panics(func() {
 		cache.SetMissingMany([]string{"a", "b"})
 	})
 
 	// dedicated cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 42).
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
 		WithJitter(0.1).
@@ -327,7 +325,7 @@ func TestHotCache_SetMissingMany(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
 
 	// shared cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
@@ -359,7 +357,7 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 	is := assert.New(t)
 
 	// simple set
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.SetManyWithTTL(map[string]int{"a": 1, "b": 2}, 10*time.Second)
 	is.Equal(2, cache.cache.Len())
@@ -377,7 +375,7 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
 
 	// simple set with copy on write
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(v int) int {
 			return v * 2
 		}).
@@ -398,7 +396,7 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
 
 	// simple set with default ttl + stale + jitter
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
 		WithJitter(0.1).
@@ -429,15 +427,15 @@ func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 	is := assert.New(t)
 
 	// no missing cache
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.Panics(func() {
 		cache.SetMissingManyWithTTL([]string{"a", "b"}, 10*time.Second)
 	})
 
 	// dedicated cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 42).
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
 		WithJitter(0.1).
@@ -463,7 +461,7 @@ func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
 
 	// shared cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		WithTTL(1 * time.Second).
 		WithRevalidation(100 * time.Millisecond).
@@ -495,14 +493,14 @@ func TestHotCache_Has(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.False(cache.Has("a"))
 	cache.Set("a", 1)
 	is.True(cache.Has("a"))
 
 	// with shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	is.False(cache.Has("a"))
@@ -512,8 +510,8 @@ func TestHotCache_Has(t *testing.T) {
 	is.False(cache.Has("a"))
 
 	// with dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		Build()
 	is.False(cache.Has("a"))
 	cache.Set("a", 1)
@@ -526,7 +524,7 @@ func TestHotCache_HasMany(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.Equal(map[string]bool{"a": false, "b": false}, cache.HasMany([]string{"a", "b"}))
 	cache.Set("a", 1)
@@ -535,7 +533,7 @@ func TestHotCache_HasMany(t *testing.T) {
 	is.Equal(map[string]bool{"a": true, "b": true}, cache.HasMany([]string{"a", "b"}))
 
 	// with shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	is.Equal(map[string]bool{"a": false, "b": false}, cache.HasMany([]string{"a", "b"}))
@@ -545,8 +543,8 @@ func TestHotCache_HasMany(t *testing.T) {
 	is.Equal(map[string]bool{"a": true, "b": false}, cache.HasMany([]string{"a", "b"}))
 
 	// with dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		Build()
 	is.Equal(map[string]bool{"a": false, "b": false}, cache.HasMany([]string{"a", "b"}))
 	cache.Set("a", 1)
@@ -559,7 +557,7 @@ func TestHotCache_Get(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	v, ok, err := cache.Get("a")
 	is.False(ok)
@@ -572,7 +570,7 @@ func TestHotCache_Get(t *testing.T) {
 	is.Equal(42, v)
 
 	// with shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	v, ok, err = cache.Get("a")
@@ -591,8 +589,8 @@ func TestHotCache_Get(t *testing.T) {
 	is.Equal(0, v)
 
 	// with dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		Build()
 	v, ok, err = cache.Get("a")
 	is.False(ok)
@@ -610,7 +608,7 @@ func TestHotCache_Get(t *testing.T) {
 	is.Equal(0, v)
 
 	// with copy on read
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithCopyOnRead(func(v int) int {
 			return v * 2
 		}).
@@ -626,7 +624,7 @@ func TestHotCache_Get(t *testing.T) {
 	is.Equal(84, v)
 
 	// with loader
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			is.Equal([]string{"a"}, keys)
 			return map[string]int{"a": 42}, nil
@@ -638,7 +636,7 @@ func TestHotCache_Get(t *testing.T) {
 	is.Equal(42, v)
 
 	// with failed loader
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			is.Equal([]string{"a"}, keys)
 			return map[string]int{"a": 42}, assert.AnError
@@ -650,7 +648,7 @@ func TestHotCache_Get(t *testing.T) {
 	is.Equal(0, v)
 
 	// with loader not found
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			is.Equal([]string{"a"}, keys)
 			return map[string]int{}, nil
@@ -663,7 +661,7 @@ func TestHotCache_Get(t *testing.T) {
 
 	// with loader chain
 	loaded := 0
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(
 			func(keys []string) (map[string]int, error) {
 				loaded++
@@ -704,7 +702,7 @@ func TestHotCache_Peek(t *testing.T) {
 	counter := int32(0)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			atomic.AddInt32(&counter, 1)
 			return map[string]int{"a": 42}, nil
@@ -723,7 +721,7 @@ func TestHotCache_Peek(t *testing.T) {
 	is.Equal(int32(0), atomic.LoadInt32(&counter))
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			atomic.AddInt32(&counter, 1)
 			return map[string]int{"a": 42}, nil
@@ -743,7 +741,7 @@ func TestHotCache_Peek(t *testing.T) {
 	is.Equal(int32(0), atomic.LoadInt32(&counter))
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			atomic.AddInt32(&counter, 1)
 			return map[string]int{"a": 42}, nil
@@ -751,7 +749,7 @@ func TestHotCache_Peek(t *testing.T) {
 		WithCopyOnRead(func(nb int) int {
 			return nb * 2
 		}).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+		WithMissingCache(LRU, 10).
 		Build()
 	v, ok = cache.Peek("a")
 	is.False(ok)
@@ -769,7 +767,7 @@ func TestHotCache_PeekMany(t *testing.T) {
 	counter := int32(0)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			atomic.AddInt32(&counter, 1)
 			return map[string]int{"a": 42, "b": 84}, nil
@@ -789,7 +787,7 @@ func TestHotCache_PeekMany(t *testing.T) {
 	is.Equal(int32(0), atomic.LoadInt32(&counter))
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			atomic.AddInt32(&counter, 1)
 			return map[string]int{"a": 42, "b": 84}, nil
@@ -810,7 +808,7 @@ func TestHotCache_PeekMany(t *testing.T) {
 	is.Equal(int32(0), atomic.LoadInt32(&counter))
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithLoaders(func(keys []string) (map[string]int, error) {
 			atomic.AddInt32(&counter, 1)
 			return map[string]int{"a": 42, "b": 84}, nil
@@ -818,7 +816,7 @@ func TestHotCache_PeekMany(t *testing.T) {
 		WithCopyOnRead(func(nb int) int {
 			return nb * 2
 		}).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+		WithMissingCache(LRU, 10).
 		Build()
 	v, missing = cache.PeekMany([]string{"a", "b", "c"})
 	is.EqualValues(map[string]int{}, v)
@@ -835,7 +833,7 @@ func TestHotCache_Keys(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.Equal([]string{}, cache.Keys())
 	cache.Set("a", 1)
@@ -844,7 +842,7 @@ func TestHotCache_Keys(t *testing.T) {
 	is.ElementsMatch([]string{"a", "b"}, cache.Keys())
 
 	// with shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	is.Equal([]string{}, cache.Keys())
@@ -856,8 +854,8 @@ func TestHotCache_Keys(t *testing.T) {
 	is.ElementsMatch([]string{"a", "b"}, cache.Keys())
 
 	// with dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		Build()
 	is.Equal([]string{}, cache.Keys())
 	cache.Set("a", 1)
@@ -872,7 +870,7 @@ func TestHotCache_Values(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.ElementsMatch([]int{}, cache.Values())
 	cache.Set("a", 1)
@@ -881,7 +879,7 @@ func TestHotCache_Values(t *testing.T) {
 	is.ElementsMatch([]int{1, 2}, cache.Values())
 
 	// with shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	is.ElementsMatch([]int{}, cache.Values())
@@ -893,8 +891,8 @@ func TestHotCache_Values(t *testing.T) {
 	is.ElementsMatch([]int{1, 2}, cache.Values())
 
 	// with dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		Build()
 	is.ElementsMatch([]int{}, cache.Values())
 	cache.Set("a", 1)
@@ -909,7 +907,7 @@ func TestHotCache_Range(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 
 	counter1 := int32(0)
@@ -932,7 +930,7 @@ func TestHotCache_Range(t *testing.T) {
 	is.Equal(int32(3), atomic.LoadInt32(&counter1))
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 
@@ -957,7 +955,7 @@ func TestHotCache_Range(t *testing.T) {
 	is.Equal(int32(3), atomic.LoadInt32(&counter2))
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 
@@ -987,7 +985,7 @@ func TestHotCache_Delete(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.Set("a", 1)
 	is.Equal(1, cache.Len())
@@ -996,7 +994,7 @@ func TestHotCache_Delete(t *testing.T) {
 	is.Equal(0, cache.Len())
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	cache.Set("a", 1)
@@ -1009,8 +1007,8 @@ func TestHotCache_Delete(t *testing.T) {
 	is.Equal(0, cache.Len())
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LFU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LFU, 42).
 		Build()
 	cache.Set("a", 1)
 	cache.SetMissing("b")
@@ -1026,7 +1024,7 @@ func TestHotCache_DeleteMany(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.Set("a", 1)
 	is.Equal(1, cache.Len())
@@ -1035,7 +1033,7 @@ func TestHotCache_DeleteMany(t *testing.T) {
 	is.Equal(0, cache.Len())
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	cache.Set("a", 1)
@@ -1046,8 +1044,8 @@ func TestHotCache_DeleteMany(t *testing.T) {
 	is.Equal(0, cache.Len())
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LFU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LFU, 42).
 		Build()
 	cache.Set("a", 1)
 	cache.SetMissing("b")
@@ -1061,7 +1059,7 @@ func TestHotCache_Purge(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.Set("a", 1)
 	is.Equal(1, cache.Len())
@@ -1069,7 +1067,7 @@ func TestHotCache_Purge(t *testing.T) {
 	is.Equal(0, cache.Len())
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	cache.Set("a", 1)
@@ -1079,8 +1077,8 @@ func TestHotCache_Purge(t *testing.T) {
 	is.Equal(0, cache.Len())
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LFU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LFU, 42).
 		Build()
 	cache.Set("a", 1)
 	cache.SetMissing("b")
@@ -1093,14 +1091,14 @@ func TestHotCache_Capacity(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	a, b := cache.Capacity()
 	is.Equal(10, a)
 	is.Equal(0, b)
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	a, b = cache.Capacity()
@@ -1108,8 +1106,8 @@ func TestHotCache_Capacity(t *testing.T) {
 	is.Equal(0, b)
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LFU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LFU, 42).
 		Build()
 	a, b = cache.Capacity()
 	is.Equal(10, a)
@@ -1120,14 +1118,14 @@ func TestHotCache_Algorithm(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	a, b := cache.Algorithm()
 	is.Equal("lru", a)
 	is.Equal("", b)
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	a, b = cache.Algorithm()
@@ -1135,8 +1133,8 @@ func TestHotCache_Algorithm(t *testing.T) {
 	is.Equal("", b)
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LFU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LFU, 42).
 		Build()
 	a, b = cache.Algorithm()
 	is.Equal("lru", a)
@@ -1147,7 +1145,7 @@ func TestHotCache_Len(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	is.Equal(0, cache.Len())
 	cache.Set("a", 1)
@@ -1156,7 +1154,7 @@ func TestHotCache_Len(t *testing.T) {
 	is.Equal(2, cache.Len())
 
 	// shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	is.Equal(0, cache.Len())
@@ -1168,8 +1166,8 @@ func TestHotCache_Len(t *testing.T) {
 	is.Equal(4, cache.Len())
 
 	// dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LFU, 42)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LFU, 42).
 		Build()
 	is.Equal(0, cache.Len())
 	cache.Set("a", 1)
@@ -1184,7 +1182,7 @@ func TestHotCache_WarmUp(t *testing.T) {
 	is := assert.New(t)
 
 	is.Panics(func() {
-		_ = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+		_ = NewHotCache[string, int](LRU, 10).
 			WithCopyOnWrite(func(nb int) int {
 				return nb * 2
 			}).
@@ -1195,7 +1193,7 @@ func TestHotCache_WarmUp(t *testing.T) {
 	})
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 2
 		}).
@@ -1210,7 +1208,7 @@ func TestHotCache_WarmUp(t *testing.T) {
 	is.Equal(2, v)
 
 	// with shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 2
 		}).
@@ -1230,14 +1228,14 @@ func TestHotCache_WarmUp(t *testing.T) {
 	is.Equal(0, v2.value)
 
 	// with dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 2
 		}).
 		WithWarmUp(func() (map[string]int, []string, error) {
 			return map[string]int{"a": 1}, []string{"b"}, nil
 		}).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+		WithMissingCache(LRU, 10).
 		Build()
 	time.Sleep(5 * time.Millisecond)
 	v2, ok2 = cache.cache.Get("a")
@@ -1256,7 +1254,7 @@ func TestHotCache_Janitor(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithTTL(3*time.Millisecond).
 		WithRevalidation(20*time.Millisecond, func(keys []string) (found map[string]int, err error) {
 			return map[string]int{"a": 2}, nil
@@ -1273,12 +1271,12 @@ func TestHotCache_Janitor(t *testing.T) {
 	cache.StopJanitor()
 
 	// with dedicated missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithTTL(3*time.Millisecond).
 		WithRevalidation(20*time.Millisecond, func(keys []string) (found map[string]int, err error) {
 			return map[string]int{"a": 2}, nil
 		}).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+		WithMissingCache(LRU, 10).
 		WithJanitor().
 		Build()
 
@@ -1298,7 +1296,7 @@ func TestHotCache_Janitor(t *testing.T) {
 func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is := assert.New(t)
 
-	cache := NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 
 	cache.setUnsafe("a", false, 1, 0) // no value + no ttl + no jitter
@@ -1326,7 +1324,7 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is.NotEqual(int64(0), v.staleExpiryMicro)
 	is.Equal(v.expiryMicro, v.staleExpiryMicro)
 
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithJitter(0.5).
 		Build()
 
@@ -1356,7 +1354,7 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is := assert.New(t)
 
-	cache := NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 
@@ -1390,7 +1388,7 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is.NotEqual(int64(0), v.staleExpiryMicro)
 	is.Equal(v.expiryMicro, v.staleExpiryMicro)
 
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		WithJitter(0.5).
 		Build()
@@ -1421,8 +1419,8 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is := assert.New(t)
 
-	cache := NewHotCache(NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		Build()
 
 	cache.setUnsafe("a", false, 1, 0) // no value + no ttl + no jitter
@@ -1461,8 +1459,8 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is.NotEqual(int64(0), v.staleExpiryMicro)
 	is.Equal(v.expiryMicro, v.staleExpiryMicro)
 
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		WithJitter(0.5).
 		Build()
 
@@ -1493,13 +1491,13 @@ func TestHotCache_setManyUnsafe(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1, "b": 2}, []string{"c"}, 0)
 	is.Equal(2, cache.cache.Len())
 
 	// shared missing cache
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1, "b": 2}, []string{"c"}, 0)
@@ -1508,8 +1506,8 @@ func TestHotCache_setManyUnsafe(t *testing.T) {
 	is.Equal(3, cache.cache.Len())
 
 	// dedicated missing cache
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1, "b": 2}, []string{"c"}, 0)
 	is.Equal(2, cache.cache.Len())
@@ -1526,7 +1524,7 @@ func TestHotCache_getUnsafe(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithRevalidation(10 * time.Millisecond).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
@@ -1567,7 +1565,7 @@ func TestHotCache_getUnsafe(t *testing.T) {
 	is.Equal(1, cache.cache.Len())
 
 	// shared missing cache
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithRevalidation(10 * time.Millisecond).
 		WithMissingSharedCache().
 		Build()
@@ -1614,9 +1612,9 @@ func TestHotCache_getUnsafe(t *testing.T) {
 	is.Equal(2, cache.cache.Len())
 
 	// dedicated missing cache
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
-		WithRevalidation(10 * time.Millisecond).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithRevalidation(10*time.Millisecond).
+		WithMissingCache(LRU, 10).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
 	cache.setUnsafe("c", false, 0, (2 * time.Millisecond).Microseconds())
@@ -1668,7 +1666,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is := assert.New(t)
 
 	// simple
-	cache := NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithRevalidation(10 * time.Millisecond).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
@@ -1704,7 +1702,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is.Equal(1, cache.cache.Len())
 
 	// shared missing cache
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithRevalidation(10 * time.Millisecond).
 		WithMissingSharedCache().
 		Build()
@@ -1741,9 +1739,9 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is.Equal(2, cache.cache.Len())
 
 	// dedicated missing cache
-	cache = NewHotCache(NewInternalCache[string, int](LRU, 10)).
-		WithRevalidation(10 * time.Millisecond).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithRevalidation(10*time.Millisecond).
+		WithMissingCache(LRU, 10).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
 	cache.setUnsafe("c", false, 0, (2 * time.Millisecond).Microseconds())
@@ -1788,7 +1786,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 	counter3 := int32(0)
 
 	// simple
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 42
 		}).
@@ -1870,7 +1868,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 	is.Equal(2, cache.cache.Len()) // "c=3" is cached
 
 	// shared missing cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 42
@@ -1900,8 +1898,8 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 	is.Equal(3, cache.cache.Len())
 
 	// dedicated missing cache
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
-		WithMissingCache(NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
+		WithMissingCache(LRU, 10).
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 42
 		}).
@@ -1940,7 +1938,7 @@ func TestHotCache_revalidate(t *testing.T) {
 	counter2 := int32(0)
 
 	// with shared missing
-	cache := NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache := NewHotCache[string, int](LRU, 10).
 		WithTTL(1*time.Millisecond).
 		WithRevalidation(10*time.Millisecond, func(keys []string) (found map[string]int, err error) {
 			atomic.AddInt32(&counter1, 1)
@@ -1967,7 +1965,7 @@ func TestHotCache_revalidate(t *testing.T) {
 	cache.Purge()
 
 	// with shared missing
-	cache = NewHotCache[string, int](NewInternalCache[string, int](LRU, 10)).
+	cache = NewHotCache[string, int](LRU, 10).
 		WithTTL(1 * time.Millisecond).
 		WithLoaders(func(keys []string) (found map[string]int, err error) {
 			atomic.AddInt32(&counter2, 1)

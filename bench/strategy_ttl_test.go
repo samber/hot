@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkSetGetWithTTL(b *testing.B) {
-	cache := hot.NewHotCache(hot.NewInternalCache[int, int](hot.LRU, b.N+100)).
+	cache := hot.NewHotCache[int, int](hot.LRU, b.N+100).
 		WithTTL(10 * time.Millisecond).
 		Build()
 	for n := 0; n < b.N; n++ {
@@ -18,7 +18,7 @@ func BenchmarkSetGetWithTTL(b *testing.B) {
 }
 
 func BenchmarkSetGetWithTTLWithoutCheck(b *testing.B) {
-	cache := hot.NewHotCache(hot.NewInternalCache[int, int](hot.LRU, b.N+100)).
+	cache := hot.NewHotCache[int, int](hot.LRU, b.N+100).
 		WithTTL(10 * time.Millisecond).
 		Build()
 	for n := 0; n < b.N; n++ {
@@ -28,7 +28,7 @@ func BenchmarkSetGetWithTTLWithoutCheck(b *testing.B) {
 }
 
 func BenchmarkSetGetWithTTLAndStale(b *testing.B) {
-	cache := hot.NewHotCache(hot.NewInternalCache[int, int](hot.LRU, b.N+100)).
+	cache := hot.NewHotCache[int, int](hot.LRU, b.N+100).
 		WithTTL(10 * time.Millisecond).
 		WithRevalidation(10 * time.Millisecond).
 		Build()
@@ -39,7 +39,7 @@ func BenchmarkSetGetWithTTLAndStale(b *testing.B) {
 }
 
 func BenchmarkSetGetWithTTLAndJanitor(b *testing.B) {
-	cache := hot.NewHotCache(hot.NewInternalCache[int, int](hot.LRU, b.N+100)).
+	cache := hot.NewHotCache[int, int](hot.LRU, b.N+100).
 		WithTTL(10 * time.Millisecond).
 		WithJanitor().
 		Build()
