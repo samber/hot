@@ -12,7 +12,7 @@ func BenchmarkHit(b *testing.B) {
 			Build()
 		for n := 0; n < b.N; n++ {
 			cache.Set(n, n)
-			cache.Get(0)
+			_, _, _ = cache.Get(0)
 		}
 	})
 
@@ -22,7 +22,7 @@ func BenchmarkHit(b *testing.B) {
 			Build()
 		for n := 0; n < b.N; n++ {
 			cache.Set(n, n)
-			cache.Get(0)
+			_, _, _ = cache.Get(0)
 		}
 	})
 
@@ -33,7 +33,7 @@ func BenchmarkHit(b *testing.B) {
 				Build()
 			for n := 0; n < b.N; n++ {
 				cache.Set(n, n)
-				cache.Get(0)
+				_, _, _ = cache.Get(0)
 			}
 		})
 		b.Run("Second", func(b *testing.B) {
@@ -43,7 +43,7 @@ func BenchmarkHit(b *testing.B) {
 			cache.SetMissing(b.N + 1)
 			for n := 0; n < b.N; n++ {
 				cache.Set(n, n)
-				cache.Get(b.N + 1)
+				_, _, _ = cache.Get(b.N + 1)
 			}
 		})
 	})
@@ -55,7 +55,7 @@ func BenchmarkMiss(b *testing.B) {
 			Build()
 		for n := 0; n < b.N; n++ {
 			cache.Set(n, n)
-			cache.Get(b.N + 1)
+			_, _, _ = cache.Get(b.N + 1)
 		}
 	})
 
@@ -65,7 +65,7 @@ func BenchmarkMiss(b *testing.B) {
 			Build()
 		for n := 0; n < b.N; n++ {
 			cache.Set(n, n)
-			cache.Get(b.N + 1)
+			_, _, _ = cache.Get(b.N + 1)
 		}
 	})
 
@@ -75,7 +75,7 @@ func BenchmarkMiss(b *testing.B) {
 			Build()
 		for n := 0; n < b.N; n++ {
 			cache.Set(n, n)
-			cache.Get(b.N + 1)
+			_, _, _ = cache.Get(b.N + 1)
 		}
 	})
 }

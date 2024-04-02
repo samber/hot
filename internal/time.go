@@ -6,6 +6,7 @@ import "syscall"
 // It is twice faster than time.Now().
 func NowMicro() int64 {
 	var tv syscall.Timeval
-	syscall.Gettimeofday(&tv)
+	// @TODO: check error ?
+	syscall.Gettimeofday(&tv) //nolint:errcheck
 	return int64(tv.Sec)*1e3 + int64(tv.Usec)
 }

@@ -23,7 +23,7 @@ func BenchmarkTime(b *testing.B) {
 	b.Run("TimeSyscall", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			var tv syscall.Timeval
-			syscall.Gettimeofday(&tv)
+			_ = syscall.Gettimeofday(&tv)
 		}
 	})
 }

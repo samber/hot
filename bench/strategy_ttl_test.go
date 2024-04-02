@@ -13,7 +13,7 @@ func BenchmarkSetGetWithTTL(b *testing.B) {
 		Build()
 	for n := 0; n < b.N; n++ {
 		cache.Set(n, n)
-		cache.Get(n)
+		_, _, _ = cache.Get(n)
 	}
 }
 
@@ -23,7 +23,7 @@ func BenchmarkSetGetWithTTLWithoutCheck(b *testing.B) {
 		Build()
 	for n := 0; n < b.N; n++ {
 		cache.Set(n, n)
-		cache.Peek(n) // No check of TTL
+		_, _ = cache.Peek(n) // No check of TTL
 	}
 }
 
@@ -34,7 +34,7 @@ func BenchmarkSetGetWithTTLAndStale(b *testing.B) {
 		Build()
 	for n := 0; n < b.N; n++ {
 		cache.Set(n, n)
-		cache.Get(n)
+		_, _, _ = cache.Get(n)
 	}
 }
 
@@ -45,6 +45,6 @@ func BenchmarkSetGetWithTTLAndJanitor(b *testing.B) {
 		Build()
 	for n := 0; n < b.N; n++ {
 		cache.Set(n, n)
-		cache.Get(n)
+		_, _, _ = cache.Get(n)
 	}
 }

@@ -189,7 +189,8 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	)
 
 	if cfg.warmUpFn != nil {
-		hot.WarmUp(cfg.warmUpFn)
+		// @TODO: check error ?
+		hot.WarmUp(cfg.warmUpFn) //nolint:errcheck
 	}
 
 	if cfg.janitorEnabled {

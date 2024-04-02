@@ -7,7 +7,7 @@ import (
 )
 
 // https://github.com/stretchr/testify/issues/1101
-func testWithTimeout(t *testing.T, timeout time.Duration) {
+func testWithTimeout(t *testing.T, timeout time.Duration) { //nolint:unused
 	t.Helper()
 
 	testFinished := make(chan struct{})
