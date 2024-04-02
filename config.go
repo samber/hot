@@ -20,7 +20,7 @@ const (
 	ARC
 )
 
-func composeInternalCache[K comparable, V any](locking bool, algorithm CacheAlgorithm, capacity int, shards uint16, shardingFn sharded.Hasher[K]) base.InMemoryCache[K, *item[V]] {
+func composeInternalCache[K comparable, V any](locking bool, algorithm CacheAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K]) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
 	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
 
@@ -81,7 +81,7 @@ type HotCacheConfig[K comparable, V any] struct {
 	stale  time.Duration
 	jitter float64
 
-	shards     uint16
+	shards     uint64
 	shardingFn sharded.Hasher[K]
 
 	lockingDisabled bool
@@ -129,7 +129,7 @@ func (cfg HotCacheConfig[K, V]) WithJitter(jitter float64) HotCacheConfig[K, V] 
 	return cfg
 }
 
-func (cfg HotCacheConfig[K, V]) WithSharding(nbr uint16, fn sharded.Hasher[K]) HotCacheConfig[K, V] {
+func (cfg HotCacheConfig[K, V]) WithSharding(nbr uint64, fn sharded.Hasher[K]) HotCacheConfig[K, V] {
 	assertValue(nbr > 1, "jitter must be greater than 1")
 
 	cfg.shards = nbr

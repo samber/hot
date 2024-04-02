@@ -2,24 +2,24 @@ package sharded
 
 import "github.com/samber/hot/pkg/base"
 
-func NewShardedInMemoryCache[K comparable, V any](shards uint16, newCache func() base.InMemoryCache[K, V], fn Hasher[K]) base.InMemoryCache[K, V] {
-	caches := map[uint16]base.InMemoryCache[K, V]{}
-	for i := uint16(0); i < shards; i++ {
+func NewShardedInMemoryCache[K comparable, V any](shards uint64, newCache func() base.InMemoryCache[K, V], fn Hasher[K]) base.InMemoryCache[K, V] {
+	caches := map[uint64]base.InMemoryCache[K, V]{}
+	for i := uint64(0); i < shards; i++ {
 		caches[i] = newCache()
 	}
 
 	return &ShardedInMemoryCache[K, V]{
-		caches: caches,
 		shards: shards,
 		fn:     fn,
+		caches: caches,
 	}
 }
 
 // ShardedInMemoryCache is a cache with safe concurrent access.
 type ShardedInMemoryCache[K comparable, V any] struct {
-	caches map[uint16]base.InMemoryCache[K, V]
-	shards uint16
+	shards uint64
 	fn     Hasher[K]
+	caches map[uint64]base.InMemoryCache[K, V]
 }
 
 var _ base.InMemoryCache[string, int] = (*ShardedInMemoryCache[string, int])(nil)
@@ -94,7 +94,7 @@ func (c *ShardedInMemoryCache[K, V]) SetMany(items map[K]V) {
 		return
 	}
 
-	batch := map[uint16]map[K]V{}
+	batch := map[uint64]map[K]V{}
 	for k, v := range items {
 		hash := c.fn.computeHash(k, c.shards)
 		if batch[hash] == nil {
@@ -114,7 +114,7 @@ func (c *ShardedInMemoryCache[K, V]) HasMany(keys []K) map[K]bool {
 		return map[K]bool{}
 	}
 
-	batch := map[uint16][]K{}
+	batch := map[uint64][]K{}
 	for _, k := range keys {
 		hash := c.fn.computeHash(k, c.shards)
 		if batch[hash] == nil {
@@ -141,7 +141,7 @@ func (c *ShardedInMemoryCache[K, V]) GetMany(keys []K) (map[K]V, []K) {
 		return map[K]V{}, []K{}
 	}
 
-	batch := map[uint16][]K{}
+	batch := map[uint64][]K{}
 	for _, k := range keys {
 		hash := c.fn.computeHash(k, c.shards)
 		if batch[hash] == nil {
@@ -170,7 +170,7 @@ func (c *ShardedInMemoryCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
 		return map[K]V{}, []K{}
 	}
 
-	batch := map[uint16][]K{}
+	batch := map[uint64][]K{}
 	for _, k := range keys {
 		hash := c.fn.computeHash(k, c.shards)
 		if batch[hash] == nil {
@@ -199,7 +199,7 @@ func (c *ShardedInMemoryCache[K, V]) DeleteMany(keys []K) map[K]bool {
 		return map[K]bool{}
 	}
 
-	batch := map[uint16][]K{}
+	batch := map[uint64][]K{}
 	for _, k := range keys {
 		hash := c.fn.computeHash(k, c.shards)
 		if batch[hash] == nil {
