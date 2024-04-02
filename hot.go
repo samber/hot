@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/samber/go-singleflightx"
-	"github.com/samber/hot/base"
 	"github.com/samber/hot/internal"
+	"github.com/samber/hot/pkg/base"
 )
 
 // Revalidation is done in batch,.

@@ -1,6 +1,6 @@
 package sharded
 
-import "github.com/samber/hot/base"
+import "github.com/samber/hot/pkg/base"
 
 func NewShardedInMemoryCache[K comparable, V any](shards uint16, newCache func() base.InMemoryCache[K, V], fn Hasher[K]) base.InMemoryCache[K, V] {
 	caches := map[uint16]base.InMemoryCache[K, V]{}

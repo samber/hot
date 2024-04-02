@@ -3,11 +3,12 @@ package hot
 import (
 	"time"
 
-	twoqueue "github.com/samber/hot/2q"
-	"github.com/samber/hot/base"
-	"github.com/samber/hot/lfu"
-	"github.com/samber/hot/lru"
-	"github.com/samber/hot/sharded"
+	"github.com/samber/hot/pkg/base"
+	"github.com/samber/hot/pkg/lfu"
+	"github.com/samber/hot/pkg/lru"
+	"github.com/samber/hot/pkg/safe"
+	"github.com/samber/hot/pkg/sharded"
+	"github.com/samber/hot/pkg/twoqueue"
 )
 
 type CacheAlgorithm int
@@ -50,7 +51,7 @@ func composeInternalCache[K comparable, V any](locking bool, algorithm CacheAlgo
 	}
 
 	if locking {
-		return base.NewSafeInMemoryCache(cache)
+		return safe.NewSafeInMemoryCache(cache)
 	}
 
 	return cache

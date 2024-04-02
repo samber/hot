@@ -3,9 +3,9 @@ package bench
 import (
 	"testing"
 
-	twoqueue "github.com/samber/hot/2q"
-	"github.com/samber/hot/lfu"
-	"github.com/samber/hot/lru"
+	"github.com/samber/hot/pkg/lfu"
+	"github.com/samber/hot/pkg/lru"
+	"github.com/samber/hot/pkg/twoqueue"
 )
 
 func BenchmarkSetGetWithoutEvictionLRU(b *testing.B) {

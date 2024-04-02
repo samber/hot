@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/samber/hot/base"
+	"github.com/samber/hot/pkg/safe"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,19 +14,19 @@ func TestComposeInternalCache(t *testing.T) {
 	cache := composeInternalCache[string, int](true, LRU, 42, 0, nil)
 	is.Equal(42, cache.Capacity())
 	is.Equal("lru", cache.Algorithm())
-	_, ok := cache.(*base.SafeInMemoryCache[string, *item[int]])
+	_, ok := cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
 	cache = composeInternalCache[string, int](true, LFU, 42, 0, nil)
 	is.Equal(42, cache.Capacity())
 	is.Equal("lfu", cache.Algorithm())
-	_, ok = cache.(*base.SafeInMemoryCache[string, *item[int]])
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
 	cache = composeInternalCache[string, int](true, TwoQueue, 42, 0, nil)
 	is.Equal(52, cache.Capacity())
 	is.Equal("2q", cache.Algorithm())
-	_, ok = cache.(*base.SafeInMemoryCache[string, *item[int]])
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
 	is.Panics(func() {
@@ -36,19 +36,19 @@ func TestComposeInternalCache(t *testing.T) {
 	cache = composeInternalCache[string, int](false, LRU, 42, 0, nil)
 	is.Equal(42, cache.Capacity())
 	is.Equal("lru", cache.Algorithm())
-	_, ok = cache.(*base.SafeInMemoryCache[string, *item[int]])
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
 	cache = composeInternalCache[string, int](false, LFU, 42, 0, nil)
 	is.Equal(42, cache.Capacity())
 	is.Equal("lfu", cache.Algorithm())
-	_, ok = cache.(*base.SafeInMemoryCache[string, *item[int]])
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
 	cache = composeInternalCache[string, int](false, TwoQueue, 42, 0, nil)
 	is.Equal(52, cache.Capacity())
 	is.Equal("2q", cache.Algorithm())
-	_, ok = cache.(*base.SafeInMemoryCache[string, *item[int]])
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
 	is.Panics(func() {

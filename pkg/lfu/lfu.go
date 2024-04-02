@@ -1,9 +1,14 @@
-package lru
+package lfu
 
 import (
 	"container/list"
 
-	"github.com/samber/hot/base"
+	"github.com/samber/hot/pkg/base"
+)
+
+const (
+	// DefaultEvictionSize is the number of element to evict when the cache is full.
+	DefaultEvictionSize = 1
 )
 
 type entry[K comparable, V any] struct {
@@ -11,59 +16,76 @@ type entry[K comparable, V any] struct {
 	value V
 }
 
-func NewLRUCache[K comparable, V any](capacity int) *LRUCache[K, V] {
-	if capacity <= 0 {
+func NewLFUCache[K comparable, V any](capacity int) *LFUCache[K, V] {
+	return NewLFUCacheWithEvictionSize[K, V](capacity, DefaultEvictionSize)
+}
+
+func NewLFUCacheWithEvictionSize[K comparable, V any](capacity int, evictionSize int) *LFUCache[K, V] {
+	if capacity <= 1 {
 		panic("capacity must be greater than 0")
 	}
+	if evictionSize >= capacity {
+		panic("capacity must be greater than evictionSize")
+	}
 
-	return &LRUCache[K, V]{
-		capacity: capacity,
-		ll:       list.New(),
-		cache:    make(map[K]*list.Element),
+	return &LFUCache[K, V]{
+		capacity:     capacity,
+		evictionSize: evictionSize,
+		ll:           list.New(), // sorted from least to most frequent
+		cache:        make(map[K]*list.Element),
 	}
 }
 
-// Cache is an LRU cache. It is not safe for concurrent access.
-type LRUCache[K comparable, V any] struct {
-	capacity int
-	ll       *list.List // @TODO: build a custom list.List implementation
-	cache    map[K]*list.Element
+// Cache is an LFU cache. It is not safe for concurrent access.
+type LFUCache[K comparable, V any] struct {
+	capacity     int
+	evictionSize int
+	ll           *list.List // @TODO: build a custom list.List implementation
+	cache        map[K]*list.Element
 }
 
-var _ base.InMemoryCache[string, int] = (*LRUCache[string, int])(nil)
+var _ base.InMemoryCache[string, int] = (*LFUCache[string, int])(nil)
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Set(key K, value V) {
+func (c *LFUCache[K, V]) Set(key K, value V) {
 	if e, ok := c.cache[key]; ok {
-		c.ll.MoveToFront(e)
+		if e.Next() != nil {
+			c.ll.MoveAfter(e, e.Next())
+		}
 		e.Value.(*entry[K, V]).value = value
 		return
 	}
 
+	// pop front
+	if c.ll.Len() >= c.capacity {
+		for i := 0; i < c.evictionSize; i++ {
+			c.DeleteLeastFrequent()
+		}
+	}
+
 	e := c.ll.PushFront(&entry[K, V]{key, value})
 	c.cache[key] = e
-	if c.capacity != 0 && c.ll.Len() > c.capacity {
-		c.DeleteOldest()
-	}
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Has(key K) bool {
+func (c *LFUCache[K, V]) Has(key K) bool {
 	_, hit := c.cache[key]
 	return hit
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Get(key K) (value V, ok bool) {
+func (c *LFUCache[K, V]) Get(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
-		c.ll.MoveToFront(e)
+		if e.Next() != nil {
+			c.ll.MoveAfter(e, e.Next())
+		}
 		return e.Value.(*entry[K, V]).value, true
 	}
 	return value, false
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Peek(key K) (value V, ok bool) {
+func (c *LFUCache[K, V]) Peek(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
 		return e.Value.(*entry[K, V]).value, true
 	}
@@ -71,7 +93,7 @@ func (c *LRUCache[K, V]) Peek(key K) (value V, ok bool) {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Keys() []K {
+func (c *LFUCache[K, V]) Keys() []K {
 	all := make([]K, 0, c.ll.Len())
 	for k := range c.cache {
 		all = append(all, k)
@@ -80,7 +102,7 @@ func (c *LRUCache[K, V]) Keys() []K {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Values() []V {
+func (c *LFUCache[K, V]) Values() []V {
 	all := make([]V, 0, c.ll.Len())
 	for _, v := range c.cache {
 		all = append(all, v.Value.(*entry[K, V]).value)
@@ -89,7 +111,7 @@ func (c *LRUCache[K, V]) Values() []V {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Range(f func(K, V) bool) {
+func (c *LFUCache[K, V]) Range(f func(K, V) bool) {
 	for k, v := range c.cache {
 		if !f(k, v.Value.(*entry[K, V]).value) {
 			break
@@ -98,7 +120,7 @@ func (c *LRUCache[K, V]) Range(f func(K, V) bool) {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Delete(key K) bool {
+func (c *LFUCache[K, V]) Delete(key K) bool {
 	if e, hit := c.cache[key]; hit {
 		c.deleteElement(e)
 		return true
@@ -107,14 +129,20 @@ func (c *LRUCache[K, V]) Delete(key K) bool {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) SetMany(items map[K]V) {
+func (c *LFUCache[K, V]) Purge() {
+	c.ll = list.New()
+	c.cache = make(map[K]*list.Element)
+}
+
+// implements base.InMemoryCache
+func (c *LFUCache[K, V]) SetMany(items map[K]V) {
 	for k, v := range items {
 		c.Set(k, v)
 	}
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) HasMany(keys []K) map[K]bool {
+func (c *LFUCache[K, V]) HasMany(keys []K) map[K]bool {
 	m := make(map[K]bool, len(keys))
 	for _, k := range keys {
 		m[k] = c.Has(k)
@@ -123,7 +151,7 @@ func (c *LRUCache[K, V]) HasMany(keys []K) map[K]bool {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) GetMany(keys []K) (map[K]V, []K) {
+func (c *LFUCache[K, V]) GetMany(keys []K) (map[K]V, []K) {
 	m := make(map[K]V, len(keys))
 	var missing []K
 	for _, k := range keys {
@@ -137,7 +165,7 @@ func (c *LRUCache[K, V]) GetMany(keys []K) (map[K]V, []K) {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
+func (c *LFUCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
 	m := make(map[K]V, len(keys))
 	var missing []K
 	for _, k := range keys {
@@ -151,7 +179,7 @@ func (c *LRUCache[K, V]) PeekMany(keys []K) (map[K]V, []K) {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) DeleteMany(keys []K) map[K]bool {
+func (c *LFUCache[K, V]) DeleteMany(keys []K) map[K]bool {
 	m := make(map[K]bool, len(keys))
 	for _, k := range keys {
 		m[k] = c.Delete(k)
@@ -160,28 +188,22 @@ func (c *LRUCache[K, V]) DeleteMany(keys []K) map[K]bool {
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Purge() {
-	c.ll = list.New()
-	c.cache = make(map[K]*list.Element)
-}
-
-// implements base.InMemoryCache
-func (c *LRUCache[K, V]) Capacity() int {
+func (c *LFUCache[K, V]) Capacity() int {
 	return c.capacity
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Algorithm() string {
-	return "lru"
+func (c *LFUCache[K, V]) Algorithm() string {
+	return "lfu"
 }
 
 // implements base.InMemoryCache
-func (c *LRUCache[K, V]) Len() int {
+func (c *LFUCache[K, V]) Len() int {
 	return c.ll.Len()
 }
 
-func (c *LRUCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
-	e := c.ll.Back()
+func (c *LFUCache[K, V]) DeleteLeastFrequent() (k K, v V, ok bool) {
+	e := c.ll.Front()
 	if e != nil {
 		c.deleteElement(e)
 		return e.Value.(*entry[K, V]).key, e.Value.(*entry[K, V]).value, true
@@ -190,7 +212,7 @@ func (c *LRUCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 	return k, v, false
 }
 
-func (c *LRUCache[K, V]) deleteElement(e *list.Element) {
+func (c *LFUCache[K, V]) deleteElement(e *list.Element) {
 	c.ll.Remove(e)
 	kv := e.Value.(*entry[K, V])
 	delete(c.cache, kv.key)

@@ -1,8 +1,8 @@
 package twoqueue
 
 import (
-	"github.com/samber/hot/base"
-	"github.com/samber/hot/lru"
+	"github.com/samber/hot/pkg/base"
+	"github.com/samber/hot/pkg/lru"
 )
 
 const (

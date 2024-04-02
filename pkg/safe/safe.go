@@ -1,10 +1,12 @@
-package base
+package safe
 
 import (
 	"sync"
+
+	"github.com/samber/hot/pkg/base"
 )
 
-func NewSafeInMemoryCache[K comparable, V any](cache InMemoryCache[K, V]) InMemoryCache[K, V] {
+func NewSafeInMemoryCache[K comparable, V any](cache base.InMemoryCache[K, V]) base.InMemoryCache[K, V] {
 	return &SafeInMemoryCache[K, V]{
 		InMemoryCache: cache,
 		RWMutex:       sync.RWMutex{},
@@ -13,11 +15,11 @@ func NewSafeInMemoryCache[K comparable, V any](cache InMemoryCache[K, V]) InMemo
 
 // SafeInMemoryCache is a cache with safe concurrent access.
 type SafeInMemoryCache[K comparable, V any] struct {
-	InMemoryCache[K, V]
+	base.InMemoryCache[K, V]
 	sync.RWMutex
 }
 
-var _ InMemoryCache[string, int] = (*SafeInMemoryCache[string, int])(nil)
+var _ base.InMemoryCache[string, int] = (*SafeInMemoryCache[string, int])(nil)
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) Set(key K, value V) {

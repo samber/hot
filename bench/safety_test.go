@@ -3,8 +3,8 @@ package bench
 import (
 	"testing"
 
-	"github.com/samber/hot/base"
-	"github.com/samber/hot/lru"
+	"github.com/samber/hot/pkg/lru"
+	"github.com/samber/hot/pkg/safe"
 )
 
 func BenchmarkSetGetLRUUnsafe(b *testing.B) {
@@ -25,7 +25,7 @@ func BenchmarkSetGetLRUWrapped(b *testing.B) {
 }
 
 func BenchmarkSetGetLRUSafe(b *testing.B) {
-	cache := base.NewSafeInMemoryCache(lru.NewLRUCache[int, int](100))
+	cache := safe.NewSafeInMemoryCache(lru.NewLRUCache[int, int](100))
 	for n := 0; n < b.N; n++ {
 		cache.Set(n, n)
 		cache.Get(n)

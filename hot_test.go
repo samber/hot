@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/samber/go-singleflightx"
-	"github.com/samber/hot/base"
+	"github.com/samber/hot/pkg/safe"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,12 +18,12 @@ func TestNewHotCache(t *testing.T) {
 
 	// locking
 	cache := newHotCache(lru, false, nil, 0, 0, 0, nil, nil, nil, nil)
-	_, ok := cache.cache.(*base.SafeInMemoryCache[int, *item[int]])
+	_, ok := cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.False(ok)
 	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, nil, nil, nil, nil)
-	_, ok = cache.cache.(*base.SafeInMemoryCache[int, *item[int]])
+	_, ok = cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
-	_, ok = cache.missingCache.(*base.SafeInMemoryCache[int, *item[int]])
+	_, ok = cache.missingCache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
 
 	// ttl, stale, jitter

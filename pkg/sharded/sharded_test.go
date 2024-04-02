@@ -3,8 +3,8 @@ package sharded
 import (
 	"testing"
 
-	"github.com/samber/hot/base"
-	"github.com/samber/hot/lru"
+	"github.com/samber/hot/pkg/base"
+	"github.com/samber/hot/pkg/lru"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,7 +1,7 @@
 package bench
 
 import (
-	"github.com/samber/hot/base"
+	"github.com/samber/hot/pkg/base"
 )
 
 func newWrappedCache[K comparable, V any](cache base.InMemoryCache[K, V]) base.InMemoryCache[K, V] {
