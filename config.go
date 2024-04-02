@@ -7,6 +7,7 @@ import (
 	"github.com/samber/hot/base"
 	"github.com/samber/hot/lfu"
 	"github.com/samber/hot/lru"
+	"github.com/samber/hot/sharded"
 )
 
 type CacheAlgorithm int
@@ -18,8 +19,19 @@ const (
 	ARC
 )
 
-func newInternalCache[K comparable, V any](locking bool, algorithm CacheAlgorithm, capacity int) base.InMemoryCache[K, *item[V]] {
+func composeInternalCache[K comparable, V any](locking bool, algorithm CacheAlgorithm, capacity int, shards uint16, shardingFn sharded.Hasher[K]) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
+	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
+
+	if shards > 1 {
+		return sharded.NewShardedInMemoryCache(
+			shards,
+			func() base.InMemoryCache[K, *item[V]] {
+				return composeInternalCache[K, V](false, algorithm, capacity, 0, nil)
+			},
+			shardingFn,
+		)
+	}
 
 	var cache base.InMemoryCache[K, *item[V]]
 
@@ -68,6 +80,9 @@ type HotCacheConfig[K comparable, V any] struct {
 	stale  time.Duration
 	jitter float64
 
+	shards     uint16
+	shardingFn sharded.Hasher[K]
+
 	lockingDisabled bool
 	janitorEnabled  bool
 
@@ -113,6 +128,14 @@ func (cfg HotCacheConfig[K, V]) WithJitter(jitter float64) HotCacheConfig[K, V] 
 	return cfg
 }
 
+func (cfg HotCacheConfig[K, V]) WithSharding(nbr uint16, fn sharded.Hasher[K]) HotCacheConfig[K, V] {
+	assertValue(nbr > 1, "jitter must be greater than 1")
+
+	cfg.shards = nbr
+	cfg.shardingFn = fn
+	return cfg
+}
+
 func (cfg HotCacheConfig[K, V]) WithWarmUp(fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
 	cfg.warmUpFn = fn
 	return cfg
@@ -150,9 +173,9 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	// Using mutexMock is more performant for this lib when locking is enabled most of time.
 
 	hot := newHotCache(
-		newInternalCache[K, V](!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity),
+		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, cfg.shardingFn),
 		cfg.missingSharedCache,
-		newInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity),
+		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn),
 
 		cfg.ttl,
 		cfg.stale,

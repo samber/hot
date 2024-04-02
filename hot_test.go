@@ -13,8 +13,8 @@ import (
 func TestNewHotCache(t *testing.T) {
 	is := assert.New(t)
 
-	lru := newInternalCache[int, int](false, LRU, 42)
-	safeLru := newInternalCache[int, int](true, LRU, 42)
+	lru := composeInternalCache[int, int](false, LRU, 42, 0, nil)
+	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, nil)
 
 	// locking
 	cache := newHotCache(lru, false, nil, 0, 0, 0, nil, nil, nil, nil)

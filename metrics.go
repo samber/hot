@@ -51,6 +51,11 @@ type Metrics struct {
 	Hit  prometheus.Counter
 	Miss prometheus.Counter
 
+	// locks ?
+	// del ?
+	// range ?
+	// purge ?
+
 	Length prometheus.Gauge
 	Weight prometheus.Gauge
 
