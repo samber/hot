@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+//
+// This file aims to compare the performance of different implementations of internal stuff.
+// For example: time.Now() vs syscall.Gettimeofday(), or std linked list vs custom.
+//
+
 // go test -benchmem -benchtime=100000000x -bench=Time
 func BenchmarkTime(b *testing.B) {
 	b.Run("TimeGo", func(b *testing.B) {
