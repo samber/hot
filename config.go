@@ -11,16 +11,16 @@ import (
 	"github.com/samber/hot/pkg/twoqueue"
 )
 
-type CacheAlgorithm int
+type EvictionAlgorithm int
 
 const (
-	LRU CacheAlgorithm = iota
+	LRU EvictionAlgorithm = iota
 	LFU
 	TwoQueue
 	ARC
 )
 
-func composeInternalCache[K comparable, V any](locking bool, algorithm CacheAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K]) base.InMemoryCache[K, *item[V]] {
+func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K]) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
 	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
 
@@ -63,7 +63,7 @@ func assertValue(ok bool, msg string) {
 	}
 }
 
-func NewHotCache[K comparable, V any](algorithm CacheAlgorithm, capacity int) HotCacheConfig[K, V] {
+func NewHotCache[K comparable, V any](algorithm EvictionAlgorithm, capacity int) HotCacheConfig[K, V] {
 	return HotCacheConfig[K, V]{
 		cacheAlgo:     algorithm,
 		cacheCapacity: capacity,
@@ -71,10 +71,10 @@ func NewHotCache[K comparable, V any](algorithm CacheAlgorithm, capacity int) Ho
 }
 
 type HotCacheConfig[K comparable, V any] struct {
-	cacheAlgo            CacheAlgorithm
+	cacheAlgo            EvictionAlgorithm
 	cacheCapacity        int
 	missingSharedCache   bool
-	missingCacheAlgo     CacheAlgorithm
+	missingCacheAlgo     EvictionAlgorithm
 	missingCacheCapacity int
 
 	ttl    time.Duration
@@ -101,12 +101,13 @@ func (cfg HotCacheConfig[K, V]) WithMissingSharedCache() HotCacheConfig[K, V] {
 }
 
 // WithMissingCache enables cache of missing keys. The missing keys are stored in a separate cache.
-func (cfg HotCacheConfig[K, V]) WithMissingCache(algorithm CacheAlgorithm, capacity int) HotCacheConfig[K, V] {
+func (cfg HotCacheConfig[K, V]) WithMissingCache(algorithm EvictionAlgorithm, capacity int) HotCacheConfig[K, V] {
 	cfg.missingCacheAlgo = algorithm
 	cfg.missingCacheCapacity = capacity
 	return cfg
 }
 
+// WithTTL sets the time-to-live for cache entries.
 func (cfg HotCacheConfig[K, V]) WithTTL(ttl time.Duration) HotCacheConfig[K, V] {
 	assertValue(ttl >= 0, "ttl must be a positive value")
 
@@ -114,6 +115,9 @@ func (cfg HotCacheConfig[K, V]) WithTTL(ttl time.Duration) HotCacheConfig[K, V] 
 	return cfg
 }
 
+// WithRevalidation sets the time after which the cache entry is considered stale and needs to be revalidated.
+// Keys that are not fetched during the interval will be dropped anyway.
+// A timeout or error in loader will drop keys.
 func (cfg HotCacheConfig[K, V]) WithRevalidation(stale time.Duration, loaders ...Loader[K, V]) HotCacheConfig[K, V] {
 	assertValue(stale >= 0, "stale must be a positive value")
 
@@ -122,6 +126,7 @@ func (cfg HotCacheConfig[K, V]) WithRevalidation(stale time.Duration, loaders ..
 	return cfg
 }
 
+// WithJitter randomizes the TTL. It must be between 0 and 1.
 func (cfg HotCacheConfig[K, V]) WithJitter(jitter float64) HotCacheConfig[K, V] {
 	assertValue(jitter >= 0 && jitter < 1, "jitter must be between 0 and 1")
 
@@ -129,6 +134,7 @@ func (cfg HotCacheConfig[K, V]) WithJitter(jitter float64) HotCacheConfig[K, V] 
 	return cfg
 }
 
+// WithSharding enables cache sharding.
 func (cfg HotCacheConfig[K, V]) WithSharding(nbr uint64, fn sharded.Hasher[K]) HotCacheConfig[K, V] {
 	assertValue(nbr > 1, "jitter must be greater than 1")
 
@@ -137,31 +143,37 @@ func (cfg HotCacheConfig[K, V]) WithSharding(nbr uint64, fn sharded.Hasher[K]) H
 	return cfg
 }
 
+// WithWarmUp preloads the cache with the provided data.
 func (cfg HotCacheConfig[K, V]) WithWarmUp(fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
 	cfg.warmUpFn = fn
 	return cfg
 }
 
+// WithoutLocking disables mutex for the cache and improves internal performances.
 func (cfg HotCacheConfig[K, V]) WithoutLocking() HotCacheConfig[K, V] {
 	cfg.lockingDisabled = true
 	return cfg
 }
 
+// WithJanitor enables the cache janitor.
 func (cfg HotCacheConfig[K, V]) WithJanitor() HotCacheConfig[K, V] {
 	cfg.janitorEnabled = true
 	return cfg
 }
 
+// WithLoaders sets the chain of loaders to use for cache misses.
 func (cfg HotCacheConfig[K, V]) WithLoaders(loaders ...Loader[K, V]) HotCacheConfig[K, V] {
 	cfg.loaderFns = loaders
 	return cfg
 }
 
+// WithCopyOnRead sets the function to copy the value on read.
 func (cfg HotCacheConfig[K, V]) WithCopyOnRead(copyOnRead func(V) V) HotCacheConfig[K, V] {
 	cfg.copyOnRead = copyOnRead
 	return cfg
 }
 
+// WithCopyOnWrite sets the function to copy the value on write.
 func (cfg HotCacheConfig[K, V]) WithCopyOnWrite(copyOnWrite func(V) V) HotCacheConfig[K, V] {
 	cfg.copyOnWrite = copyOnWrite
 	return cfg

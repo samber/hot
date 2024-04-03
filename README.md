@@ -10,7 +10,7 @@
 [![Contributors](https://img.shields.io/github/contributors/samber/hot)](https://github.com/samber/hot/graphs/contributors)
 [![License](https://img.shields.io/github/license/samber/hot)](./LICENSE)
 
-**H**OT **O**bject **T**racker.
+**H**ot **O**bject **T**racker.
 
 A feature-complete and [blazing-fast](#🏎️-benchmark) caching library for Go.
 
@@ -45,15 +45,163 @@ No breaking changes will be made to exported APIs before v1.0.0.
 
 [GoDoc: https://godoc.org/github.com/samber/hot](https://godoc.org/github.com/samber/hot)
 
-// TODO
+### Simple LRU cache
+
+```go
+import "github.com/samber/hot"
+
+// Available eviction policies: hot.LRU, hot.LFU, hot.TwoQueue, hot.ARC
+// Capacity: 100k keys/values
+cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
+    Build()
+
+cache.Set("hello", 42)
+cache.SetMany(map[string]int{"foo": 1, "bar": 2})
+
+values, missing := cache.GetMany([]string{"bar", "baz", "hello"})
+// values: {"bar": 2, "hello": 42}
+// missing: ["baz"]
+
+value, found, _ := cache.Get("foo")
+// value: 1
+// found: true
+```
+
+### Cache with remote data source
+
+If a value is not available in the in-memory cache, it will be fetched from a database or any data source.
+
+Concurrent calls to loaders are deduplicated by key.
+
+```go
+import "github.com/samber/hot"
+
+cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
+    WithLoaders(func(keys []string) (found map[string]*User, err error) {
+        rows, err := db.Query("SELECT * FROM users WHERE id IN (?)", keys)
+        // ...
+        return users, err
+    }).
+    Build()
+
+user, found, err := cache.Get("user-123")
+// might fail if "user-123" is not in cache and loader returns error
+
+// get or create
+user, found, err := cache.GetWithCustomLoaders(
+    "user-123",
+    func(keys []string) (found map[string]*User, err error) {
+        rows, err := db.Query("SELECT * FROM users WHERE id IN (?)", keys)
+        // ...
+        return users, err
+    },
+    func(keys []string) (found map[string]*User, err error) {
+        rows, err := db.Query("INSERT INTO users (id, email) VALUES (?, ?)", id, email)
+        // ...
+        return users, err
+    },
+)
+// either `err` is not nil, or `found` is true
+```
+
+### Cache with expiration
+
+```go
+import "github.com/samber/hot"
+
+cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
+    WithTTL(1 * time.Minute).     // items will expire after 1 minute
+    WithJitter(0.2).              // optional: a 20% variation in cache expiration duration (48s to 72s)
+    WithJanitor(1 * time.Minute). // optional: background job will purge expired keys every minutes
+    Build()
+
+cache.SetWithTTL("foo", 42, 10*time.Second) // shorter TTL for "foo" key
+```
+
+With cache revalidation:
+
+```go
+loader := func(keys []string) (found map[string]*User, err error) {
+    rows, err := db.Query("SELECT * FROM users WHERE id IN (?)", keys)
+    // ...
+    return users, err
+}
+
+cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
+    WithTTL(1 * time.Minute).
+    // Keep delivering cache 5 more second, but refresh value in background.
+    // Keys that are not fetched during the interval will be dropped anyway.
+    // A timeout or error in loader will drop keys.
+    WithRevalidation(5 * time.Second, loader).
+    Build()
+```
+
+## 🍱 Spec
+
+```go
+hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
+    // enables cache of missing keys. The missing cache is shared with the main cache
+    WithMissingSharedCache().
+    // enables cache of missing keys. The missing keys are stored in a separate cache
+    WithMissingCache(algorithm hot.EvictionAlgorithm, capacity int).
+    // sets the time-to-live for cache entries
+    WithTTL(ttl time.Duration).
+    // sets the time after which the cache entry is considered stale and needs to be revalidated
+    // * keys that are not fetched during the interval will be dropped anyway
+    // * a timeout or error in loader will drop keys
+    WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V]).
+    // randomizes the TTL
+    WithJitter(jitter float64).
+    // enables cache sharding
+    WithSharding(nbr uint64, fn sharded.Hasher[K]).
+    // preloads the cache with the provided data
+    WithWarmUp(fn func() (map[K]V, []K, error)).
+    // disables mutex for the cache and improves internal performances
+    WithoutLocking().
+    // enables the cache janitor
+    WithJanitor().
+    // sets the chain of loaders to use for cache misses
+    WithLoaders(loaders ...hot.Loader[K, V]).
+    // sets the function to copy the value on read
+    WithCopyOnRead(copyOnRead func(V) V).
+    // sets the function to copy the value on write
+    WithCopyOnWrite(copyOnWrite func(V) V).
+    // returns a HotCache[K, V]
+    Build()
+```
+
+Available eviction algorithm:
+
+```go
+hot.LRU
+hot.LFU
+hot.TwoQueue
+hot.ARC
+```
+
+Loaders:
+
+```go
+func loader(keys []K) (found map[K]V, err error) {
+    // ...
+}
+```
+
+Shard partitioner:
+
+```go
+func hash(key K) uint64 {
+    // ...
+}
+```
 
 ## 🏛️ Architecture
 
 This project has been split into multiple layers to respect the separation of concern.
 
-Each cache layer implements the `pkg/base.InMemoryCache[K, V]` interface. Chaining multiple encapsulation has a minimal cost (~1ns per call), but is highly customizable.
+Each cache layer implements the `pkg/base.InMemoryCache[K, V]` interface. Combining multiple encapsulation has a small cost (~1ns per call), but offers great customization.
 
-This is highly recommended to use `hot.HotCache[K, V]` instead of lower layers.
+We highly recommended to use `hot.HotCache[K, V]` instead of lower layers.
 
 ### Eviction policies
 
@@ -151,11 +299,17 @@ cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
 ## 🏎️ Benchmark
 
 // TODO: copy here the benchmarks of bench/ directory
+
 // - compare libraries
+
 // - measure encapsulation cost
+
 // - measure lock cost
+
 // - measure ttl cost
+
 // - measure size.Of cost
+
 // - measure stats collection cost
 
 ## 🤝 Contributing
@@ -188,6 +342,6 @@ Give a ⭐️ if this project helped you!
 
 ## 📝 License
 
-Copyright © 2023 [Samuel Berthe](https://github.com/samber).
+Copyright © 2024 [Samuel Berthe](https://github.com/samber).
 
 This project is [MIT](./LICENSE) licensed.
