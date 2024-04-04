@@ -2,7 +2,7 @@
 # HOT - In-memory caching
 
 [![tag](https://img.shields.io/github/tag/samber/hot.svg)](https://github.com/samber/hot/releases)
-![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.21-%23007d9c)
+![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.22-%23007d9c)
 [![GoDoc](https://godoc.org/github.com/samber/hot?status.svg)](https://pkg.go.dev/github.com/samber/hot)
 ![Build Status](https://github.com/samber/hot/actions/workflows/test.yml/badge.svg)
 [![Go report](https://goreportcard.com/badge/github.com/samber/hot)](https://goreportcard.com/report/github.com/samber/hot)
@@ -39,7 +39,7 @@ go get github.com/samber/hot
 
 This library is v0 and follows SemVer strictly.
 
-No breaking changes will be made to exported APIs before v1.0.0.
+Some breaking changes might be made to exported APIs before v1.0.0.
 
 ## 🤠 Getting started
 
@@ -162,6 +162,12 @@ hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
     WithJanitor().
     // sets the chain of loaders to use for cache misses
     WithLoaders(loaders ...hot.Loader[K, V]).
+    // WithEvictionCallback sets the callback to be called when an entry is evicted from the cache.
+    // The callback is called synchronously and might block the cache operations if it is slow.
+    // This implementation choice is subject to change. Please open an issue to discuss.
+    WithEvictionCallback(func(key K, value V) {
+        // ...
+    }).
     // sets the function to copy the value on read
     WithCopyOnRead(copyOnRead func(V) V).
     // sets the function to copy the value on write
