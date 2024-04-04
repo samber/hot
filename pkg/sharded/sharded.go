@@ -1,6 +1,9 @@
 package sharded
 
-import "github.com/samber/hot/pkg/base"
+import (
+	"github.com/samber/hot/internal"
+	"github.com/samber/hot/pkg/base"
+)
 
 func NewShardedInMemoryCache[K comparable, V any](shards uint64, newCache func() base.InMemoryCache[K, V], fn Hasher[K]) base.InMemoryCache[K, V] {
 	caches := map[uint64]base.InMemoryCache[K, V]{}
@@ -17,6 +20,8 @@ func NewShardedInMemoryCache[K comparable, V any](shards uint64, newCache func()
 
 // ShardedInMemoryCache is a cache with safe concurrent access.
 type ShardedInMemoryCache[K comparable, V any] struct {
+	noCopy internal.NoCopy
+
 	shards uint64
 	fn     Hasher[K]
 	caches map[uint64]base.InMemoryCache[K, V]

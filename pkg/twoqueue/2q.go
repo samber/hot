@@ -1,6 +1,7 @@
 package twoqueue
 
 import (
+	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 	"github.com/samber/hot/pkg/lru"
 )
@@ -65,6 +66,8 @@ func New2QCacheWithRatio[K comparable, V any](capacity int, recentRatio, ghostRa
 // head.
 // TwoQueueCache is not safe for concurrent access.
 type TwoQueueCache[K comparable, V any] struct {
+	noCopy internal.NoCopy
+
 	capacity            int
 	recentCapacity      int
 	recentEvictCapacity int

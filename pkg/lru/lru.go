@@ -3,6 +3,7 @@ package lru
 import (
 	"container/list"
 
+	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 )
 
@@ -25,6 +26,8 @@ func NewLRUCache[K comparable, V any](capacity int) *LRUCache[K, V] {
 
 // Cache is an LRU cache. It is not safe for concurrent access.
 type LRUCache[K comparable, V any] struct {
+	noCopy internal.NoCopy
+
 	capacity int
 	ll       *list.List // @TODO: build a custom list.List implementation
 	cache    map[K]*list.Element

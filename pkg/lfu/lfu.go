@@ -3,6 +3,7 @@ package lfu
 import (
 	"container/list"
 
+	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 )
 
@@ -38,6 +39,8 @@ func NewLFUCacheWithEvictionSize[K comparable, V any](capacity int, evictionSize
 
 // Cache is an LFU cache. It is not safe for concurrent access.
 type LFUCache[K comparable, V any] struct {
+	noCopy internal.NoCopy
+
 	capacity     int
 	evictionSize int
 	ll           *list.List // @TODO: build a custom list.List implementation
