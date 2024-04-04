@@ -13,23 +13,23 @@ import (
 func TestNewHotCache(t *testing.T) {
 	is := assert.New(t)
 
-	lru := composeInternalCache[int, int](false, LRU, 42, 0, nil)
-	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, nil)
+	lru := composeInternalCache[int, int](false, LRU, 42, 0, nil, nil)
+	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, nil, nil)
 
 	// locking
-	cache := newHotCache(lru, false, nil, 0, 0, 0, nil, nil, nil, nil)
+	cache := newHotCache(lru, false, nil, 0, 0, 0, nil, nil, nil, nil, nil)
 	_, ok := cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.False(ok)
-	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, nil, nil, nil, nil)
+	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, nil, nil, nil, nil, nil)
 	_, ok = cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
 	_, ok = cache.missingCache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
 
 	// ttl, stale, jitter
-	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 0.1, nil, nil, nil, nil)
+	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 0.1, nil, nil, nil, nil, nil)
 	cache.metrics = nil
-	is.EqualValues(&HotCache[int, int]{nil, safeLru, false, nil, 42, 21, 0.1, nil, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.EqualValues(&HotCache[int, int]{nil, safeLru, false, nil, 42, 21, 0.1, nil, nil, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests

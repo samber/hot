@@ -35,7 +35,10 @@ func TestNewLFUCache(t *testing.T) {
 func TestSet(t *testing.T) {
 	is := assert.New(t)
 
-	cache := NewLFUCache[string, int](2)
+	evicted := 0
+	cache := NewLFUCacheWithEvictionCallback(2, func(k string, v int) {
+		evicted += v
+	})
 
 	cache.Set("a", 1)
 	is.Equal(1, cache.ll.Len())
@@ -43,6 +46,7 @@ func TestSet(t *testing.T) {
 	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
 	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
 	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Equal(0, evicted)
 
 	cache.Set("b", 2)
 	is.Equal(2, cache.ll.Len())
@@ -51,6 +55,7 @@ func TestSet(t *testing.T) {
 	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
 	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
 	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Equal(0, evicted)
 
 	cache.Set("b", 2)
 	is.Equal(2, cache.ll.Len())
@@ -59,6 +64,7 @@ func TestSet(t *testing.T) {
 	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
 	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
 	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Equal(0, evicted)
 
 	cache.Set("c", 3)
 	is.Equal(2, cache.ll.Len())
@@ -67,8 +73,11 @@ func TestSet(t *testing.T) {
 	is.EqualValues(&entry[string, int]{"c", 3}, cache.cache["c"].Value)
 	is.EqualValues(&entry[string, int]{"c", 3}, cache.ll.Front().Value)
 	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Equal(1, evicted)
 
-	cache = NewLFUCacheWithEvictionSize[string, int](3, 2)
+	cache = NewLFUCacheWithEvictionSizeAndCallback(3, 2, func(k string, v int) {
+		evicted += v
+	})
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 	cache.Set("c", 3)
@@ -79,6 +88,7 @@ func TestSet(t *testing.T) {
 	is.EqualValues(&entry[string, int]{"d", 4}, cache.cache["d"].Value)
 	is.Equal("d", cache.ll.Front().Value.(*entry[string, int]).key)
 	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal(6, evicted)
 }
 
 func TestHas(t *testing.T) {

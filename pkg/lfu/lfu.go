@@ -18,10 +18,18 @@ type entry[K comparable, V any] struct {
 }
 
 func NewLFUCache[K comparable, V any](capacity int) *LFUCache[K, V] {
-	return NewLFUCacheWithEvictionSize[K, V](capacity, DefaultEvictionSize)
+	return NewLFUCacheWithEvictionSizeAndCallback[K, V](capacity, DefaultEvictionSize, nil)
+}
+
+func NewLFUCacheWithEvictionCallback[K comparable, V any](capacity int, onEviction base.EvictionCallback[K, V]) *LFUCache[K, V] {
+	return NewLFUCacheWithEvictionSizeAndCallback[K, V](capacity, DefaultEvictionSize, onEviction)
 }
 
 func NewLFUCacheWithEvictionSize[K comparable, V any](capacity int, evictionSize int) *LFUCache[K, V] {
+	return NewLFUCacheWithEvictionSizeAndCallback[K, V](capacity, evictionSize, nil)
+}
+
+func NewLFUCacheWithEvictionSizeAndCallback[K comparable, V any](capacity int, evictionSize int, onEviction base.EvictionCallback[K, V]) *LFUCache[K, V] {
 	if capacity <= 1 {
 		panic("capacity must be greater than 0")
 	}
@@ -34,6 +42,8 @@ func NewLFUCacheWithEvictionSize[K comparable, V any](capacity int, evictionSize
 		evictionSize: evictionSize,
 		ll:           list.New(), // sorted from least to most frequent
 		cache:        make(map[K]*list.Element),
+
+		onEviction: onEviction,
 	}
 }
 
@@ -45,6 +55,8 @@ type LFUCache[K comparable, V any] struct {
 	evictionSize int
 	ll           *list.List // @TODO: build a custom list.List implementation
 	cache        map[K]*list.Element
+
+	onEviction base.EvictionCallback[K, V]
 }
 
 var _ base.InMemoryCache[string, int] = (*LFUCache[string, int])(nil)
@@ -62,7 +74,10 @@ func (c *LFUCache[K, V]) Set(key K, value V) {
 	// pop front
 	if c.ll.Len() >= c.capacity {
 		for i := 0; i < c.evictionSize; i++ {
-			c.DeleteLeastFrequent()
+			k, v, ok := c.DeleteLeastFrequent()
+			if ok && c.onEviction != nil {
+				c.onEviction(k, v)
+			}
 		}
 	}
 

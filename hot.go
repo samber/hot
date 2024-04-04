@@ -22,6 +22,7 @@ func newHotCache[K comparable, V any](
 
 	loaderFns LoaderChain[K, V],
 	revalidationLoaderFns LoaderChain[K, V],
+	onEviction base.EvictionCallback[K, V],
 	copyOnRead func(V) V,
 	copyOnWrite func(V) V,
 ) *HotCache[K, V] {
@@ -37,6 +38,7 @@ func newHotCache[K comparable, V any](
 
 		loaderFns:             loaderFns,
 		revalidationLoaderFns: revalidationLoaderFns,
+		onEviction:            onEviction,
 		copyOnRead:            copyOnRead,
 		copyOnWrite:           copyOnWrite,
 
@@ -59,6 +61,7 @@ type HotCache[K comparable, V any] struct {
 
 	loaderFns             LoaderChain[K, V]
 	revalidationLoaderFns LoaderChain[K, V]
+	onEviction            base.EvictionCallback[K, V]
 	copyOnRead            func(V) V
 	copyOnWrite           func(V) V
 
@@ -457,24 +460,48 @@ func (c *HotCache[K, V]) Janitor() {
 
 			{
 				toDelete := []K{}
+				toDeleteKV := map[K]V{}
 				c.cache.Range(func(k K, v *item[V]) bool {
 					if v.isExpired(nowMicro) {
 						toDelete = append(toDelete, k)
+						if c.onEviction != nil {
+							toDeleteKV[k] = v.value
+						}
 					}
 					return true
 				})
-				c.cache.DeleteMany(toDelete)
+
+				deleted := c.cache.DeleteMany(toDelete)
+				if c.onEviction != nil {
+					for k, ok := range deleted {
+						if ok {
+							c.onEviction(k, toDeleteKV[k])
+						}
+					}
+				}
 			}
 
 			if c.missingCache != nil {
 				toDelete := []K{}
+				toDeleteKV := map[K]V{}
 				c.missingCache.Range(func(k K, v *item[V]) bool {
 					if v.isExpired(nowMicro) {
 						toDelete = append(toDelete, k)
+						if c.onEviction != nil {
+							toDeleteKV[k] = v.value
+						}
 					}
 					return true
 				})
-				c.missingCache.DeleteMany(toDelete)
+
+				deleted := c.missingCache.DeleteMany(toDelete)
+				if c.onEviction != nil {
+					for k, ok := range deleted {
+						if ok {
+							c.onEviction(k, toDeleteKV[k])
+						}
+					}
+				}
 			}
 		}
 	}()
@@ -558,7 +585,10 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 			return item, item.shouldRevalidate(nowMicro), true
 		}
 
-		c.cache.Delete(key)
+		ok := c.cache.Delete(key)
+		if ok && c.onEviction != nil {
+			c.onEviction(key, item.value)
+		}
 	}
 
 	if c.missingCache != nil {
@@ -568,7 +598,10 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 				return item, item.shouldRevalidate(nowMicro), true
 			}
 
-			c.missingCache.Delete(key)
+			ok := c.missingCache.Delete(key)
+			if ok && c.onEviction != nil {
+				c.onEviction(key, item.value)
+			}
 		}
 	}
 
@@ -584,6 +617,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 
 	toDeleteCache := []K{}
 	toDeleteMissingCache := []K{}
+	onEvictKV := map[K]V{}
 
 	tmp, keys := c.cache.GetMany(keys)
 	for k, v := range tmp {
@@ -596,11 +630,21 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 		}
 
 		toDeleteCache = append(toDeleteCache, k)
+		if c.onEviction != nil {
+			onEvictKV[k] = v.value
+		}
 	}
 
 	if len(toDeleteCache) > 0 {
 		// @TODO: should be done in a single call to avoid multiple locks
-		c.cache.DeleteMany(toDeleteCache)
+		deleted := c.cache.DeleteMany(toDeleteCache)
+		if c.onEviction != nil {
+			for k, ok := range deleted {
+				if ok {
+					c.onEviction(k, onEvictKV[k])
+				}
+			}
+		}
 	}
 
 	if c.missingCache != nil {
@@ -615,11 +659,21 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 			}
 
 			toDeleteMissingCache = append(toDeleteMissingCache, k)
+			if c.onEviction != nil {
+				onEvictKV[k] = v.value
+			}
 		}
 
 		if len(toDeleteMissingCache) > 0 {
 			// @TODO: should be done in a single call to avoid multiple locks
-			c.missingCache.DeleteMany(toDeleteMissingCache)
+			deleted := c.missingCache.DeleteMany(toDeleteMissingCache)
+			if c.onEviction != nil {
+				for k, ok := range deleted {
+					if ok {
+						c.onEviction(k, onEvictKV[k])
+					}
+				}
+			}
 		}
 	}
 

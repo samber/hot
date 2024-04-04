@@ -13,6 +13,10 @@ type entry[K comparable, V any] struct {
 }
 
 func NewLRUCache[K comparable, V any](capacity int) *LRUCache[K, V] {
+	return NewLRUCacheWithEvictionCallback[K, V](capacity, nil)
+}
+
+func NewLRUCacheWithEvictionCallback[K comparable, V any](capacity int, onEviction base.EvictionCallback[K, V]) *LRUCache[K, V] {
 	if capacity <= 0 {
 		panic("capacity must be greater than 0")
 	}
@@ -21,6 +25,8 @@ func NewLRUCache[K comparable, V any](capacity int) *LRUCache[K, V] {
 		capacity: capacity,
 		ll:       list.New(),
 		cache:    make(map[K]*list.Element),
+
+		onEviction: onEviction,
 	}
 }
 
@@ -31,6 +37,8 @@ type LRUCache[K comparable, V any] struct {
 	capacity int
 	ll       *list.List // @TODO: build a custom list.List implementation
 	cache    map[K]*list.Element
+
+	onEviction base.EvictionCallback[K, V]
 }
 
 var _ base.InMemoryCache[string, int] = (*LRUCache[string, int])(nil)
@@ -46,7 +54,10 @@ func (c *LRUCache[K, V]) Set(key K, value V) {
 	e := c.ll.PushFront(&entry[K, V]{key, value})
 	c.cache[key] = e
 	if c.capacity != 0 && c.ll.Len() > c.capacity {
-		c.DeleteOldest()
+		k, v, ok := c.DeleteOldest()
+		if ok && c.onEviction != nil {
+			c.onEviction(k, v)
+		}
 	}
 }
 

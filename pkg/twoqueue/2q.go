@@ -17,14 +17,18 @@ const (
 )
 
 func New2QCache[K comparable, V any](capacity int) *TwoQueueCache[K, V] {
-	if capacity <= 0 {
-		panic("capacity must be greater than 0")
-	}
+	return New2QCacheWithRatioAndEvictionCallback[K, V](capacity, Default2QRecentRatio, Default2QGhostEntries, nil)
+}
 
-	return New2QCacheWithRatio[K, V](capacity, Default2QRecentRatio, Default2QGhostEntries)
+func New2QCacheWithEvictionCallback[K comparable, V any](capacity int, onEviction base.EvictionCallback[K, V]) *TwoQueueCache[K, V] {
+	return New2QCacheWithRatioAndEvictionCallback[K, V](capacity, Default2QRecentRatio, Default2QGhostEntries, onEviction)
 }
 
 func New2QCacheWithRatio[K comparable, V any](capacity int, recentRatio, ghostRatio float64) *TwoQueueCache[K, V] {
+	return New2QCacheWithRatioAndEvictionCallback[K, V](capacity, recentRatio, ghostRatio, nil)
+}
+
+func New2QCacheWithRatioAndEvictionCallback[K comparable, V any](capacity int, recentRatio, ghostRatio float64, onEviction base.EvictionCallback[K, V]) *TwoQueueCache[K, V] {
 	if capacity <= 0 {
 		panic("capacity must be greater than 0")
 	}
@@ -54,6 +58,8 @@ func New2QCacheWithRatio[K comparable, V any](capacity int, recentRatio, ghostRa
 		recent:      recent,
 		frequent:    frequent,
 		recentEvict: recentEvict,
+
+		onEviction: onEviction,
 	}
 }
 
@@ -78,6 +84,8 @@ type TwoQueueCache[K comparable, V any] struct {
 	recent      *lru.LRUCache[K, V]        // @TODO: build a custom FIFO implementation
 	frequent    *lru.LRUCache[K, V]        // @TODO: build a custom list.List implementation
 	recentEvict *lru.LRUCache[K, struct{}] // @TODO: build a custom FIFO implementation
+
+	onEviction base.EvictionCallback[K, V]
 }
 
 var _ base.InMemoryCache[string, int] = (*TwoQueueCache[string, int])(nil)
@@ -260,7 +268,11 @@ func (c *TwoQueueCache[K, V]) ensureSpace(recentEvict bool) {
 	// If the recent buffer is larger than
 	// the target, evict from there
 	if recentLen > 0 && (recentLen > c.recentCapacity || (recentLen == c.recentCapacity && !recentEvict)) {
-		k, _, _ := c.recent.DeleteOldest()
+		k, v, ok := c.recent.DeleteOldest()
+		if ok && c.onEviction != nil {
+			c.onEviction(k, v)
+		}
+
 		c.recentEvict.Set(k, struct{}{})
 		return
 	}

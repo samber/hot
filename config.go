@@ -20,7 +20,7 @@ const (
 	ARC
 )
 
-func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K]) base.InMemoryCache[K, *item[V]] {
+func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K], onEviction base.EvictionCallback[K, V]) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
 	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
 
@@ -28,7 +28,7 @@ func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionA
 		return sharded.NewShardedInMemoryCache(
 			shards,
 			func() base.InMemoryCache[K, *item[V]] {
-				return composeInternalCache[K, V](false, algorithm, capacity, 0, nil)
+				return composeInternalCache[K, V](false, algorithm, capacity, 0, nil, onEviction)
 			},
 			shardingFn,
 		)
@@ -36,13 +36,20 @@ func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionA
 
 	var cache base.InMemoryCache[K, *item[V]]
 
+	var onItemEviction base.EvictionCallback[K, *item[V]]
+	if onEviction != nil {
+		onItemEviction = func(key K, value *item[V]) {
+			onEviction(key, value.value)
+		}
+	}
+
 	switch algorithm {
 	case LRU:
-		cache = lru.NewLRUCache[K, *item[V]](capacity)
+		cache = lru.NewLRUCacheWithEvictionCallback[K, *item[V]](capacity, onItemEviction)
 	case LFU:
-		cache = lfu.NewLFUCache[K, *item[V]](capacity)
+		cache = lfu.NewLFUCacheWithEvictionCallback[K, *item[V]](capacity, onItemEviction)
 	case TwoQueue:
-		cache = twoqueue.New2QCache[K, *item[V]](capacity)
+		cache = twoqueue.New2QCacheWithEvictionCallback[K, *item[V]](capacity, onItemEviction)
 	case ARC:
 		panic("ARC is not implemented yet")
 		// return arc.NewARC(capacity)
@@ -90,6 +97,7 @@ type HotCacheConfig[K comparable, V any] struct {
 	warmUpFn              func() (map[K]V, []K, error)
 	loaderFns             LoaderChain[K, V]
 	revalidationLoaderFns LoaderChain[K, V]
+	onEviction            base.EvictionCallback[K, V]
 	copyOnRead            func(V) V
 	copyOnWrite           func(V) V
 }
@@ -167,6 +175,14 @@ func (cfg HotCacheConfig[K, V]) WithLoaders(loaders ...Loader[K, V]) HotCacheCon
 	return cfg
 }
 
+// WithEvictionCallback sets the callback to be called when an entry is evicted from the cache.
+// The callback is called synchronously and might block the cache operations if it is slow.
+// This implementation choice is subject to change. Please open an issue to discuss.
+func (cfg HotCacheConfig[K, V]) WithEvictionCallback(onEviction base.EvictionCallback[K, V]) HotCacheConfig[K, V] {
+	cfg.onEviction = onEviction
+	return cfg
+}
+
 // WithCopyOnRead sets the function to copy the value on read.
 func (cfg HotCacheConfig[K, V]) WithCopyOnRead(copyOnRead func(V) V) HotCacheConfig[K, V] {
 	cfg.copyOnRead = copyOnRead
@@ -186,9 +202,9 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	// Using mutexMock is more performant for this lib when locking is enabled most of time.
 
 	hot := newHotCache(
-		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, cfg.shardingFn),
+		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction),
 		cfg.missingSharedCache,
-		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn),
+		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction),
 
 		cfg.ttl,
 		cfg.stale,
@@ -196,6 +212,7 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 
 		cfg.loaderFns,
 		cfg.revalidationLoaderFns,
+		cfg.onEviction,
 		cfg.copyOnRead,
 		cfg.copyOnWrite,
 	)
