@@ -139,6 +139,8 @@ cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
     Build()
 ```
 
+If WithRevalidation is used without loaders, the one provided in `WithRevalidation()` or `GetWithCustomLoaders()` is used.
+
 ## 🍱 Spec
 
 ```go
@@ -152,6 +154,7 @@ hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
     // Sets the time after which the cache entry is considered stale and needs to be revalidated
     // * keys that are not fetched during the interval will be dropped anyway
     // * a timeout or error in loader will drop keys.
+    // If no revalidation loader is added, the default loaders or the one used in GetWithCustomLoaders() are used.
     WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V]).
     // Sets the policy to apply when a revalidation loader returns an error.
     // By default, the key is dropped from the cache.
