@@ -133,6 +133,9 @@ cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
     // Keys that are not fetched during the interval will be dropped anyway.
     // A timeout or error in loader will drop keys.
     WithRevalidation(5 * time.Second, loader).
+    // On revalidation error, the cache entries are either kept or dropped.
+    // Optional (default: drop)
+    WithRevalidationErrorPolicy(hot.KeepOnError).
     Build()
 ```
 
@@ -140,39 +143,40 @@ cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
 
 ```go
 hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
-    // enables cache of missing keys. The missing cache is shared with the main cache
+    // Enables cache of missing keys. The missing cache is shared with the main cache.
     WithMissingSharedCache().
-    // enables cache of missing keys. The missing keys are stored in a separate cache
+    // Enables cache of missing keys. The missing keys are stored in a separate cache.
     WithMissingCache(algorithm hot.EvictionAlgorithm, capacity int).
-    // sets the time-to-live for cache entries
+    // Sets the time-to-live for cache entries
     WithTTL(ttl time.Duration).
-    // sets the time after which the cache entry is considered stale and needs to be revalidated
+    // Sets the time after which the cache entry is considered stale and needs to be revalidated
     // * keys that are not fetched during the interval will be dropped anyway
-    // * a timeout or error in loader will drop keys
+    // * a timeout or error in loader will drop keys.
     WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V]).
-    // randomizes the TTL
+    // Sets the policy to apply when a revalidation loader returns an error.
+    // By default, the key is dropped from the cache.
+    WithRevalidationErrorPolicy(policy revalidationErrorPolicy).
+    // Randomizes the TTL.
     WithJitter(jitter float64).
-    // enables cache sharding
+    // Enables cache sharding.
     WithSharding(nbr uint64, fn sharded.Hasher[K]).
-    // preloads the cache with the provided data
+    // Preloads the cache with the provided data.
     WithWarmUp(fn func() (map[K]V, []K, error)).
-    // disables mutex for the cache and improves internal performances
+    // Disables mutex for the cache and improves internal performances.
     WithoutLocking().
-    // enables the cache janitor
+    // Enables the cache janitor.
     WithJanitor().
-    // sets the chain of loaders to use for cache misses
+    // Sets the chain of loaders to use for cache misses.
     WithLoaders(loaders ...hot.Loader[K, V]).
-    // WithEvictionCallback sets the callback to be called when an entry is evicted from the cache.
+    // Sets the callback to be called when an entry is evicted from the cache.
     // The callback is called synchronously and might block the cache operations if it is slow.
     // This implementation choice is subject to change. Please open an issue to discuss.
-    WithEvictionCallback(func(key K, value V) {
-        // ...
-    }).
-    // sets the function to copy the value on read
+    WithEvictionCallback(hook func(key K, value V)).
+    // Sets the function to copy the value on read.
     WithCopyOnRead(copyOnRead func(V) V).
-    // sets the function to copy the value on write
+    // Sets the function to copy the value on write.
     WithCopyOnWrite(copyOnWrite func(V) V).
-    // returns a HotCache[K, V]
+    // Returns a HotCache[K, V].
     Build()
 ```
 
@@ -207,7 +211,7 @@ This project has been split into multiple layers to respect the separation of co
 
 Each cache layer implements the `pkg/base.InMemoryCache[K, V]` interface. Combining multiple encapsulation has a small cost (~1ns per call), but offers great customization.
 
-We highly recommended to use `hot.HotCache[K, V]` instead of lower layers.
+We highly recommend using `hot.HotCache[K, V]` instead of lower layers.
 
 ### Eviction policies
 

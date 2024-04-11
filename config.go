@@ -20,6 +20,13 @@ const (
 	ARC
 )
 
+type revalidationErrorPolicy int
+
+const (
+	DropOnError revalidationErrorPolicy = iota
+	KeepOnError
+)
+
 func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K], onEviction base.EvictionCallback[K, V]) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
 	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
@@ -94,12 +101,13 @@ type HotCacheConfig[K comparable, V any] struct {
 	lockingDisabled bool
 	janitorEnabled  bool
 
-	warmUpFn              func() (map[K]V, []K, error)
-	loaderFns             LoaderChain[K, V]
-	revalidationLoaderFns LoaderChain[K, V]
-	onEviction            base.EvictionCallback[K, V]
-	copyOnRead            func(V) V
-	copyOnWrite           func(V) V
+	warmUpFn                func() (map[K]V, []K, error)
+	loaderFns               LoaderChain[K, V]
+	revalidationLoaderFns   LoaderChain[K, V]
+	revalidationErrorPolicy revalidationErrorPolicy
+	onEviction              base.EvictionCallback[K, V]
+	copyOnRead              func(V) V
+	copyOnWrite             func(V) V
 }
 
 // WithMissingSharedCache enables cache of missing keys. The missing cache is shared with the main cache.
@@ -131,6 +139,13 @@ func (cfg HotCacheConfig[K, V]) WithRevalidation(stale time.Duration, loaders ..
 
 	cfg.stale = stale
 	cfg.revalidationLoaderFns = loaders
+	return cfg
+}
+
+// WithRevalidationErrorPolicy sets the policy to apply when a revalidation loader returns an error.
+// By default, the key is dropped from the cache.
+func (cfg HotCacheConfig[K, V]) WithRevalidationErrorPolicy(policy revalidationErrorPolicy) HotCacheConfig[K, V] {
+	cfg.revalidationErrorPolicy = policy
 	return cfg
 }
 
@@ -212,6 +227,7 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 
 		cfg.loaderFns,
 		cfg.revalidationLoaderFns,
+		cfg.revalidationErrorPolicy,
 		cfg.onEviction,
 		cfg.copyOnRead,
 		cfg.copyOnWrite,

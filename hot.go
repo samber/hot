@@ -6,6 +6,7 @@ import (
 	"github.com/samber/go-singleflightx"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
+	"github.com/samber/hot/pkg/metrics"
 )
 
 // Revalidation is done in batch,.
@@ -22,6 +23,7 @@ func newHotCache[K comparable, V any](
 
 	loaderFns LoaderChain[K, V],
 	revalidationLoaderFns LoaderChain[K, V],
+	revalidationErrorPolicy revalidationErrorPolicy,
 	onEviction base.EvictionCallback[K, V],
 	copyOnRead func(V) V,
 	copyOnWrite func(V) V,
@@ -36,14 +38,15 @@ func newHotCache[K comparable, V any](
 		staleMicro: stale.Microseconds(),
 		jitter:     jitter,
 
-		loaderFns:             loaderFns,
-		revalidationLoaderFns: revalidationLoaderFns,
-		onEviction:            onEviction,
-		copyOnRead:            copyOnRead,
-		copyOnWrite:           copyOnWrite,
+		loaderFns:               loaderFns,
+		revalidationLoaderFns:   revalidationLoaderFns,
+		revalidationErrorPolicy: revalidationErrorPolicy,
+		onEviction:              onEviction,
+		copyOnRead:              copyOnRead,
+		copyOnWrite:             copyOnWrite,
 
 		group:   singleflightx.Group[K, V]{},
-		metrics: NewMetrics(ttl, jitter, stale),
+		metrics: metrics.NewMetrics(ttl, jitter, stale),
 	}
 }
 
@@ -59,14 +62,15 @@ type HotCache[K comparable, V any] struct {
 	staleMicro int64
 	jitter     float64
 
-	loaderFns             LoaderChain[K, V]
-	revalidationLoaderFns LoaderChain[K, V]
-	onEviction            base.EvictionCallback[K, V]
-	copyOnRead            func(V) V
-	copyOnWrite           func(V) V
+	loaderFns               LoaderChain[K, V]
+	revalidationLoaderFns   LoaderChain[K, V]
+	revalidationErrorPolicy revalidationErrorPolicy
+	onEviction              base.EvictionCallback[K, V]
+	copyOnRead              func(V) V
+	copyOnWrite             func(V) V
 
 	group   singleflightx.Group[K, V]
-	metrics *Metrics
+	metrics *metrics.Metrics
 }
 
 // Set adds a value to the cache. If the key already exists, its value is updated. It uses the default ttl or none.
@@ -190,7 +194,7 @@ func (c *HotCache[K, V]) GetWithCustomLoaders(key K, customLoaders LoaderChain[K
 
 	if found {
 		if revalidate {
-			go c.revalidate([]K{key})
+			go c.revalidate(map[K]*item[V]{key: cached})
 		}
 
 		if cached.hasValue && c.copyOnRead != nil {
@@ -608,12 +612,12 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 	return nil, false, false
 }
 
-func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing []K, revalidate []K) {
+func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing []K, revalidate map[K]*item[V]) {
 	nowMicro := internal.NowMicro()
 
 	cached = make(map[K]*item[V])
 	missing = []K{}
-	revalidate = []K{}
+	revalidate = make(map[K]*item[V])
 
 	toDeleteCache := []K{}
 	toDeleteMissingCache := []K{}
@@ -624,7 +628,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 		if !v.isExpired(nowMicro) {
 			cached[k] = v
 			if v.shouldRevalidate(nowMicro) {
-				revalidate = append(revalidate, k)
+				revalidate[k] = v
 			}
 			continue
 		}
@@ -653,7 +657,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 			if !v.isExpired(nowMicro) {
 				cached[k] = v
 				if v.shouldRevalidate(nowMicro) {
-					revalidate = append(revalidate, k)
+					revalidate[k] = v
 				}
 				continue
 			}
@@ -734,9 +738,14 @@ func (c *HotCache[K, V]) loadAndSetMany(keys []K, loaders LoaderChain[K, V]) (ma
 	return output, nil
 }
 
-func (c *HotCache[K, V]) revalidate(keys []K) {
-	if len(keys) == 0 {
+func (c *HotCache[K, V]) revalidate(items map[K]*item[V]) {
+	if len(items) == 0 {
 		return
+	}
+
+	keys := []K{}
+	for k := range items {
+		keys = append(keys, k)
 	}
 
 	loaders := c.loaderFns
@@ -746,5 +755,19 @@ func (c *HotCache[K, V]) revalidate(keys []K) {
 
 	// @TODO: we might be fetching keys one by one, which is not efficient.
 	// We should batch the keys and fetch them after a short delay.
-	_, _ = c.loadAndSetMany(keys, loaders)
+	_, err := c.loadAndSetMany(keys, loaders)
+	if err != nil && c.revalidationErrorPolicy == KeepOnError {
+		valid := map[K]V{}
+		missing := []K{}
+
+		for k, v := range items {
+			if v.hasValue {
+				valid[k] = v.value
+			} else {
+				missing = append(missing, k)
+			}
+		}
+
+		c.setManyUnsafe(valid, missing, c.ttlMicro)
+	}
 }

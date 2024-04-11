@@ -1,4 +1,4 @@
-package hot
+package metrics
 
 import (
 	"time"
@@ -9,7 +9,7 @@ import (
 func NewMetrics(ttl time.Duration, jitter float64, stale time.Duration) *Metrics {
 	metrics := &Metrics{
 		Insertion: prometheus.NewCounter(prometheus.CounterOpts{Name: "cache_insertion_total"}),
-		Eviction:  prometheus.NewCounter(prometheus.CounterOpts{Name: "cache_eviction_total"}),
+		Eviction:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "cache_eviction_total"}, []string{"reason"}),
 
 		Hit:  prometheus.NewCounter(prometheus.CounterOpts{Name: "cache_hit_total"}),
 		Miss: prometheus.NewCounter(prometheus.CounterOpts{Name: "cache_miss_total"}),
@@ -46,7 +46,7 @@ func NewMetrics(ttl time.Duration, jitter float64, stale time.Duration) *Metrics
 // @TODO: weight should be diplicated in order to include *item[V] weight
 type Metrics struct {
 	Insertion prometheus.Counter
-	Eviction  prometheus.Counter
+	Eviction  *prometheus.CounterVec
 
 	Hit  prometheus.Counter
 	Miss prometheus.Counter
