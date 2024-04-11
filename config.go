@@ -134,7 +134,7 @@ func (cfg HotCacheConfig[K, V]) WithTTL(ttl time.Duration) HotCacheConfig[K, V] 
 // WithRevalidation sets the time after which the cache entry is considered stale and needs to be revalidated.
 // Keys that are not fetched during the interval will be dropped anyway.
 // A timeout or error in loader will drop keys.
-// If no revalidation loader is added, the default loaders or the one used in GetWithCustomLoaders() are used.
+// If no revalidation loader is added, the default loaders or the one used in GetWithLoaders() are used.
 func (cfg HotCacheConfig[K, V]) WithRevalidation(stale time.Duration, loaders ...Loader[K, V]) HotCacheConfig[K, V] {
 	assertValue(stale >= 0, "stale must be a positive value")
 

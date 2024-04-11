@@ -88,7 +88,7 @@ user, found, err := cache.Get("user-123")
 // might fail if "user-123" is not in cache and loader returns error
 
 // get or create
-user, found, err := cache.GetWithCustomLoaders(
+user, found, err := cache.GetWithLoaders(
     "user-123",
     func(keys []string) (found map[string]*User, err error) {
         rows, err := db.Query("SELECT * FROM users WHERE id IN (?)", keys)
@@ -139,7 +139,7 @@ cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
     Build()
 ```
 
-If WithRevalidation is used without loaders, the one provided in `WithRevalidation()` or `GetWithCustomLoaders()` is used.
+If WithRevalidation is used without loaders, the one provided in `WithRevalidation()` or `GetWithLoaders()` is used.
 
 ## 🍱 Spec
 
@@ -154,7 +154,7 @@ hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
     // Sets the time after which the cache entry is considered stale and needs to be revalidated
     // * keys that are not fetched during the interval will be dropped anyway
     // * a timeout or error in loader will drop keys.
-    // If no revalidation loader is added, the default loaders or the one used in GetWithCustomLoaders() are used.
+    // If no revalidation loader is added, the default loaders or the one used in GetWithLoaders() are used.
     WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V]).
     // Sets the policy to apply when a revalidation loader returns an error.
     // By default, the key is dropped from the cache.

@@ -687,13 +687,13 @@ func TestHotCache_Get(t *testing.T) {
 	is.Equal(3, loaded)
 }
 
-// func TestHotCache_GetWithCustomLoaders(t *testing.T) {
+// func TestHotCache_GetWithLoaders(t *testing.T) {
 // }
 
 // func TestHotCache_GetMany(t *testing.T) {
 // }
 
-// func TestHotCache_GetManyWithCustomLoaders(t *testing.T) {
+// func TestHotCache_GetManyWithLoaders(t *testing.T) {
 // }
 
 func TestHotCache_Peek(t *testing.T) {

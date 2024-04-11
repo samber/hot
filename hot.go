@@ -174,7 +174,7 @@ func (c *HotCache[K, V]) HasMany(keys []K) map[K]bool {
 
 // Get returns a value from the cache, a boolean indicating whether the key was found and an error when loaders fail.
 func (c *HotCache[K, V]) Get(key K) (value V, found bool, err error) {
-	return c.GetWithCustomLoaders(key, c.loaderFns)
+	return c.GetWithLoaders(key, c.loaderFns...)
 }
 
 // MustGet returns a value from the cache, a boolean indicating whether the key was found. It panics when loaders fail.
@@ -187,14 +187,14 @@ func (c *HotCache[K, V]) MustGet(key K) (value V, found bool) {
 	return value, found
 }
 
-// GetWithCustomLoaders returns a value from the cache, a boolean indicating whether the key was found and an error when loaders fail.
-func (c *HotCache[K, V]) GetWithCustomLoaders(key K, customLoaders LoaderChain[K, V]) (value V, found bool, err error) {
+// GetWithLoaders returns a value from the cache, a boolean indicating whether the key was found and an error when loaders fail.
+func (c *HotCache[K, V]) GetWithLoaders(key K, Loaders ...Loader[K, V]) (value V, found bool, err error) {
 	// the item might be found, but without value
 	cached, revalidate, found := c.getUnsafe(key)
 
 	if found {
 		if revalidate {
-			go c.revalidate(map[K]*item[V]{key: cached}, customLoaders)
+			go c.revalidate(map[K]*item[V]{key: cached}, Loaders)
 		}
 
 		if cached.hasValue && c.copyOnRead != nil {
@@ -223,9 +223,9 @@ func (c *HotCache[K, V]) GetWithCustomLoaders(key K, customLoaders LoaderChain[K
 	return item.value, true, nil
 }
 
-// MustGetWithCustomLoaders returns a value from the cache, a boolean indicating whether the key was found. It panics when loaders fail.
-func (c *HotCache[K, V]) MustGetWithCustomLoaders(key K, customLoaders LoaderChain[K, V]) (value V, found bool) {
-	value, found, err := c.GetWithCustomLoaders(key, c.loaderFns)
+// MustGetWithLoaders returns a value from the cache, a boolean indicating whether the key was found. It panics when loaders fail.
+func (c *HotCache[K, V]) MustGetWithLoaders(key K, Loaders ...Loader[K, V]) (value V, found bool) {
+	value, found, err := c.GetWithLoaders(key, c.loaderFns...)
 	if err != nil {
 		panic(err)
 	}
@@ -235,7 +235,7 @@ func (c *HotCache[K, V]) MustGetWithCustomLoaders(key K, customLoaders LoaderCha
 
 // GetMany returns many values from the cache, a slice of missing keys and an error when loaders fail.
 func (c *HotCache[K, V]) GetMany(keys []K) (values map[K]V, missing []K, err error) {
-	return c.GetManyWithCustomLoaders(keys, c.loaderFns)
+	return c.GetManyWithLoaders(keys, c.loaderFns...)
 }
 
 // MustGetMany returns many values from the cache, a slice of missing keys. It panics when loaders fail.
@@ -248,8 +248,8 @@ func (c *HotCache[K, V]) MustGetMany(keys []K) (values map[K]V, missing []K) {
 	return values, missing
 }
 
-// GetManyWithCustomLoaders returns many values from the cache, a slice of missing keys and an error when loaders fail.
-func (c *HotCache[K, V]) GetManyWithCustomLoaders(keys []K, customLoaders LoaderChain[K, V]) (values map[K]V, missing []K, err error) {
+// GetManyWithLoaders returns many values from the cache, a slice of missing keys and an error when loaders fail.
+func (c *HotCache[K, V]) GetManyWithLoaders(keys []K, Loaders ...Loader[K, V]) (values map[K]V, missing []K, err error) {
 	// Some items might be found in cached, but without value.
 	// Other items will be returned in `missing`.
 	cached, missing, revalidate := c.getManyUnsafe(keys)
@@ -260,16 +260,16 @@ func (c *HotCache[K, V]) GetManyWithCustomLoaders(keys []K, customLoaders Loader
 	}
 
 	if len(revalidate) > 0 {
-		go c.revalidate(revalidate, customLoaders)
+		go c.revalidate(revalidate, Loaders)
 	}
 
 	found, missing := itemMapsToValues(c.copyOnRead, cached, loaded)
 	return found, missing, nil
 }
 
-// MustGetManyWithCustomLoaders returns many values from the cache, a slice of missing keys. It panics when loaders fail.
-func (c *HotCache[K, V]) MustGetManyWithCustomLoaders(keys []K, customLoaders LoaderChain[K, V]) (values map[K]V, missing []K) {
-	values, missing, err := c.GetManyWithCustomLoaders(keys, c.loaderFns)
+// MustGetManyWithLoaders returns many values from the cache, a slice of missing keys. It panics when loaders fail.
+func (c *HotCache[K, V]) MustGetManyWithLoaders(keys []K, Loaders Loader[K, V]) (values map[K]V, missing []K) {
+	values, missing, err := c.GetManyWithLoaders(keys, c.loaderFns...)
 	if err != nil {
 		panic(err)
 	}
