@@ -217,10 +217,15 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	// Using mutexMock cost ~3ns per operation. Which is more than the cost of calling base.SafeInMemoryCache abstraction (1ns).
 	// Using mutexMock is more performant for this lib when locking is enabled most of time.
 
+	var missingCache base.InMemoryCache[K, *item[V]]
+	if cfg.missingSharedCache || cfg.missingCacheCapacity > 0 {
+		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction)
+	}
+
 	hot := newHotCache(
 		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction),
 		cfg.missingSharedCache,
-		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction),
+		missingCache,
 
 		cfg.ttl,
 		cfg.stale,

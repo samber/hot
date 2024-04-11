@@ -31,7 +31,7 @@ func NewLFUCacheWithEvictionSize[K comparable, V any](capacity int, evictionSize
 
 func NewLFUCacheWithEvictionSizeAndCallback[K comparable, V any](capacity int, evictionSize int, onEviction base.EvictionCallback[K, V]) *LFUCache[K, V] {
 	if capacity <= 1 {
-		panic("capacity must be greater than 0")
+		panic("capacity must be greater than 1")
 	}
 	if evictionSize >= capacity {
 		panic("capacity must be greater than evictionSize")
