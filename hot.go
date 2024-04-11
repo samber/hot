@@ -194,7 +194,7 @@ func (c *HotCache[K, V]) GetWithCustomLoaders(key K, customLoaders LoaderChain[K
 
 	if found {
 		if revalidate {
-			go c.revalidate(map[K]*item[V]{key: cached})
+			go c.revalidate(map[K]*item[V]{key: cached}, customLoaders)
 		}
 
 		if cached.hasValue && c.copyOnRead != nil {
@@ -260,7 +260,7 @@ func (c *HotCache[K, V]) GetManyWithCustomLoaders(keys []K, customLoaders Loader
 	}
 
 	if len(revalidate) > 0 {
-		go c.revalidate(revalidate)
+		go c.revalidate(revalidate, customLoaders)
 	}
 
 	found, missing := itemMapsToValues(c.copyOnRead, cached, loaded)
@@ -738,7 +738,7 @@ func (c *HotCache[K, V]) loadAndSetMany(keys []K, loaders LoaderChain[K, V]) (ma
 	return output, nil
 }
 
-func (c *HotCache[K, V]) revalidate(items map[K]*item[V]) {
+func (c *HotCache[K, V]) revalidate(items map[K]*item[V], fallbackLoaders LoaderChain[K, V]) {
 	if len(items) == 0 {
 		return
 	}
@@ -748,7 +748,7 @@ func (c *HotCache[K, V]) revalidate(items map[K]*item[V]) {
 		keys = append(keys, k)
 	}
 
-	loaders := c.loaderFns
+	loaders := fallbackLoaders
 	if len(c.revalidationLoaderFns) > 0 {
 		loaders = c.revalidationLoaderFns
 	}
