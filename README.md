@@ -10,7 +10,7 @@
 [![Contributors](https://img.shields.io/github/contributors/samber/hot)](https://github.com/samber/hot/graphs/contributors)
 [![License](https://img.shields.io/github/license/samber/hot)](./LICENSE)
 
-**H**ot **O**bject **T**racker.
+**HOT** stands for **H**ot **O**bject **T**racker.
 
 A feature-complete and [blazing-fast](#🏎️-benchmark) caching library for Go.
 
