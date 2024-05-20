@@ -462,7 +462,7 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 func (c *HotCache[K, V]) Janitor() {
 	c.ticker = time.NewTicker(time.Duration(c.ttlMicro) * time.Microsecond)
 	c.stopOnce = &sync.Once{}
-	c.stopJanitor = make(chan struct{}, 0)
+	c.stopJanitor = make(chan struct{})
 
 	runtime.SetFinalizer(c, func(f *HotCache[K, V]) {
 		c.StopJanitor()
@@ -639,7 +639,6 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 	nowMicro := internal.NowMicro()
 
 	cached = make(map[K]*item[V])
-	missing = []K{}
 	revalidate = make(map[K]*item[V])
 
 	toDeleteCache := []K{}
