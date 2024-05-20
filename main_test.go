@@ -2,9 +2,10 @@ package hot
 
 import (
 	"testing"
+
+	"go.uber.org/goleak"
 )
 
 func TestMain(m *testing.M) {
-	// commented because it breaks some tests and we need to mock time package
-	// goleak.VerifyTestMain(m)
+	goleak.VerifyTestMain(m)
 }

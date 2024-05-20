@@ -52,11 +52,11 @@ func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionA
 
 	switch algorithm {
 	case LRU:
-		cache = lru.NewLRUCacheWithEvictionCallback[K, *item[V]](capacity, onItemEviction)
+		cache = lru.NewLRUCacheWithEvictionCallback(capacity, onItemEviction)
 	case LFU:
-		cache = lfu.NewLFUCacheWithEvictionCallback[K, *item[V]](capacity, onItemEviction)
+		cache = lfu.NewLFUCacheWithEvictionCallback(capacity, onItemEviction)
 	case TwoQueue:
-		cache = twoqueue.New2QCacheWithEvictionCallback[K, *item[V]](capacity, onItemEviction)
+		cache = twoqueue.New2QCacheWithEvictionCallback(capacity, onItemEviction)
 	case ARC:
 		panic("ARC is not implemented yet")
 		// return arc.NewARC(capacity)
@@ -218,8 +218,8 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	// Using mutexMock is more performant for this lib when locking is enabled most of time.
 
 	var missingCache base.InMemoryCache[K, *item[V]]
-	if cfg.missingSharedCache || cfg.missingCacheCapacity > 0 {
-		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction)
+	if cfg.missingCacheCapacity > 0 {
+		missingCache = composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction)
 	}
 
 	hot := newHotCache(

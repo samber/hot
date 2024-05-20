@@ -29,7 +29,7 @@ func TestNewHotCache(t *testing.T) {
 	// ttl, stale, jitter
 	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 0.1, nil, nil, DropOnError, nil, nil, nil)
 	cache.metrics = nil
-	is.EqualValues(&HotCache[int, int]{nil, safeLru, false, nil, 42, 21, 0.1, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.EqualValues(&HotCache[int, int]{nil, nil, nil, safeLru, false, nil, 42, 21, 0.1, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests
@@ -1261,11 +1261,12 @@ func TestHotCache_Janitor(t *testing.T) {
 		}).
 		WithJanitor().
 		Build()
+
 	cache.Set("a", 1)
 	is.Equal(1, cache.Len())
 	time.Sleep(10 * time.Millisecond)
 	is.Equal(1, cache.Len())
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
 	is.Equal(0, cache.Len())
 
 	cache.StopJanitor()
@@ -1285,7 +1286,7 @@ func TestHotCache_Janitor(t *testing.T) {
 	is.Equal(2, cache.Len())
 	time.Sleep(10 * time.Millisecond)
 	is.Equal(2, cache.Len())
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(25 * time.Millisecond)
 	is.Equal(0, cache.Len())
 
 	cache.StopJanitor()
@@ -1557,7 +1558,7 @@ func TestHotCache_getUnsafe(t *testing.T) {
 	is.NotNil(v)
 	is.Equal(2, cache.cache.Len())
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(15 * time.Millisecond)
 	v, revalidate, found = cache.getUnsafe("c")
 	is.False(found)
 	is.False(revalidate)
@@ -1651,7 +1652,7 @@ func TestHotCache_getUnsafe(t *testing.T) {
 	is.NotNil(v)
 	is.Equal(2, cache.missingCache.Len())
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(15 * time.Millisecond)
 	v, revalidate, found = cache.getUnsafe("c")
 	is.False(found)
 	is.False(revalidate)
@@ -1731,7 +1732,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is.Len(revalidate, 1)
 	is.Equal(3, cache.cache.Len())
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(15 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 0)
 	is.Len(missing, 1)
@@ -1768,7 +1769,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is.Len(revalidate, 1)
 	is.Equal(2, cache.missingCache.Len())
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(15 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 0)
 	is.Len(missing, 1)
@@ -1937,10 +1938,11 @@ func TestHotCache_revalidate(t *testing.T) {
 	counter1 := int32(0)
 	counter2 := int32(0)
 
-	// with shared missing
+	// with revalidation
 	cache := NewHotCache[string, int](LRU, 10).
 		WithTTL(1*time.Millisecond).
 		WithRevalidation(10*time.Millisecond, func(keys []string) (found map[string]int, err error) {
+			time.Sleep(1 * time.Millisecond)
 			atomic.AddInt32(&counter1, 1)
 			return map[string]int{"a": 2}, nil
 		}).
@@ -1960,14 +1962,24 @@ func TestHotCache_revalidate(t *testing.T) {
 	is.True(ok)
 	is.Nil(err)
 	is.Equal(2, v)
-	is.Equal(int32(1), atomic.LoadInt32(&counter1))
+	is.Equal(int32(1), atomic.LoadInt32(&counter1)) // revalidated async
+
+	time.Sleep(15 * time.Millisecond)
+	is.True(cache.Has("a"))
+
+	v, ok, err = cache.Get("a")
+	is.False(ok)
+	is.Nil(err)
+	is.Equal(0, v)
+	is.Equal(int32(2), atomic.LoadInt32(&counter1))
 
 	cache.Purge()
 
-	// with shared missing
+	// with loader
 	cache = NewHotCache[string, int](LRU, 10).
 		WithTTL(1 * time.Millisecond).
 		WithLoaders(func(keys []string) (found map[string]int, err error) {
+			time.Sleep(1 * time.Millisecond)
 			atomic.AddInt32(&counter2, 1)
 			return map[string]int{"a": 2}, nil
 		}).
@@ -1988,7 +2000,16 @@ func TestHotCache_revalidate(t *testing.T) {
 	is.True(ok)
 	is.Nil(err)
 	is.Equal(2, v)
-	is.Equal(int32(1), atomic.LoadInt32(&counter2))
+	is.Equal(int32(1), atomic.LoadInt32(&counter2)) // revalidated async
+
+	time.Sleep(15 * time.Millisecond)
+	is.True(cache.Has("a"))
+
+	v, ok, err = cache.Get("a")
+	is.True(ok)
+	is.Nil(err)
+	is.Equal(2, v)
+	is.Equal(int32(3), atomic.LoadInt32(&counter2))
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }

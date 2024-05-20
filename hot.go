@@ -1,6 +1,8 @@
 package hot
 
 import (
+	"runtime"
+	"sync"
 	"time"
 
 	"github.com/samber/go-singleflightx"
@@ -51,7 +53,9 @@ func newHotCache[K comparable, V any](
 }
 
 type HotCache[K comparable, V any] struct {
-	ticker *time.Ticker
+	ticker      *time.Ticker
+	stopOnce    *sync.Once
+	stopJanitor chan struct{}
 
 	cache              base.InMemoryCache[K, *item[V]]
 	missingSharedCache bool
@@ -457,52 +461,65 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 // Janitor runs a background goroutine to clean up the cache.
 func (c *HotCache[K, V]) Janitor() {
 	c.ticker = time.NewTicker(time.Duration(c.ttlMicro) * time.Microsecond)
+	c.stopOnce = &sync.Once{}
+	c.stopJanitor = make(chan struct{}, 0)
+
+	runtime.SetFinalizer(c, func(f *HotCache[K, V]) {
+		c.StopJanitor()
+	})
 
 	go func() {
-		for range c.ticker.C {
-			nowMicro := internal.NowMicro()
+		for {
+			select {
+			case <-c.stopJanitor:
+				c.stopJanitor <- struct{}{}
+				return
 
-			{
-				toDelete := []K{}
-				toDeleteKV := map[K]V{}
-				c.cache.Range(func(k K, v *item[V]) bool {
-					if v.isExpired(nowMicro) {
-						toDelete = append(toDelete, k)
-						if c.onEviction != nil {
-							toDeleteKV[k] = v.value
+			case <-c.ticker.C:
+				nowMicro := internal.NowMicro()
+
+				{
+					toDelete := []K{}
+					toDeleteKV := map[K]V{}
+					c.cache.Range(func(k K, v *item[V]) bool {
+						if v.isExpired(nowMicro) {
+							toDelete = append(toDelete, k)
+							if c.onEviction != nil {
+								toDeleteKV[k] = v.value
+							}
 						}
-					}
-					return true
-				})
+						return true
+					})
 
-				deleted := c.cache.DeleteMany(toDelete)
-				if c.onEviction != nil {
-					for k, ok := range deleted {
-						if ok {
-							c.onEviction(k, toDeleteKV[k])
+					deleted := c.cache.DeleteMany(toDelete)
+					if c.onEviction != nil {
+						for k, ok := range deleted {
+							if ok {
+								c.onEviction(k, toDeleteKV[k])
+							}
 						}
 					}
 				}
-			}
 
-			if c.missingCache != nil {
-				toDelete := []K{}
-				toDeleteKV := map[K]V{}
-				c.missingCache.Range(func(k K, v *item[V]) bool {
-					if v.isExpired(nowMicro) {
-						toDelete = append(toDelete, k)
-						if c.onEviction != nil {
-							toDeleteKV[k] = v.value
+				if c.missingCache != nil {
+					toDelete := []K{}
+					toDeleteKV := map[K]V{}
+					c.missingCache.Range(func(k K, v *item[V]) bool {
+						if v.isExpired(nowMicro) {
+							toDelete = append(toDelete, k)
+							if c.onEviction != nil {
+								toDeleteKV[k] = v.value
+							}
 						}
-					}
-					return true
-				})
+						return true
+					})
 
-				deleted := c.missingCache.DeleteMany(toDelete)
-				if c.onEviction != nil {
-					for k, ok := range deleted {
-						if ok {
-							c.onEviction(k, toDeleteKV[k])
+					deleted := c.missingCache.DeleteMany(toDelete)
+					if c.onEviction != nil {
+						for k, ok := range deleted {
+							if ok {
+								c.onEviction(k, toDeleteKV[k])
+							}
 						}
 					}
 				}
@@ -512,7 +529,13 @@ func (c *HotCache[K, V]) Janitor() {
 }
 
 func (c *HotCache[K, V]) StopJanitor() {
-	c.ticker.Stop()
+	runtime.SetFinalizer(c, nil)
+	c.stopOnce.Do(func() {
+		c.stopJanitor <- struct{}{}
+		c.ticker.Stop()
+		<-c.stopJanitor
+		close(c.stopJanitor)
+	})
 }
 
 func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64) {
@@ -623,7 +646,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 	toDeleteMissingCache := []K{}
 	onEvictKV := map[K]V{}
 
-	tmp, keys := c.cache.GetMany(keys)
+	tmp, missing := c.cache.GetMany(keys)
 	for k, v := range tmp {
 		if !v.isExpired(nowMicro) {
 			cached[k] = v
@@ -649,10 +672,12 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 				}
 			}
 		}
+
+		missing = append(missing, toDeleteCache...)
 	}
 
-	if c.missingCache != nil {
-		tmp, missing = c.missingCache.GetMany(keys)
+	if len(missing) > 0 && c.missingCache != nil {
+		tmp, missing = c.missingCache.GetMany(missing)
 		for k, v := range tmp {
 			if !v.isExpired(nowMicro) {
 				cached[k] = v
@@ -678,6 +703,8 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 					}
 				}
 			}
+
+			missing = append(missing, toDeleteMissingCache...)
 		}
 	}
 
