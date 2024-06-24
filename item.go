@@ -15,36 +15,36 @@ func newItem[V any](v V, hasValue bool, ttlMicro int64, staleMicro int64) *item[
 }
 
 func newItemWithValue[V any](v V, ttlMicro int64, staleMicro int64) *item[V] {
-	var expiry int64
-	var staleExpiry int64
+	var expiryMicro int64
+	var staleExpiryMicro int64
 	if ttlMicro != 0 {
 		// @TODO: current time should be passed as an argument to make it faster in batch operations
-		expiry = int64(internal.NowMicro()) + ttlMicro
-		staleExpiry = expiry + staleMicro
+		expiryMicro = int64(internal.NowMicro()) + ttlMicro
+		staleExpiryMicro = expiryMicro + staleMicro
 	}
 
 	return &item[V]{
 		hasValue:         true,
 		value:            v,
 		bytes:            uint(size.Of(v)),
-		expiryMicro:      expiry,
-		staleExpiryMicro: staleExpiry,
+		expiryMicro:      expiryMicro,
+		staleExpiryMicro: staleExpiryMicro,
 	}
 }
 
 func newItemNoValue[V any](ttlMicro int64, staleMicro int64) *item[V] {
-	var expiry int64
-	var staleExpiry int64
+	var expiryMicro int64
+	var staleExpiryMicro int64
 	if ttlMicro != 0 {
 		// @TODO: current time should be passed as an argument to make it faster in batch operations
-		expiry = int64(internal.NowMicro()) + ttlMicro
-		staleExpiry = expiry + staleMicro
+		expiryMicro = int64(internal.NowMicro()) + ttlMicro
+		staleExpiryMicro = expiryMicro + staleMicro
 	}
 
 	return &item[V]{
 		hasValue:         false,
-		expiryMicro:      expiry,
-		staleExpiryMicro: staleExpiry,
+		expiryMicro:      expiryMicro,
+		staleExpiryMicro: staleExpiryMicro,
 	}
 }
 
