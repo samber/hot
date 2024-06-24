@@ -17,19 +17,19 @@ func TestNewHotCache(t *testing.T) {
 	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, nil, nil)
 
 	// locking
-	cache := newHotCache(lru, false, nil, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil)
+	cache := newHotCache(lru, false, nil, 0, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil)
 	_, ok := cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.False(ok)
-	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil)
+	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil)
 	_, ok = cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
 	_, ok = cache.missingCache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
 
 	// ttl, stale, jitter
-	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 0.1, nil, nil, DropOnError, nil, nil, nil)
+	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil)
 	cache.metrics = nil
-	is.EqualValues(&HotCache[int, int]{nil, nil, nil, safeLru, false, nil, 42, 21, 0.1, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.EqualValues(&HotCache[int, int]{nil, nil, nil, safeLru, false, nil, 42, 21, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests
@@ -61,9 +61,9 @@ func TestHotCache_Set(t *testing.T) {
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
-		WithTTL(1 * time.Second).
-		WithRevalidation(1 * time.Second).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(1*time.Second).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.Set("a", 1)
 	is.Equal(1, cache.cache.Len())
@@ -92,9 +92,9 @@ func TestHotCache_SetMissing(t *testing.T) {
 	// dedicated cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingCache(LRU, 42).
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissing("a")
 	is.Equal(0, cache.cache.Len())
@@ -111,9 +111,9 @@ func TestHotCache_SetMissing(t *testing.T) {
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissing("a")
 	is.Equal(1, cache.cache.Len())
@@ -161,9 +161,9 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetWithTTL("a", 1, 10*time.Second)
 	is.Equal(1, cache.cache.Len())
@@ -192,9 +192,9 @@ func TestHotCache_SetMissingWithTTL(t *testing.T) {
 	// dedicated cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingCache(LRU, 42).
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissingWithTTL("a", 10*time.Second)
 	is.Equal(0, cache.cache.Len())
@@ -211,9 +211,9 @@ func TestHotCache_SetMissingWithTTL(t *testing.T) {
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissingWithTTL("a", 10*time.Second)
 	is.Equal(1, cache.cache.Len())
@@ -261,9 +261,9 @@ func TestHotCache_SetMany(t *testing.T) {
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMany(map[string]int{"a": 1, "b": 2})
 	is.Equal(2, cache.cache.Len())
@@ -300,9 +300,9 @@ func TestHotCache_SetMissingMany(t *testing.T) {
 	// dedicated cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingCache(LRU, 42).
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissingMany([]string{"a", "b"})
 	is.Equal(0, cache.cache.Len())
@@ -327,9 +327,9 @@ func TestHotCache_SetMissingMany(t *testing.T) {
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissingMany([]string{"a", "b"})
 	is.Equal(2, cache.cache.Len())
@@ -397,9 +397,9 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetManyWithTTL(map[string]int{"a": 1, "b": 2}, 10*time.Second)
 	is.Equal(2, cache.cache.Len())
@@ -436,9 +436,9 @@ func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 	// dedicated cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingCache(LRU, 42).
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissingManyWithTTL([]string{"a", "b"}, 10*time.Second)
 	is.Equal(0, cache.cache.Len())
@@ -463,9 +463,9 @@ func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
-		WithTTL(1 * time.Second).
-		WithRevalidation(100 * time.Millisecond).
-		WithJitter(0.1).
+		WithTTL(1*time.Second).
+		WithRevalidation(100*time.Millisecond).
+		WithJitter(2, 100*time.Millisecond).
 		Build()
 	cache.SetMissingManyWithTTL([]string{"a", "b"}, 10*time.Second)
 	is.Equal(2, cache.cache.Len())
@@ -1326,7 +1326,7 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is.Equal(v.expiryMicro, v.staleExpiryMicro)
 
 	cache = NewHotCache[string, int](LRU, 10).
-		WithJitter(0.5).
+		WithJitter(2, 500*time.Millisecond).
 		Build()
 
 	cache.setUnsafe("a", true, 1, 0) // value + no ttl + jitter
@@ -1391,7 +1391,7 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
-		WithJitter(0.5).
+		WithJitter(2, 500*time.Millisecond).
 		Build()
 
 	cache.setUnsafe("a", true, 1, 0) // value + no ttl + jitter
@@ -1462,7 +1462,7 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingCache(LRU, 10).
-		WithJitter(0.5).
+		WithJitter(2, 500*time.Millisecond).
 		Build()
 
 	cache.setUnsafe("a", true, 1, 0) // value + no ttl + jitter

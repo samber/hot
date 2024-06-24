@@ -2,6 +2,7 @@ package hot
 
 import (
 	"testing"
+	"time"
 
 	"github.com/samber/hot/internal"
 	"github.com/stretchr/testify/assert"
@@ -139,8 +140,13 @@ func TestApplyJitter(t *testing.T) {
 	is := assert.New(t)
 
 	// no jitter
-	is.Equal(int64(1_000), applyJitter(1_000, 0))
+	is.Equal(int64(1_000), applyJitter(1_000, 0, 0))
+	is.Equal(int64(1_000), applyJitter(1_000, 0, time.Second))
+	is.Equal(int64(1_000), applyJitter(1_000, 0.5, 0))
 
 	// with jitter
-	is.InEpsilon(1_000, applyJitter(1_000, 0.1), 100)
+	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
+	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
+	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
+	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
 }

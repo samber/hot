@@ -78,49 +78,47 @@ func TestHotCacheConfig(t *testing.T) {
 	// twice := func(v int) { return v*2 }
 
 	opts := NewHotCache[string, int](LRU, 42)
-	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, 0, 0, 0, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
+	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, 0, 0, 0, 0, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
 
 	opts = opts.WithMissingSharedCache()
-	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, true, 0, 0, 0, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
+	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, true, 0, 0, 0, 0, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
 
 	opts = NewHotCache[string, int](LRU, 42).WithMissingCache(LFU, 21)
-	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 0, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
+	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 0, 0, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
 
 	is.Panics(func() {
 		opts = opts.WithTTL(-42 * time.Second)
 	})
 	opts = opts.WithTTL(42 * time.Second)
-	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
+	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0, 0, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
 
 	is.Panics(func() {
 		opts = opts.WithRevalidation(-21 * time.Second)
 	})
 	// opts = opts.WithRevalidation(21*time.Second, loader1, loader2)
-	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 21 * time.Second, 0,0, nil, false, false, nil, nil, loaders,DropOnError, nil,nil, nil}, opts)
+	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 21 * time.Second, 0, 0, nil, false, false, nil, nil, loaders,DropOnError, nil,nil, nil}, opts)
 
 	is.Panics(func() {
-		opts = opts.WithJitter(-0.1)
+		opts = opts.WithJitter(-0.1, time.Second)
 	})
-	is.Panics(func() {
-		opts = opts.WithJitter(1.1)
-	})
-	opts = opts.WithJitter(0.1)
-	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0.1, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
+
+	opts = opts.WithJitter(2, time.Second)
+	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 2, time.Second, 0, nil, false, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
 
 	// opts = opts.WithWarmUp(warmUp)
-	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0.1, 0, nil,false, false, warmUp, nil, nil,DropOnError,nil, nil, nil}, opts)
+	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 2, time.Second, 0, nil,false, false, warmUp, nil, nil,DropOnError,nil, nil, nil}, opts)
 
 	opts = opts.WithoutLocking()
-	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0.1, 0, nil, true, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
+	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 2, time.Second, 0, nil, true, false, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
 
 	opts = opts.WithJanitor()
-	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0.1, 0, nil, true, true, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
+	is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 2, time.Second, 0, nil, true, true, nil, nil, nil, DropOnError, nil, nil, nil}, opts)
 
 	// opts = opts.WithCopyOnRead(twice)
-	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0.1,0, nil, true, true, nil, nil,nil,DropOnError, nil, twice, nil}, opts)
+	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 2, time.Second, 0, nil, true, true, nil, nil,nil,DropOnError, nil, twice, nil}, opts)
 
 	// opts = opts.WithCopyOnRead(twice)
-	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 0.1, 0, nil,true, true, nil, nil,nil,DropOnError, nil, twice, twice}, opts)
+	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 2, time.Second, 0, nil,true, true, nil, nil,nil,DropOnError, nil, twice, twice}, opts)
 
 	is.Panics(func() {
 		opts.Build()

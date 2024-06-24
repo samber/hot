@@ -110,9 +110,9 @@ user, found, err := cache.GetWithLoaders(
 import "github.com/samber/hot"
 
 cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
-    WithTTL(1 * time.Minute).     // items will expire after 1 minute
-    WithJitter(0.2).              // optional: a 20% variation in cache expiration duration (48s to 72s)
-    WithJanitor(1 * time.Minute). // optional: background job will purge expired keys every minutes
+    WithTTL(1 * time.Minute).      // items will expire after 1 minute
+    WithJitter(2, 30*time.Second). // optional: randomizes the TTL with an exponential distribution in the range [0, +30s)
+    WithJanitor(1 * time.Minute).  // optional: background job will purge expired keys every minutes
     Build()
 
 cache.SetWithTTL("foo", 42, 10*time.Second) // shorter TTL for "foo" key
@@ -159,8 +159,8 @@ hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
     // Sets the policy to apply when a revalidation loader returns an error.
     // By default, the key is dropped from the cache.
     WithRevalidationErrorPolicy(policy revalidationErrorPolicy).
-    // Randomizes the TTL.
-    WithJitter(jitter float64).
+    // Randomizes the TTL with an exponential distribution in the range [0, +upperBoundDuration).
+    WithJitter(lambda float64, upperBoundDuration time.Duration).
     // Enables cache sharding.
     WithSharding(nbr uint64, fn sharded.Hasher[K]).
     // Preloads the cache with the provided data.

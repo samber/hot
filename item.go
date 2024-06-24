@@ -1,7 +1,9 @@
 package hot
 
 import (
-	"math/rand/v2"
+	"math"
+	"math/rand"
+	"time"
 
 	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
@@ -92,11 +94,12 @@ func itemMapsToValues[K comparable, V any](copyOnRead func(V) V, maps ...map[K]*
 	return
 }
 
-func applyJitter(ttlMicro int64, jitter float64) int64 {
-	if jitter == 0 {
+func applyJitter(ttlMicro int64, jitterLambda float64, jitterUpperBound time.Duration) int64 {
+	if jitterLambda == 0 || jitterUpperBound == 0 {
 		return ttlMicro
 	}
 
-	variation := (rand.Float64() * (jitter * 2)) - jitter
-	return int64(float64(ttlMicro) * (1 + variation))
+	u := float64(jitterUpperBound.Microseconds()) * rand.Float64()
+	variation := 1 - math.Exp(-jitterLambda*u)
+	return int64(float64(ttlMicro) * variation)
 }

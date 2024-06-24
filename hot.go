@@ -21,7 +21,8 @@ func newHotCache[K comparable, V any](
 
 	ttl time.Duration,
 	stale time.Duration,
-	jitter float64,
+	jitterLambda float64,
+	jitterUpperBound time.Duration,
 
 	loaderFns LoaderChain[K, V],
 	revalidationLoaderFns LoaderChain[K, V],
@@ -36,9 +37,10 @@ func newHotCache[K comparable, V any](
 		missingCache:       missingCache,
 
 		// Better store int64 microseconds instead of time.Time (benchmark resulted in 10x speedup).
-		ttlMicro:   ttl.Microseconds(),
-		staleMicro: stale.Microseconds(),
-		jitter:     jitter,
+		ttlMicro:         ttl.Microseconds(),
+		staleMicro:       stale.Microseconds(),
+		jitterLambda:     jitterLambda,
+		jitterUpperBound: jitterUpperBound,
 
 		loaderFns:               loaderFns,
 		revalidationLoaderFns:   revalidationLoaderFns,
@@ -48,7 +50,7 @@ func newHotCache[K comparable, V any](
 		copyOnWrite:             copyOnWrite,
 
 		group:   singleflightx.Group[K, V]{},
-		metrics: metrics.NewMetrics(ttl, jitter, stale),
+		metrics: metrics.NewMetrics(ttl, jitterLambda, jitterUpperBound, stale),
 	}
 }
 
@@ -62,9 +64,10 @@ type HotCache[K comparable, V any] struct {
 	missingCache       base.InMemoryCache[K, *item[V]]
 
 	// Better store int64 microseconds instead of time.Time (benchmark resulted in 10x speedup).
-	ttlMicro   int64
-	staleMicro int64
-	jitter     float64
+	ttlMicro         int64
+	staleMicro       int64
+	jitterLambda     float64
+	jitterUpperBound time.Duration
 
 	loaderFns               LoaderChain[K, V]
 	revalidationLoaderFns   LoaderChain[K, V]
@@ -543,7 +546,7 @@ func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64
 		return
 	}
 
-	ttlMicro = applyJitter(ttlMicro, c.jitter)
+	ttlMicro = applyJitter(ttlMicro, c.jitterLambda, c.jitterUpperBound)
 
 	// since we don't know where is the previous key, we need to delete prempetively
 	if c.missingCache != nil {

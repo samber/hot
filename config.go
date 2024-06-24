@@ -91,9 +91,10 @@ type HotCacheConfig[K comparable, V any] struct {
 	missingCacheAlgo     EvictionAlgorithm
 	missingCacheCapacity int
 
-	ttl    time.Duration
-	stale  time.Duration
-	jitter float64
+	ttl              time.Duration
+	stale            time.Duration
+	jitterLambda     float64
+	jitterUpperBound time.Duration
 
 	shards     uint64
 	shardingFn sharded.Hasher[K]
@@ -150,11 +151,13 @@ func (cfg HotCacheConfig[K, V]) WithRevalidationErrorPolicy(policy revalidationE
 	return cfg
 }
 
-// WithJitter randomizes the TTL. It must be between 0 and 1.
-func (cfg HotCacheConfig[K, V]) WithJitter(jitter float64) HotCacheConfig[K, V] {
-	assertValue(jitter >= 0 && jitter < 1, "jitter must be between 0 and 1")
+// WithJitter randomizes the TTL with an exponential distribution in the range [0, +upperBoundDuration).
+func (cfg HotCacheConfig[K, V]) WithJitter(lambda float64, upperBoundDuration time.Duration) HotCacheConfig[K, V] {
+	assertValue(lambda >= 0, "jitter lambda must be greater than or equal to 0")
+	assertValue(upperBoundDuration >= 0, "jitter upper bound must be greater than or equal to 0s")
 
-	cfg.jitter = jitter
+	cfg.jitterLambda = lambda
+	cfg.jitterUpperBound = upperBoundDuration
 	return cfg
 }
 
@@ -229,7 +232,8 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 
 		cfg.ttl,
 		cfg.stale,
-		cfg.jitter,
+		cfg.jitterLambda,
+		cfg.jitterUpperBound,
 
 		cfg.loaderFns,
 		cfg.revalidationLoaderFns,

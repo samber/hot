@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func NewMetrics(ttl time.Duration, jitter float64, stale time.Duration) *Metrics {
+func NewMetrics(ttl time.Duration, jitterLambda float64, jitterUpperBound time.Duration, stale time.Duration) *Metrics {
 	metrics := &Metrics{
 		Insertion: prometheus.NewCounter(prometheus.CounterOpts{Name: "cache_insertion_total"}),
 		Eviction:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "cache_eviction_total"}, []string{"reason"}),
@@ -18,9 +18,10 @@ func NewMetrics(ttl time.Duration, jitter float64, stale time.Duration) *Metrics
 		Weight: prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_memory_bytes"}),
 
 		// SettingsCapacity:        prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_capacity"}),
-		SettingsTTL:    prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_ttl_seconds"}),
-		SettingsJitter: prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_jitter"}),
-		SettingsStale:  prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_stale_seconds"}),
+		SettingsTTL:              prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_ttl_seconds"}),
+		SettingsJitterLambda:     prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_jitter_lambda"}),
+		SettingsJitterUpperBound: prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_jitter_upper_bound_seconds"}),
+		SettingsStale:            prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_stale_seconds"}),
 		// SettingsMissingCapacity: prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_missing_capacity"}),
 		SettingsMissingTTL:   prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_missing_ttl_seconds"}),
 		SettingsMissingStale: prometheus.NewGauge(prometheus.GaugeOpts{Name: "cache_settings_missing_stale_seconds"}),
@@ -28,7 +29,8 @@ func NewMetrics(ttl time.Duration, jitter float64, stale time.Duration) *Metrics
 
 	// metrics.SettingsCapacity.Set(float64(capacity))
 	metrics.SettingsTTL.Set(ttl.Seconds())
-	metrics.SettingsJitter.Set(float64(jitter))
+	metrics.SettingsJitterLambda.Set(float64(jitterLambda))
+	metrics.SettingsJitterUpperBound.Set(float64(jitterUpperBound.Seconds()))
 	metrics.SettingsStale.Set(stale.Seconds())
 	// metrics.SettingsMissingCapacity.Set(float64(missingCapacity))
 	metrics.SettingsMissingTTL.Set(ttl.Seconds())
@@ -61,9 +63,10 @@ type Metrics struct {
 
 	// settings
 	// SettingsCapacity        prometheus.Gauge
-	SettingsTTL    prometheus.Gauge
-	SettingsJitter prometheus.Gauge
-	SettingsStale  prometheus.Gauge
+	SettingsTTL              prometheus.Gauge
+	SettingsJitterLambda     prometheus.Gauge
+	SettingsJitterUpperBound prometheus.Gauge
+	SettingsStale            prometheus.Gauge
 	// SettingsMissingCapacity prometheus.Gauge
 	SettingsMissingTTL   prometheus.Gauge
 	SettingsMissingStale prometheus.Gauge
