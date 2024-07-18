@@ -102,6 +102,20 @@ user, found, err := cache.GetWithLoaders(
     },
 )
 // either `err` is not nil, or `found` is true
+
+// missing value vs nil value
+user, found, err := cache.GetWithLoaders(
+    "user-123",
+    func(keys []string) (found map[string]*User, err error) {
+        // value could not be found
+	return map[string]*User{}, nil
+
+	// or
+
+        // value exists but is nil
+	return map[string]*User{"user-123": nil}, nil
+    },
+)
 ```
 
 ### Cache with expiration
