@@ -179,6 +179,8 @@ hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
     WithSharding(nbr uint64, fn sharded.Hasher[K]).
     // Preloads the cache with the provided data.
     WithWarmUp(fn func() (map[K]V, []K, error)).
+    // Preloads the cache with the provided data. Useful when the inner callback does not have timeout strategy.
+    WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)).
     // Disables mutex for the cache and improves internal performances.
     WithoutLocking().
     // Enables the cache janitor.

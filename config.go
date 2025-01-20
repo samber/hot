@@ -1,6 +1,7 @@
 package hot
 
 import (
+	"errors"
 	"time"
 
 	"github.com/samber/hot/pkg/base"
@@ -176,6 +177,32 @@ func (cfg HotCacheConfig[K, V]) WithWarmUp(fn func() (map[K]V, []K, error)) HotC
 	return cfg
 }
 
+// WithWarmUpWithTimeout preloads the cache with the provided data.
+// It can be used when the inner callback does not have timeout strategy.
+func (cfg HotCacheConfig[K, V]) WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
+	cfg.warmUpFn = func() (map[K]V, []K, error) {
+		done := make(chan struct{})
+		defer close(done)
+
+		var result map[K]V
+		var missing []K
+		var err error
+
+		go func() {
+			result, missing, err = fn()
+			done <- struct{}{}
+		}()
+
+		select {
+		case <-time.After(timeout):
+			return nil, nil, errors.New("WarmUp timeout")
+		case <-done:
+			return result, missing, err
+		}
+	}
+	return cfg
+}
+
 // WithoutLocking disables mutex for the cache and improves internal performances.
 func (cfg HotCacheConfig[K, V]) WithoutLocking() HotCacheConfig[K, V] {
 	cfg.lockingDisabled = true
@@ -222,11 +249,11 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 
 	var missingCache base.InMemoryCache[K, *item[V]]
 	if cfg.missingCacheCapacity > 0 {
-		missingCache = composeInternalCache[K, V](!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction)
+		missingCache = composeInternalCache(!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction)
 	}
 
 	hot := newHotCache(
-		composeInternalCache[K, V](!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction),
+		composeInternalCache(!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction),
 		cfg.missingSharedCache,
 		missingCache,
 
