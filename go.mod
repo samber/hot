@@ -7,7 +7,6 @@ require (
 	github.com/prometheus/client_golang v1.20.5
 	github.com/samber/go-singleflightx v0.3.1
 	github.com/stretchr/testify v1.10.0
-	go.uber.org/goleak v1.3.0
 )
 
 require (
