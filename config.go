@@ -181,8 +181,7 @@ func (cfg HotCacheConfig[K, V]) WithWarmUp(fn func() (map[K]V, []K, error)) HotC
 // It can be used when the inner callback does not have timeout strategy.
 func (cfg HotCacheConfig[K, V]) WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
 	cfg.warmUpFn = func() (map[K]V, []K, error) {
-		done := make(chan struct{})
-		defer close(done)
+		done := make(chan struct{}, 1)
 
 		var result map[K]V
 		var missing []K
@@ -191,6 +190,7 @@ func (cfg HotCacheConfig[K, V]) WithWarmUpWithTimeout(timeout time.Duration, fn 
 		go func() {
 			result, missing, err = fn()
 			done <- struct{}{}
+			close(done)
 		}()
 
 		select {
