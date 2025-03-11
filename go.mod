@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/DmitriyVTitov/size v1.5.0
-	github.com/prometheus/client_golang v1.21.0
+	github.com/prometheus/client_golang v1.21.1
 	github.com/samber/go-singleflightx v0.3.2
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/goleak v1.3.0
