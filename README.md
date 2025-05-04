@@ -41,6 +41,75 @@ This library is v0 and follows SemVer strictly.
 
 Some breaking changes might be made to exported APIs before v1.0.0.
 
+## 🍱 Spec
+
+```go
+hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
+    // Enables cache of missing keys. The missing cache is shared with the main cache.
+    WithMissingSharedCache().
+    // Enables cache of missing keys. The missing keys are stored in a separate cache.
+    WithMissingCache(algorithm hot.EvictionAlgorithm, capacity int).
+    // Sets the time-to-live for cache entries
+    WithTTL(ttl time.Duration).
+    // Sets the time after which the cache entry is considered stale and needs to be revalidated
+    // * keys that are not fetched during the interval will be dropped anyway
+    // * a timeout or error in loader will drop keys.
+    // If no revalidation loader is added, the default loaders or the one used in GetWithLoaders() are used.
+    WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V]).
+    // Sets the policy to apply when a revalidation loader returns an error.
+    // By default, the key is dropped from the cache.
+    WithRevalidationErrorPolicy(policy revalidationErrorPolicy).
+    // Randomizes the TTL with an exponential distribution in the range [0, +upperBoundDuration).
+    WithJitter(lambda float64, upperBoundDuration time.Duration).
+    // Enables cache sharding.
+    WithSharding(nbr uint64, fn sharded.Hasher[K]).
+    // Preloads the cache with the provided data.
+    WithWarmUp(fn func() (map[K]V, []K, error)).
+    // Preloads the cache with the provided data. Useful when the inner callback does not have timeout strategy.
+    WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)).
+    // Disables mutex for the cache and improves internal performances.
+    WithoutLocking().
+    // Enables the cache janitor.
+    WithJanitor().
+    // Sets the chain of loaders to use for cache misses.
+    WithLoaders(loaders ...hot.Loader[K, V]).
+    // Sets the callback to be called when an entry is evicted from the cache.
+    // The callback is called synchronously and might block the cache operations if it is slow.
+    // This implementation choice is subject to change. Please open an issue to discuss.
+    WithEvictionCallback(hook func(key K, value V)).
+    // Sets the function to copy the value on read.
+    WithCopyOnRead(copyOnRead func(V) V).
+    // Sets the function to copy the value on write.
+    WithCopyOnWrite(copyOnWrite func(V) V).
+    // Returns a HotCache[K, V].
+    Build()
+```
+
+Available eviction algorithm:
+
+```go
+hot.LRU
+hot.LFU
+hot.TwoQueue
+hot.ARC
+```
+
+Loaders:
+
+```go
+func loader(keys []K) (found map[K]V, err error) {
+    // ...
+}
+```
+
+Shard partitioner:
+
+```go
+func hash(key K) uint64 {
+    // ...
+}
+```
+
 ## 🤠 Getting started
 
 [GoDoc: https://godoc.org/github.com/samber/hot](https://godoc.org/github.com/samber/hot)
@@ -154,75 +223,6 @@ cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
 ```
 
 If WithRevalidation is used without loaders, the one provided in `WithRevalidation()` or `GetWithLoaders()` is used.
-
-## 🍱 Spec
-
-```go
-hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
-    // Enables cache of missing keys. The missing cache is shared with the main cache.
-    WithMissingSharedCache().
-    // Enables cache of missing keys. The missing keys are stored in a separate cache.
-    WithMissingCache(algorithm hot.EvictionAlgorithm, capacity int).
-    // Sets the time-to-live for cache entries
-    WithTTL(ttl time.Duration).
-    // Sets the time after which the cache entry is considered stale and needs to be revalidated
-    // * keys that are not fetched during the interval will be dropped anyway
-    // * a timeout or error in loader will drop keys.
-    // If no revalidation loader is added, the default loaders or the one used in GetWithLoaders() are used.
-    WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V]).
-    // Sets the policy to apply when a revalidation loader returns an error.
-    // By default, the key is dropped from the cache.
-    WithRevalidationErrorPolicy(policy revalidationErrorPolicy).
-    // Randomizes the TTL with an exponential distribution in the range [0, +upperBoundDuration).
-    WithJitter(lambda float64, upperBoundDuration time.Duration).
-    // Enables cache sharding.
-    WithSharding(nbr uint64, fn sharded.Hasher[K]).
-    // Preloads the cache with the provided data.
-    WithWarmUp(fn func() (map[K]V, []K, error)).
-    // Preloads the cache with the provided data. Useful when the inner callback does not have timeout strategy.
-    WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)).
-    // Disables mutex for the cache and improves internal performances.
-    WithoutLocking().
-    // Enables the cache janitor.
-    WithJanitor().
-    // Sets the chain of loaders to use for cache misses.
-    WithLoaders(loaders ...hot.Loader[K, V]).
-    // Sets the callback to be called when an entry is evicted from the cache.
-    // The callback is called synchronously and might block the cache operations if it is slow.
-    // This implementation choice is subject to change. Please open an issue to discuss.
-    WithEvictionCallback(hook func(key K, value V)).
-    // Sets the function to copy the value on read.
-    WithCopyOnRead(copyOnRead func(V) V).
-    // Sets the function to copy the value on write.
-    WithCopyOnWrite(copyOnWrite func(V) V).
-    // Returns a HotCache[K, V].
-    Build()
-```
-
-Available eviction algorithm:
-
-```go
-hot.LRU
-hot.LFU
-hot.TwoQueue
-hot.ARC
-```
-
-Loaders:
-
-```go
-func loader(keys []K) (found map[K]V, err error) {
-    // ...
-}
-```
-
-Shard partitioner:
-
-```go
-func hash(key K) uint64 {
-    // ...
-}
-```
 
 ## 🏛️ Architecture
 
