@@ -390,14 +390,13 @@ func (c *HotCache[K, V]) Values() []V {
 // @TODO: loop over missingCache? Use a different callback?
 func (c *HotCache[K, V]) Range(f func(K, V) bool) {
 	c.cache.Range(func(k K, v *item[V]) bool {
-		if v.hasValue {
-			value := v.value
-			if c.copyOnRead != nil {
-				value = c.copyOnRead(value)
-			}
-			return f(k, value)
+		if !v.hasValue { // equalivant to testing `missingSharedCache`
+			return true
 		}
-		return true
+		if c.copyOnRead != nil {
+			return f(k, c.copyOnRead(v.value))
+		}
+		return f(k, v.value)
 	})
 }
 
