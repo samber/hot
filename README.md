@@ -38,51 +38,88 @@ This library is v0 and follows SemVer strictly.
 
 Some breaking changes might be made to exported APIs before v1.0.0.
 
-## 🍱 Spec
+## 🏎️ Performance
+
+HOT is optimized for high-performance scenarios:
+
+- **Microsecond-precision timestamps** using syscalls (2.3x faster than `time.Now()`)
+- **Zero-allocation operations** where possible
+- **Lock-free operations** when thread safety is disabled
+- **Batch operations** for better throughput
+- **Sharded architecture** for high concurrency
+
+## 🍱 API Reference
+
+[GoDoc: https://godoc.org/github.com/samber/hot](https://godoc.org/github.com/samber/hot)
+
+### Configuration Options
+
+TTL and expiration settings:
 
 ```go
-hot.NewHotCache[K, V](algorithm hot.EvictionAlgorithm, capacity int).
-    // Enables cache of missing keys. The missing cache is shared with the main cache.
-    WithMissingSharedCache().
-    // Enables cache of missing keys. The missing keys are stored in a separate cache.
-    WithMissingCache(algorithm hot.EvictionAlgorithm, capacity int).
-    // Sets the time-to-live for cache entries
-    WithTTL(ttl time.Duration).
-    // Sets the time after which the cache entry is considered stale and needs to be revalidated
-    // * keys that are not fetched during the interval will be dropped anyway
-    // * a timeout or error in loader will drop keys.
-    // If no revalidation loader is added, the default loaders or the one used in GetWithLoaders() are used.
-    WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V]).
-    // Sets the policy to apply when a revalidation loader returns an error.
-    // By default, the key is dropped from the cache.
-    WithRevalidationErrorPolicy(policy revalidationErrorPolicy).
-    // Randomizes the TTL with an exponential distribution in the range [0, +upperBoundDuration).
-    WithJitter(lambda float64, upperBoundDuration time.Duration).
-    // Enables cache sharding.
-    WithSharding(nbr uint64, fn sharded.Hasher[K]).
-    // Preloads the cache with the provided data.
-    WithWarmUp(fn func() (map[K]V, []K, error)).
-    // Preloads the cache with the provided data. Useful when the inner callback does not have timeout strategy.
-    WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)).
-    // Disables mutex for the cache and improves internal performances.
-    WithoutLocking().
-    // Enables the cache janitor.
-    WithJanitor().
-    // Sets the chain of loaders to use for cache misses.
-    WithLoaders(loaders ...hot.Loader[K, V]).
-    // Sets the callback to be called when an entry is evicted from the cache.
-    // The callback is called synchronously and might block the cache operations if it is slow.
-    // This implementation choice is subject to change. Please open an issue to discuss.
-    WithEvictionCallback(hook func(key K, value V)).
-    // Sets the function to copy the value on read.
-    WithCopyOnRead(copyOnRead func(V) V).
-    // Sets the function to copy the value on write.
-    WithCopyOnWrite(copyOnWrite func(V) V).
-    // Returns a HotCache[K, V].
-    Build()
+// Set default time-to-live for all cache entries
+WithTTL(ttl time.Duration)
+// Add random jitter to TTL to prevent cache stampedes
+WithJitter(lambda float64, upperBound time.Duration)
+// Enable background cleanup of expired items
+WithJanitor()
 ```
 
-Available eviction algorithm:
+Cache revalidation (stale-while-revalidate pattern):
+
+```go
+// Keep serving stale data while refreshing in background
+WithRevalidation(stale time.Duration, loaders ...hot.Loader[K, V])
+// Control behavior when revalidation fails (KeepOnError/DropOnError)
+WithRevalidationErrorPolicy(policy hot.RevalidationErrorPolicy)
+```
+
+Missing key caching - prevents repeated lookups for non-existent keys:
+
+```go
+// Use separate cache for missing keys (prevents main cache pollution)
+WithMissingCache(algorithm hot.EvictionAlgorithm, capacity int)
+// Share missing key cache with main cache (good for low missing rate)
+WithMissingSharedCache()
+```
+
+Data source integration:
+
+```go
+// Set chain of loaders for cache misses (primary, fallback, etc.)
+WithLoaders(loaders ...hot.Loader[K, V])
+```
+
+Thread safety configuration:
+
+```go
+// Disable mutex for single-threaded applications (performance boost)
+WithoutLocking()
+// Copy values when reading (prevents external modification)
+WithCopyOnRead(copier func(V) V)
+// Copy values when writing (ensures cache owns the data)
+WithCopyOnWrite(copier func(V) V)
+```
+
+Sharding for high concurrency scenarios:
+
+```go
+// Split cache into multiple shards to reduce lock contention
+WithSharding(shards uint64, hasher sharded.Hasher[K])
+```
+
+Event callbacks and hooks:
+
+```go
+// Called when items are evicted (LRU/LFU/expiration)
+WithEvictionCallback(callback func(key K, value V))
+// Preload cache on startup with data from loader
+WithWarmUp(loader func() (map[K]V, []K, error))
+// Preload with timeout protection for slow data sources
+WithWarmUpWithTimeout(timeout time.Duration, loader func() (map[K]V, []K, error))
+```
+
+Eviction algorithms:
 
 ```go
 hot.LRU
@@ -91,25 +128,109 @@ hot.TwoQueue
 hot.ARC
 ```
 
-Loaders:
+Revalidation policies:
 
 ```go
-func loader(keys []K) (found map[K]V, err error) {
-    // ...
+hot.KeepOnError
+hot.DropOnError
+```
+
+### Core Methods
+
+Basic operations:
+
+```go
+// Store a key-value pair in the cache
+cache.Set(key K, value V)
+// Store with custom time-to-live (overrides default TTL)
+cache.SetWithTTL(key K, value V, ttl time.Duration)
+// Retrieve value by key, returns found status and any error
+cache.Get(key K) -> (value V, found bool, error error)
+// Check if key exists in cache (no side effects)
+cache.Has(key K) -> bool
+// Remove key from cache, returns true if key existed
+cache.Delete(key K) -> bool
+```
+
+Batch operations (more efficient for multiple items):
+
+```go
+// Store multiple key-value pairs atomically
+cache.SetMany(items map[K]V)
+// Retrieve multiple values, returns found items and missing keys
+cache.GetMany(keys []K) -> (found map[K]V, missing []K)
+// Check existence of multiple keys, returns map of key->exists
+cache.HasMany(keys []K) -> map[K]bool
+// Remove multiple keys, returns map of key->was_deleted
+cache.DeleteMany(keys []K) -> map[K]bool
+```
+
+Inspection methods (no side effects on cache state):
+
+```go
+// Get value without updating access time or LRU position
+cache.Peek(key K) -> (value V, found bool)
+// Get multiple values without side effects
+cache.PeekMany(keys []K) -> (found map[K]V, missing []K)
+// Get all keys in cache (order not guaranteed)
+cache.Keys() -> []K
+// Get all values in cache (order not guaranteed)
+cache.Values() -> []V
+// Iterate over all key-value pairs, return false to stop
+cache.Range(fn func(key K, value V) bool)
+// Get current number of items in cache
+cache.Len() -> int
+// Get (current_size, max_capacity) of cache
+cache.Capacity() -> (current int, max int)
+// Get (algorithm_name, algorithm_version) info
+cache.Algorithm() -> (name string, version string)
+```
+
+Cache management and lifecycle:
+
+```go
+// Remove all items from cache immediately
+cache.Purge()
+// Preload cache with data from loader function
+cache.WarmUp(loader hot.Loader[K, V]) -> error
+// Start background cleanup of expired items
+cache.Janitor()
+// Stop background janitor process
+cache.StopJanitor()
+```
+
+### Loader Interface
+
+```go
+// Loader function signature for fetching data from external sources
+// Called when cache misses occur, with automatic deduplication of concurrent requests
+type Loader[K comparable, V any] func(keys []K) (found map[K]V, err error)
+
+func userLoader(keys []string) (found map[string]*User, err error) {
+    // Fetch users from database
+    // Return map of found users (key -> user object)
+    // Return empty map if no users found (not an error)
+    // Return error if database query fails
+    return users, nil
 }
 ```
 
-Shard partitioner:
+### Shard partitioner
 
 ```go
-func hash(key K) uint64 {
-    // ...
+// Hasher is responsible for generating unsigned, 16 bit hash of provided key.
+// Hasher should minimize collisions. For great performance, a fast function is preferable.
+type Hasher[K any] func(key K) uint64
+
+// Example:
+func hash(key string) uint64 {
+    hasher := fnv.New64a()
+	hasher.Write([]byte(s))
+	return hasher.Sum64()
 }
 ```
 
 ## 🤠 Getting started
-
-[GoDoc: https://godoc.org/github.com/samber/hot](https://godoc.org/github.com/samber/hot)
 
 ### Simple LRU cache
 
@@ -131,6 +252,35 @@ values, missing := cache.GetMany([]string{"bar", "baz", "hello"})
 value, found, _ := cache.Get("foo")
 // value: 1
 // found: true
+```
+
+### Error Handling Patterns
+
+```go
+// Handle cache operations with proper error checking
+value, found, err := cache.Get("key")
+if err != nil {
+    // Handle loader errors (database connection, network issues, etc.)
+    log.Printf("Cache get error: %v", err)
+    return
+}
+if !found {
+    // Key doesn't exist in cache and wasn't found by loaders
+    log.Printf("Key not found: %s", "key")
+    return
+}
+// Use value safely
+fmt.Printf("Value: %v", value)
+
+// Batch operations with error handling
+values, missing := cache.GetMany([]string{"key1", "key2", "key3"})
+if len(missing) > 0 {
+    log.Printf("Missing keys: %v", missing)
+}
+// Process found values
+for key, value := range values {
+    fmt.Printf("%s: %v", key, value)
+}
 ```
 
 ### Cache with remote data source
@@ -313,13 +463,15 @@ import (
 )
 
 cache := sharded.NewShardedInMemoryCache(
-    1_000, // number of shards
+    100, // Number of shards
     func() base.InMemoryCache[K, *item[V]] {
+        // Cache builder for each shard
         return safe.NewSafeInMemoryCache(
             lru.NewLRUCache[string, *User](100_000),
         )
     },
     func(key string) uint64 {
+        // Hash function
         h := fnv.New64a()
         h.Write([]byte(key))
         return h.Sum64()
@@ -350,16 +502,6 @@ cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
     WithMissingCache(hot.LFU, 50_000).
     Build()
 ```
-
-## 🏎️ Performance
-
-HOT is optimized for high-performance scenarios:
-
-- **Microsecond-precision timestamps** using syscalls (2.3x faster than `time.Now()`)
-- **Zero-allocation operations** where possible
-- **Lock-free operations** when thread safety is disabled
-- **Batch operations** for better throughput
-- **Sharded architecture** for high concurrency
 
 ## 🏎️ Benchmark
 

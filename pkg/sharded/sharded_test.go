@@ -11,7 +11,7 @@ import (
 func TestNewShardedInMemoryCache(t *testing.T) {
 	is := assert.New(t)
 
-	cache := NewShardedInMemoryCache[int, int](
+	cache := NewShardedInMemoryCache(
 		42,
 		func() base.InMemoryCache[int, int] {
 			return lru.NewLRUCache[int, int](42)
