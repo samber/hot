@@ -28,6 +28,15 @@
 - 📊 **Metrics Collection**: Built-in statistics and monitoring
 - 💫 **Go Generics**: Type-safe caching with compile-time guarantees
 
+## 📋 Table of Contents
+
+- [📦 Installation](#-installation)
+- [🏎️ Performance](#️-performance)
+- [🍱 API Reference](#-api-reference)
+- [🤠 Getting Started](#-getting-started)
+- [🏛️ Architecture](#️-architecture)
+- [🤝 Contributing](#-contributing)
+
 ## 📦 Installation
 
 ```bash
