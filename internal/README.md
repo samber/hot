@@ -1,7 +1,12 @@
+# Internal Package
+
+This package contains internal utilities used by the hot cache library.
 
 ## Benchmark
 
-### NowMicro()
+### NowMicro() Performance
+
+The `NowMicro()` function provides microsecond-precision timestamps with better performance than `time.Now()`.
 
 ```txt
 ok      github.com/samber/hot   0.182s
@@ -15,3 +20,5 @@ BenchmarkDevelTime/TimeSyscall-10       74941058                15.93 ns/op     
 BenchmarkDevelTime/TimeSyscall-10       76003882                16.11 ns/op            0 B/op          0 allocs/op
 BenchmarkDevelTime/TimeSyscall-10       74914741                15.89 ns/op            0 B/op          0 allocs/op
 ```
+
+The syscall-based implementation (`TimeSyscall`) is approximately 2.3x faster than the standard `time.Now()` approach.

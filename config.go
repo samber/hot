@@ -12,6 +12,7 @@ import (
 	"github.com/samber/hot/pkg/twoqueue"
 )
 
+// EvictionAlgorithm represents the cache eviction policy to use.
 type EvictionAlgorithm int
 
 const (
@@ -21,6 +22,7 @@ const (
 	ARC
 )
 
+// revalidationErrorPolicy defines how to handle errors during revalidation.
 type revalidationErrorPolicy int
 
 const (
@@ -28,6 +30,8 @@ const (
 	KeepOnError
 )
 
+// composeInternalCache creates an internal cache instance based on the provided configuration.
+// It handles sharding, locking, and different eviction algorithms.
 func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K], onEviction base.EvictionCallback[K, V]) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
 	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
@@ -36,7 +40,7 @@ func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionA
 		return sharded.NewShardedInMemoryCache(
 			shards,
 			func() base.InMemoryCache[K, *item[V]] {
-				return composeInternalCache[K, V](false, algorithm, capacity, 0, nil, onEviction)
+				return composeInternalCache(false, algorithm, capacity, 0, nil, onEviction)
 			},
 			shardingFn,
 		)
@@ -72,12 +76,16 @@ func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionA
 	return cache
 }
 
+// assertValue panics with the given message if the condition is false.
+// This is used for validating configuration parameters.
 func assertValue(ok bool, msg string) {
 	if !ok {
 		panic(msg)
 	}
 }
 
+// NewHotCache creates a new HotCache configuration with the specified eviction algorithm and capacity.
+// This is the starting point for building a cache with the builder pattern.
 func NewHotCache[K comparable, V any](algorithm EvictionAlgorithm, capacity int) HotCacheConfig[K, V] {
 	return HotCacheConfig[K, V]{
 		cacheAlgo:     algorithm,
@@ -85,6 +93,8 @@ func NewHotCache[K comparable, V any](algorithm EvictionAlgorithm, capacity int)
 	}
 }
 
+// HotCacheConfig holds the configuration for a HotCache instance.
+// It uses the builder pattern to allow fluent configuration.
 type HotCacheConfig[K comparable, V any] struct {
 	cacheAlgo            EvictionAlgorithm
 	cacheCapacity        int
@@ -112,13 +122,15 @@ type HotCacheConfig[K comparable, V any] struct {
 	copyOnWrite             func(V) V
 }
 
-// WithMissingSharedCache enables cache of missing keys. The missing cache is shared with the main cache.
+// WithMissingSharedCache enables caching of missing keys in the main cache.
+// Missing keys are stored alongside regular values in the same cache instance.
 func (cfg HotCacheConfig[K, V]) WithMissingSharedCache() HotCacheConfig[K, V] {
 	cfg.missingSharedCache = true
 	return cfg
 }
 
-// WithMissingCache enables cache of missing keys. The missing keys are stored in a separate cache.
+// WithMissingCache enables caching of missing keys in a separate cache instance.
+// The missing keys are stored in a dedicated cache with its own eviction algorithm and capacity.
 func (cfg HotCacheConfig[K, V]) WithMissingCache(algorithm EvictionAlgorithm, capacity int) HotCacheConfig[K, V] {
 	cfg.missingCacheAlgo = algorithm
 	cfg.missingCacheCapacity = capacity
@@ -126,6 +138,7 @@ func (cfg HotCacheConfig[K, V]) WithMissingCache(algorithm EvictionAlgorithm, ca
 }
 
 // WithTTL sets the time-to-live for cache entries.
+// After this duration, entries will be considered expired and will be removed.
 func (cfg HotCacheConfig[K, V]) WithTTL(ttl time.Duration) HotCacheConfig[K, V] {
 	assertValue(ttl >= 0, "ttl must be a positive value")
 
@@ -133,10 +146,10 @@ func (cfg HotCacheConfig[K, V]) WithTTL(ttl time.Duration) HotCacheConfig[K, V] 
 	return cfg
 }
 
-// WithRevalidation sets the time after which the cache entry is considered stale and needs to be revalidated.
-// Keys that are not fetched during the interval will be dropped anyway.
-// A timeout or error in loader will drop keys.
-// If no revalidation loader is added, the default loaders or the one used in GetWithLoaders() are used.
+// WithRevalidation sets the stale duration and optional revalidation loaders.
+// After the TTL expires, entries become stale and can still be served while being revalidated in the background.
+// Keys that are not fetched during the stale period will be dropped.
+// If no revalidation loaders are provided, the default loaders or those used in GetWithLoaders() are used.
 func (cfg HotCacheConfig[K, V]) WithRevalidation(stale time.Duration, loaders ...Loader[K, V]) HotCacheConfig[K, V] {
 	assertValue(stale >= 0, "stale must be a positive value")
 
@@ -146,13 +159,14 @@ func (cfg HotCacheConfig[K, V]) WithRevalidation(stale time.Duration, loaders ..
 }
 
 // WithRevalidationErrorPolicy sets the policy to apply when a revalidation loader returns an error.
-// By default, the key is dropped from the cache.
+// By default, keys are dropped from the cache on revalidation errors.
 func (cfg HotCacheConfig[K, V]) WithRevalidationErrorPolicy(policy revalidationErrorPolicy) HotCacheConfig[K, V] {
 	cfg.revalidationErrorPolicy = policy
 	return cfg
 }
 
-// WithJitter randomizes the TTL with an exponential distribution in the range [0, +upperBoundDuration).
+// WithJitter randomizes the TTL with an exponential distribution in the range [0, upperBoundDuration).
+// This helps prevent cache stampedes by spreading out when entries expire.
 func (cfg HotCacheConfig[K, V]) WithJitter(lambda float64, upperBoundDuration time.Duration) HotCacheConfig[K, V] {
 	assertValue(lambda >= 0, "jitter lambda must be greater than or equal to 0")
 	assertValue(upperBoundDuration >= 0, "jitter upper bound must be greater than or equal to 0s")
@@ -162,23 +176,25 @@ func (cfg HotCacheConfig[K, V]) WithJitter(lambda float64, upperBoundDuration ti
 	return cfg
 }
 
-// WithSharding enables cache sharding.
+// WithSharding enables cache sharding for better concurrency performance.
+// The cache is split into multiple shards based on the provided hash function.
 func (cfg HotCacheConfig[K, V]) WithSharding(nbr uint64, fn sharded.Hasher[K]) HotCacheConfig[K, V] {
-	assertValue(nbr > 1, "jitter must be greater than 1")
+	assertValue(nbr > 1, "shards must be greater than 1")
 
 	cfg.shards = nbr
 	cfg.shardingFn = fn
 	return cfg
 }
 
-// WithWarmUp preloads the cache with the provided data.
+// WithWarmUp preloads the cache with data from the provided function.
+// This is useful for initializing the cache with frequently accessed data.
 func (cfg HotCacheConfig[K, V]) WithWarmUp(fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
 	cfg.warmUpFn = fn
 	return cfg
 }
 
-// WithWarmUpWithTimeout preloads the cache with the provided data.
-// It can be used when the inner callback does not have timeout strategy.
+// WithWarmUpWithTimeout preloads the cache with data from the provided function with a timeout.
+// This is useful when the inner callback does not have its own timeout strategy.
 func (cfg HotCacheConfig[K, V]) WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
 	cfg.warmUpFn = func() (map[K]V, []K, error) {
 		done := make(chan struct{}, 1)
@@ -203,49 +219,58 @@ func (cfg HotCacheConfig[K, V]) WithWarmUpWithTimeout(timeout time.Duration, fn 
 	return cfg
 }
 
-// WithoutLocking disables mutex for the cache and improves internal performances.
+// WithoutLocking disables mutex for the cache and improves internal performance.
+// This should only be used when the cache is not accessed concurrently.
+// Cannot be used together with WithJanitor().
 func (cfg HotCacheConfig[K, V]) WithoutLocking() HotCacheConfig[K, V] {
 	cfg.lockingDisabled = true
 	return cfg
 }
 
-// WithJanitor enables the cache janitor.
+// WithJanitor enables the cache janitor that periodically removes expired items.
+// The janitor runs in the background and cannot be used together with WithoutLocking().
 func (cfg HotCacheConfig[K, V]) WithJanitor() HotCacheConfig[K, V] {
 	cfg.janitorEnabled = true
 	return cfg
 }
 
 // WithLoaders sets the chain of loaders to use for cache misses.
+// These loaders will be called in sequence when a key is not found in the cache.
 func (cfg HotCacheConfig[K, V]) WithLoaders(loaders ...Loader[K, V]) HotCacheConfig[K, V] {
 	cfg.loaderFns = loaders
 	return cfg
 }
 
 // WithEvictionCallback sets the callback to be called when an entry is evicted from the cache.
-// The callback is called synchronously and might block the cache operations if it is slow.
+// The callback is called synchronously and might block cache operations if it is slow.
 // This implementation choice is subject to change. Please open an issue to discuss.
 func (cfg HotCacheConfig[K, V]) WithEvictionCallback(onEviction base.EvictionCallback[K, V]) HotCacheConfig[K, V] {
 	cfg.onEviction = onEviction
 	return cfg
 }
 
-// WithCopyOnRead sets the function to copy the value on read.
+// WithCopyOnRead sets the function to copy the value when reading from the cache.
+// This is useful for ensuring thread safety when the cached values are mutable.
 func (cfg HotCacheConfig[K, V]) WithCopyOnRead(copyOnRead func(V) V) HotCacheConfig[K, V] {
 	cfg.copyOnRead = copyOnRead
 	return cfg
 }
 
-// WithCopyOnWrite sets the function to copy the value on write.
+// WithCopyOnWrite sets the function to copy the value when writing to the cache.
+// This is useful for ensuring thread safety when the cached values are mutable.
 func (cfg HotCacheConfig[K, V]) WithCopyOnWrite(copyOnWrite func(V) V) HotCacheConfig[K, V] {
 	cfg.copyOnWrite = copyOnWrite
 	return cfg
 }
 
+// Build creates and returns a new HotCache instance with the current configuration.
+// This method validates the configuration and creates all necessary internal components.
+// The cache is ready to use immediately after this call.
 func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	assertValue(!cfg.janitorEnabled || !cfg.lockingDisabled, "lockingDisabled and janitorEnabled cannot be used together")
 
-	// Using mutexMock cost ~3ns per operation. Which is more than the cost of calling base.SafeInMemoryCache abstraction (1ns).
-	// Using mutexMock is more performant for this lib when locking is enabled most of time.
+	// Using mutexMock costs ~3ns per operation, which is more than the cost of calling base.SafeInMemoryCache abstraction (1ns).
+	// Using mutexMock is more performant for this library when locking is enabled most of the time.
 
 	var missingCache base.InMemoryCache[K, *item[V]]
 	if cfg.missingCacheCapacity > 0 {
@@ -271,7 +296,7 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	)
 
 	if cfg.warmUpFn != nil {
-		// @TODO: check error ?
+		// @TODO: Check error?
 		hot.WarmUp(cfg.warmUpFn) //nolint:errcheck
 	}
 
