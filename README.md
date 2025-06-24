@@ -215,6 +215,7 @@ cache.StopJanitor()
 // Called when cache misses occur, with automatic deduplication of concurrent requests
 type Loader[K comparable, V any] func(keys []K) (found map[K]V, err error)
 
+// Example:
 func userLoader(keys []string) (found map[string]*User, err error) {
     // Fetch users from database
     // Return map of found users (key -> user object)
@@ -234,8 +235,8 @@ type Hasher[K any] func(key K) uint64
 // Example:
 func hash(key string) uint64 {
     hasher := fnv.New64a()
-	hasher.Write([]byte(s))
-	return hasher.Sum64()
+    hasher.Write([]byte(s))
+    return hasher.Sum64()
 }
 ```
 
