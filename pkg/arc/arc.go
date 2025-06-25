@@ -154,6 +154,8 @@ func (c *ARCCache[K, V]) handleGhostHit(key K, value V, fromB1 bool) {
 		if b1Size == 0 {
 			delta = 1
 		} else {
+			// Integer division is used intentionally here to adjust the adaptive parameter 'p'.
+			// This affects the granularity of adjustments, ensuring that 'delta' scales appropriately.
 			delta = max(1, b2Size/b1Size)
 		}
 		c.p = min(c.p+delta, c.capacity)
