@@ -341,10 +341,12 @@ func TestInternalState_PromotionToFrequent(t *testing.T) {
 	is.True(ok)
 	is.Equal(2, val)
 
-	// State: both in frequent
+	// State: both in frequent (order may vary)
 	recent, frequent, ghost = verify2QState(t, cache)
 	is.Empty(recent)
-	is.Equal([]string{"a", "b"}, frequent)
+	is.Len(frequent, 2)
+	is.Contains(frequent, "a")
+	is.Contains(frequent, "b")
 	is.Empty(ghost)
 }
 
