@@ -14,7 +14,7 @@
 ## 🚀 Features
 
 - ⚡ **High Performance**: Optimized for speed with microsecond-precision timestamps
-- 🔄 **Multiple Eviction Policies**: LRU, LFU, and 2Q algorithms
+- 🔄 **Multiple Eviction Policies**: LRU, LFU, ARC, and 2Q algorithms
 - ⏰ **TTL with Jitter**: Prevent cache stampedes with exponential distribution
 - 🔄 **Stale-While-Revalidate**: Serve stale data while refreshing in background
 - ❌ **Missing Key Caching**: Cache negative results to avoid repeated lookups
@@ -413,6 +413,7 @@ Example:
 ┌─────────────────────────────────────────────────────────────┐
 │              pkg/lru.LRUCache[K, V]                         │
 │              pkg/lfu.LFUCache[K, V]                         │
+│              pkg/arc.ARCCache[K, V]                         │
 │              pkg/twoqueue.TwoQueueCache[K, V]               │
 │                   (Eviction policies)                       │
 └─────────────────────────────────────────────────────────────┘

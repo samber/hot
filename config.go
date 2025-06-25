@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/samber/hot/pkg/arc"
 	"github.com/samber/hot/pkg/base"
 	"github.com/samber/hot/pkg/lfu"
 	"github.com/samber/hot/pkg/lru"
@@ -63,8 +64,7 @@ func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionA
 	case TwoQueue:
 		cache = twoqueue.New2QCacheWithEvictionCallback(capacity, onItemEviction)
 	case ARC:
-		panic("ARC is not implemented yet")
-		// return arc.NewARC(capacity)
+		cache = arc.NewARCCacheWithEvictionCallback(capacity, onItemEviction)
 	default:
 		panic("unknown cache algorithm")
 	}
