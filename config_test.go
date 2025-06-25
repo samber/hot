@@ -29,6 +29,12 @@ func TestComposeInternalCache(t *testing.T) {
 	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
+	cache = composeInternalCache[string, int](true, ARC, 42, 0, nil, nil)
+	is.Equal(42, cache.Capacity())
+	is.Equal("arc", cache.Algorithm())
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
+	is.True(ok)
+
 	is.Panics(func() {
 		_ = composeInternalCache[string, int](true, ARC, 0, 0, nil, nil)
 	})
@@ -48,6 +54,12 @@ func TestComposeInternalCache(t *testing.T) {
 	cache = composeInternalCache[string, int](false, TwoQueue, 42, 0, nil, nil)
 	is.Equal(42, cache.Capacity())
 	is.Equal("2q", cache.Algorithm())
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
+	is.False(ok)
+
+	cache = composeInternalCache[string, int](false, ARC, 42, 0, nil, nil)
+	is.Equal(42, cache.Capacity())
+	is.Equal("arc", cache.Algorithm())
 	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.False(ok)
 
