@@ -243,7 +243,7 @@ func (c *TwoQueueCache[K, V]) DeleteMany(keys []K) map[K]bool {
 
 // implements base.InMemoryCache
 func (c *TwoQueueCache[K, V]) Capacity() int {
-	return c.capacity + c.recentCapacity
+	return c.frequent.Capacity() + c.recentCapacity
 }
 
 // implements base.InMemoryCache
@@ -278,5 +278,8 @@ func (c *TwoQueueCache[K, V]) ensureSpace(recentEvict bool) {
 	}
 
 	// Remove from the frequent list otherwise
-	c.frequent.DeleteOldest()
+	k, v, ok := c.frequent.DeleteOldest()
+	if ok && c.onEviction != nil {
+		c.onEviction(k, v)
+	}
 }

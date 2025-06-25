@@ -140,15 +140,15 @@ func (c *SafeInMemoryCache[K, V]) DeleteMany(keys []K) map[K]bool {
 	return c.InMemoryCache.DeleteMany(keys)
 }
 
-// // implements base.InMemoryCache
-// func (c *SafeInMemoryCache[K, V]) Capacity() int {
-// 	return c.Cache.Capacity()
-// }
+// implements base.InMemoryCache
+func (c *SafeInMemoryCache[K, V]) Capacity() int {
+	return c.InMemoryCache.Capacity()
+}
 
-// // implements base.InMemoryCache
-// func (c *SafeInMemoryCache[K, V]) Algorithm() string {
-// 	return c.Cache.Algorithm()
-// }
+// implements base.InMemoryCache
+func (c *SafeInMemoryCache[K, V]) Algorithm() string {
+	return c.InMemoryCache.Algorithm()
+}
 
 // implements base.InMemoryCache
 func (c *SafeInMemoryCache[K, V]) Len() int {

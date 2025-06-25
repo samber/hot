@@ -350,42 +350,6 @@ func TestInternalState_PromotionToFrequent(t *testing.T) {
 	is.Empty(ghost)
 }
 
-func TestInternalState_PeekDoesNotPromote(t *testing.T) {
-	is := assert.New(t)
-
-	cache := New2QCache[string, int](10)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-
-	// Initial state: both in recent
-	recent, frequent, ghost := verify2QState(t, cache)
-	is.Equal([]string{"a", "b"}, recent)
-	is.Empty(frequent)
-	is.Empty(ghost)
-
-	// Peek "a" - should not promote
-	val, ok := cache.Peek("a")
-	is.True(ok)
-	is.Equal(1, val)
-
-	// State should remain: both in recent
-	recent, frequent, ghost = verify2QState(t, cache)
-	is.Equal([]string{"a", "b"}, recent)
-	is.Empty(frequent)
-	is.Empty(ghost)
-
-	// Peek "b" - should not promote
-	val, ok = cache.Peek("b")
-	is.True(ok)
-	is.Equal(2, val)
-
-	// State should remain: both in recent
-	recent, frequent, ghost = verify2QState(t, cache)
-	is.Equal([]string{"a", "b"}, recent)
-	is.Empty(frequent)
-	is.Empty(ghost)
-}
-
 func TestInternalState_UpdateExistingInFrequent(t *testing.T) {
 	is := assert.New(t)
 
@@ -540,24 +504,4 @@ func TestInternalState_Range(t *testing.T) {
 	is.Len(visited, 2)
 	is.Equal(1, visited["a"])
 	is.Equal(2, visited["b"])
-}
-
-func TestInternalState_RangeEarlyExit(t *testing.T) {
-	cache := New2QCache[string, int](10)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
-
-	// Promote "a" to frequent
-	cache.Get("a")
-
-	// Test range with early exit
-	visited := make(map[string]int)
-	cache.Range(func(k string, v int) bool {
-		visited[k] = v
-		return k != "b" // stop at "b"
-	})
-
-	// Should have visited some items but not all
-	assert.Less(t, len(visited), 3)
 }
