@@ -8,6 +8,6 @@ import "syscall"
 func NowMicro() int64 {
 	var tv syscall.Timeval
 	// @TODO: Check error?
-	syscall.Gettimeofday(&tv) //nolint:errcheck
+	_ = syscall.Gettimeofday(&tv) //nolint:errcheck
 	return int64(tv.Sec)*1e6 + int64(tv.Usec)
 }

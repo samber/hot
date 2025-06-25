@@ -227,7 +227,11 @@ func (c *ShardedInMemoryCache[K, V]) DeleteMany(keys []K) map[K]bool {
 
 // implements base.InMemoryCache
 func (c *ShardedInMemoryCache[K, V]) Capacity() int {
-	return c.caches[0].Capacity() * int(c.shards)
+	sum := 0
+	for i := range c.caches {
+		sum += c.caches[i].Capacity()
+	}
+	return sum
 }
 
 // implements base.InMemoryCache

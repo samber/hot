@@ -1,7 +1,6 @@
 package hot
 
 import (
-	"runtime"
 	"sync"
 	"time"
 
@@ -57,9 +56,11 @@ func newHotCache[K comparable, V any](
 // HotCache is the main cache implementation that provides all caching functionality.
 // It supports various eviction policies, TTL, revalidation, and missing key caching.
 type HotCache[K comparable, V any] struct {
-	ticker      *time.Ticker
-	stopOnce    *sync.Once
-	stopJanitor chan struct{}
+	janitorMutex sync.RWMutex
+	ticker       *time.Ticker
+	stopOnce     *sync.Once
+	stopJanitor  chan struct{}
+	janitorDone  chan struct{}
 
 	cache              base.InMemoryCache[K, *item[V]]
 	missingSharedCache bool
@@ -129,9 +130,11 @@ func (c *HotCache[K, V]) SetMissingWithTTL(key K, ttl time.Duration) {
 // If keys already exist, their values are updated. Uses the default TTL configured for the cache.
 func (c *HotCache[K, V]) SetMany(items map[K]V) {
 	if c.copyOnWrite != nil {
+		cOpy := map[K]V{}
 		for k, v := range items {
-			items[k] = c.copyOnWrite(v)
+			cOpy[k] = c.copyOnWrite(v)
 		}
+		items = cOpy
 	}
 
 	c.setManyUnsafe(items, []K{}, c.ttlMicro)
@@ -496,23 +499,33 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 }
 
 // Janitor starts a background goroutine that periodically removes expired items from the cache.
-// The janitor runs every minute by default and can be stopped by calling StopJanitor().
-// This method should only be called once per cache instance.
+// The janitor runs until StopJanitor() is called or the cache is garbage collected.
+// This method is safe to call multiple times, but only the first call will start the janitor.
 func (c *HotCache[K, V]) Janitor() {
+	c.janitorMutex.Lock()
+	defer c.janitorMutex.Unlock()
+
+	// Check if janitor is already running
+	if c.ticker != nil {
+		return
+	}
+
 	c.ticker = time.NewTicker(time.Duration(c.ttlMicro) * time.Microsecond)
 	c.stopOnce = &sync.Once{}
 	c.stopJanitor = make(chan struct{})
-
-	// Set finalizer to ensure janitor is stopped when cache is garbage collected
-	runtime.SetFinalizer(c, func(c *HotCache[K, V]) {
-		c.StopJanitor()
-	})
+	c.janitorDone = make(chan struct{})
 
 	go func() {
+		defer func() {
+			c.janitorMutex.Lock()
+			c.ticker = nil
+			c.janitorMutex.Unlock()
+			close(c.janitorDone)
+		}()
+
 		for {
 			select {
 			case <-c.stopJanitor:
-				c.stopJanitor <- struct{}{}
 				return
 
 			case <-c.ticker.C:
@@ -569,15 +582,37 @@ func (c *HotCache[K, V]) Janitor() {
 }
 
 // StopJanitor stops the background janitor goroutine and cleans up resources.
-// This method is safe to call multiple times and is automatically called when the cache is garbage collected.
+// This method is safe to call multiple times and will wait for the janitor to fully stop.
 func (c *HotCache[K, V]) StopJanitor() {
-	runtime.SetFinalizer(c, nil)
+	c.janitorMutex.RLock()
+	if c.ticker == nil {
+		c.janitorMutex.RUnlock()
+		return
+	}
+	c.janitorMutex.RUnlock()
+
 	c.stopOnce.Do(func() {
-		c.stopJanitor <- struct{}{}
-		c.ticker.Stop()
-		<-c.stopJanitor
+		// Signal the janitor to stop
 		close(c.stopJanitor)
+
+		// Wait for the janitor to finish
+		<-c.janitorDone
+
+		// Stop the ticker (this is safe because the goroutine has already returned)
+		c.janitorMutex.Lock()
+		if c.ticker != nil {
+			c.ticker.Stop()
+		}
+		c.janitorMutex.Unlock()
 	})
+}
+
+// isJanitorRunning returns true if the janitor goroutine is currently running.
+// This method is primarily useful for testing and debugging.
+func (c *HotCache[K, V]) isJanitorRunning() bool {
+	c.janitorMutex.RLock()
+	defer c.janitorMutex.RUnlock()
+	return c.ticker != nil
 }
 
 // setUnsafe is an internal method that sets a key-value pair in the cache without thread safety.

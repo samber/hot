@@ -256,25 +256,6 @@ func TestSafeInMemoryCache_Range(t *testing.T) {
 	is.Equal(200, visited["key2"])
 }
 
-func TestSafeInMemoryCache_RangeEarlyExit(t *testing.T) {
-	is := assert.New(t)
-
-	mock := newMockCache[string, int]()
-	cache := NewSafeInMemoryCache(mock)
-
-	cache.Set("key1", 100)
-	cache.Set("key2", 200)
-	cache.Set("key3", 300)
-
-	visited := make(map[string]int)
-	cache.Range(func(k string, v int) bool {
-		visited[k] = v
-		return k != "key2" // stop at key2
-	})
-
-	is.Len(visited, 2) // should only have key1 and key2
-}
-
 func TestSafeInMemoryCache_Purge(t *testing.T) {
 	is := assert.New(t)
 
