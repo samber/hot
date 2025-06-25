@@ -607,14 +607,6 @@ func (c *HotCache[K, V]) StopJanitor() {
 	})
 }
 
-// isJanitorRunning returns true if the janitor goroutine is currently running.
-// This method is primarily useful for testing and debugging.
-func (c *HotCache[K, V]) isJanitorRunning() bool {
-	c.janitorMutex.RLock()
-	defer c.janitorMutex.RUnlock()
-	return c.ticker != nil
-}
-
 // setUnsafe is an internal method that sets a key-value pair in the cache without thread safety.
 // It handles both regular values and missing keys, applying TTL jitter and managing separate caches.
 func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64) {

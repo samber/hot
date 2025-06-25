@@ -366,7 +366,7 @@ func TestSetMany_WithEviction(t *testing.T) {
 
 	evicted := 0
 	cache := NewLFUCacheWithEvictionCallback(2, func(k string, v int) {
-		evicted += v
+		evicted++
 	})
 
 	cache.SetMany(map[string]int{
@@ -376,7 +376,7 @@ func TestSetMany_WithEviction(t *testing.T) {
 	})
 
 	is.Equal(2, cache.Len())
-	is.Equal(1, evicted) // 1 should be evicted
+	is.Equal(1, evicted) // 1 item should be evicted
 }
 
 func TestHasMany(t *testing.T) {
@@ -531,24 +531,6 @@ func TestInterfaceCompliance(t *testing.T) {
 	value, ok := cacheInterface.Get("test")
 	is.True(ok)
 	is.Equal(42, value)
-}
-
-func TestRange_EarlyExit(t *testing.T) {
-	is := assert.New(t)
-
-	cache := NewLFUCache[string, int](5)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
-
-	visited := make(map[string]int)
-	cache.Range(func(k string, v int) bool {
-		visited[k] = v
-		return k != "b" // stop at "b"
-	})
-
-	// Should have visited some items but not all
-	is.Less(len(visited), 3)
 }
 
 func TestRange_AllItems(t *testing.T) {

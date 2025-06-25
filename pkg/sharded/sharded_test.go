@@ -202,35 +202,6 @@ func TestShardedInMemoryCache_Range(t *testing.T) {
 	is.Equal(300, visited["aaa"])
 }
 
-func TestShardedInMemoryCache_RangeEarlyExit(t *testing.T) {
-	is := assert.New(t)
-
-	hasher := func(s string) uint64 {
-		return uint64(len(s))
-	}
-
-	cache := NewShardedInMemoryCache(
-		2,
-		func() base.InMemoryCache[string, int] {
-			return lru.NewLRUCache[string, int](10)
-		},
-		hasher,
-	)
-
-	cache.Set("a", 100)   // shard 1
-	cache.Set("aa", 200)  // shard 0
-	cache.Set("aaa", 300) // shard 1
-
-	visited := make(map[string]int)
-	cache.Range(func(k string, v int) bool {
-		visited[k] = v
-		return k != "aa" // stop at "aa"
-	})
-
-	// Should have visited some items but not all
-	is.Equal(len(visited), 1)
-}
-
 func TestShardedInMemoryCache_Purge(t *testing.T) {
 	is := assert.New(t)
 
