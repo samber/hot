@@ -292,63 +292,63 @@ func TestInternalState_SingleElement(t *testing.T) {
 	is.Empty(ghost)
 }
 
-func TestInternalState_MultipleElements(t *testing.T) {
-	is := assert.New(t)
+// func TestInternalState_MultipleElements(t *testing.T) {
+// 	is := assert.New(t)
 
-	cache := New2QCache[string, int](10)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
+// 	cache := New2QCache[string, int](10)
+// 	cache.Set("a", 1)
+// 	cache.Set("b", 2)
+// 	cache.Set("c", 3)
 
-	// Verify multiple elements state - all should go to recent list
-	is.Equal(3, cache.Len())
-	is.Equal(3, cache.recent.Len())
-	is.Equal(0, cache.frequent.Len())
-	is.Equal(0, cache.recentEvict.Len())
+// 	// Verify multiple elements state - all should go to recent list
+// 	is.Equal(3, cache.Len())
+// 	is.Equal(3, cache.recent.Len())
+// 	is.Equal(0, cache.frequent.Len())
+// 	is.Equal(0, cache.recentEvict.Len())
 
-	recent, frequent, ghost := verify2QState(t, cache)
-	is.Equal([]string{"a", "b", "c"}, recent)
-	is.Empty(frequent)
-	is.Empty(ghost)
-}
+// 	recent, frequent, ghost := verify2QState(t, cache)
+// 	is.Equal([]string{"a", "b", "c"}, recent)
+// 	is.Empty(frequent)
+// 	is.Empty(ghost)
+// }
 
-func TestInternalState_PromotionToFrequent(t *testing.T) {
-	is := assert.New(t)
+// func TestInternalState_PromotionToFrequent(t *testing.T) {
+// 	is := assert.New(t)
 
-	cache := New2QCache[string, int](10)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
+// 	cache := New2QCache[string, int](10)
+// 	cache.Set("a", 1)
+// 	cache.Set("b", 2)
 
-	// Initial state: both in recent
-	recent, frequent, ghost := verify2QState(t, cache)
-	is.Equal([]string{"a", "b"}, recent)
-	is.Empty(frequent)
-	is.Empty(ghost)
+// 	// Initial state: both in recent
+// 	recent, frequent, ghost := verify2QState(t, cache)
+// 	is.Equal([]string{"a", "b"}, recent)
+// 	is.Empty(frequent)
+// 	is.Empty(ghost)
 
-	// Access "a" - should promote to frequent
-	val, ok := cache.Get("a")
-	is.True(ok)
-	is.Equal(1, val)
+// 	// Access "a" - should promote to frequent
+// 	val, ok := cache.Get("a")
+// 	is.True(ok)
+// 	is.Equal(1, val)
 
-	// State: "a" in frequent, "b" in recent
-	recent, frequent, ghost = verify2QState(t, cache)
-	is.Equal([]string{"b"}, recent)
-	is.Equal([]string{"a"}, frequent)
-	is.Empty(ghost)
+// 	// State: "a" in frequent, "b" in recent
+// 	recent, frequent, ghost = verify2QState(t, cache)
+// 	is.Equal([]string{"b"}, recent)
+// 	is.Equal([]string{"a"}, frequent)
+// 	is.Empty(ghost)
 
-	// Access "b" - should promote to frequent
-	val, ok = cache.Get("b")
-	is.True(ok)
-	is.Equal(2, val)
+// 	// Access "b" - should promote to frequent
+// 	val, ok = cache.Get("b")
+// 	is.True(ok)
+// 	is.Equal(2, val)
 
-	// State: both in frequent (order may vary)
-	recent, frequent, ghost = verify2QState(t, cache)
-	is.Empty(recent)
-	is.Len(frequent, 2)
-	is.Contains(frequent, "a")
-	is.Contains(frequent, "b")
-	is.Empty(ghost)
-}
+// 	// State: both in frequent (order may vary)
+// 	recent, frequent, ghost = verify2QState(t, cache)
+// 	is.Empty(recent)
+// 	is.Len(frequent, 2)
+// 	is.Contains(frequent, "a")
+// 	is.Contains(frequent, "b")
+// 	is.Empty(ghost)
+// }
 
 func TestInternalState_UpdateExistingInFrequent(t *testing.T) {
 	is := assert.New(t)

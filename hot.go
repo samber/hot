@@ -56,6 +56,8 @@ func newHotCache[K comparable, V any](
 // HotCache is the main cache implementation that provides all caching functionality.
 // It supports various eviction policies, TTL, revalidation, and missing key caching.
 type HotCache[K comparable, V any] struct {
+	// janitorMutex protects the janitor state (ticker, stopJanitor, janitorDone)
+	// This prevents race conditions when multiple goroutines call Janitor() or StopJanitor()
 	janitorMutex sync.RWMutex
 	ticker       *time.Ticker
 	stopOnce     *sync.Once
@@ -502,35 +504,49 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 // The janitor runs until StopJanitor() is called or the cache is garbage collected.
 // This method is safe to call multiple times, but only the first call will start the janitor.
 func (c *HotCache[K, V]) Janitor() {
+	// Acquire write lock to protect janitor state initialization
+	// This prevents race conditions if multiple goroutines call Janitor() simultaneously
 	c.janitorMutex.Lock()
 	defer c.janitorMutex.Unlock()
 
-	// Check if janitor is already running
+	// Check if janitor is already running to prevent duplicate goroutines
 	if c.ticker != nil {
 		return
 	}
 
+	// Initialize janitor components atomically under lock protection
 	c.ticker = time.NewTicker(time.Duration(c.ttlMicro) * time.Microsecond)
 	c.stopOnce = &sync.Once{}
 	c.stopJanitor = make(chan struct{})
 	c.janitorDone = make(chan struct{})
 
+	// Start the janitor goroutine
 	go func() {
+		// Ensure cleanup happens even if the goroutine panics
+		// This is the key fix for the memory leak bug #10
 		defer func() {
+			// Acquire lock to safely update janitor state
 			c.janitorMutex.Lock()
-			c.ticker = nil
+			c.ticker = nil // Allow garbage collection of ticker
 			c.janitorMutex.Unlock()
+
+			// Signal that janitor has finished cleanup
+			// This allows StopJanitor() to proceed safely
 			close(c.janitorDone)
 		}()
 
+		// Main janitor loop - runs until stop signal is received
 		for {
 			select {
 			case <-c.stopJanitor:
+				// Received stop signal, exit gracefully
 				return
 
 			case <-c.ticker.C:
+				// Ticker fired, time to clean expired items
 				nowMicro := internal.NowMicro()
 
+				// Clean expired items from main cache
 				{
 					toDelete := []K{}
 					toDeleteKV := map[K]V{}
@@ -554,6 +570,7 @@ func (c *HotCache[K, V]) Janitor() {
 					}
 				}
 
+				// Clean expired items from missing cache (if separate cache is used)
 				if c.missingCache != nil {
 					toDelete := []K{}
 					toDeleteKV := map[K]V{}
@@ -584,21 +601,29 @@ func (c *HotCache[K, V]) Janitor() {
 // StopJanitor stops the background janitor goroutine and cleans up resources.
 // This method is safe to call multiple times and will wait for the janitor to fully stop.
 func (c *HotCache[K, V]) StopJanitor() {
+	// Use read lock to check if janitor is running
+	// This allows concurrent reads without blocking other operations
 	c.janitorMutex.RLock()
 	if c.ticker == nil {
+		// Janitor is not running, nothing to stop
 		c.janitorMutex.RUnlock()
 		return
 	}
 	c.janitorMutex.RUnlock()
 
+	// Use sync.Once to ensure shutdown logic runs only once
+	// This prevents race conditions if multiple goroutines call StopJanitor()
 	c.stopOnce.Do(func() {
-		// Signal the janitor to stop
+		// Signal the janitor goroutine to stop by closing the channel
+		// This will cause the select statement in the goroutine to receive from stopJanitor
 		close(c.stopJanitor)
 
-		// Wait for the janitor to finish
+		// Wait for the janitor goroutine to finish its cleanup
+		// This prevents memory leaks by ensuring the goroutine has exited before we stop the ticker
 		<-c.janitorDone
 
-		// Stop the ticker (this is safe because the goroutine has already returned)
+		// Now it's safe to stop the ticker because the goroutine has finished
+		// Use write lock to protect ticker access
 		c.janitorMutex.Lock()
 		if c.ticker != nil {
 			c.ticker.Stop()

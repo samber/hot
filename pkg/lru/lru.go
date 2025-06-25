@@ -8,9 +8,10 @@ import (
 )
 
 // entry represents a key-value pair stored in the LRU cache.
+// Each entry is stored as a list element to maintain the access order.
 type entry[K comparable, V any] struct {
-	key   K
-	value V
+	key   K // The cache key
+	value V // The cached value
 }
 
 // NewLRUCache creates a new LRU cache with the specified capacity.
@@ -38,13 +39,13 @@ func NewLRUCacheWithEvictionCallback[K comparable, V any](capacity int, onEvicti
 // LRUCache is a Least Recently Used cache implementation.
 // It is not safe for concurrent access and should be wrapped with a thread-safe layer if needed.
 type LRUCache[K comparable, V any] struct {
-	noCopy internal.NoCopy
+	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	capacity int
-	ll       *list.List // @TODO: Build a custom list.List implementation for better performance
-	cache    map[K]*list.Element
+	capacity int                 // Maximum number of items the cache can hold (0 = unlimited)
+	ll       *list.List          // Doubly-linked list maintaining access order (most recent at front)
+	cache    map[K]*list.Element // Map for O(1) key lookups to list elements
 
-	onEviction base.EvictionCallback[K, V]
+	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
 
 // Ensure LRUCache implements InMemoryCache interface
@@ -53,15 +54,20 @@ var _ base.InMemoryCache[string, int] = (*LRUCache[string, int])(nil)
 // Set stores a key-value pair in the cache.
 // If the key already exists, its value is updated and it becomes the most recently used item.
 // If the cache is at capacity, the least recently used item is evicted.
+// Time complexity: O(1) average case, O(n) worst case when eviction occurs.
 func (c *LRUCache[K, V]) Set(key K, value V) {
 	if e, ok := c.cache[key]; ok {
+		// Key exists: move to front (most recently used) and update value
 		c.ll.MoveToFront(e)
 		e.Value.(*entry[K, V]).value = value
 		return
 	}
 
+	// Key doesn't exist: create new entry at front of list
 	e := c.ll.PushFront(&entry[K, V]{key, value})
 	c.cache[key] = e
+
+	// Check if we need to evict the least recently used item
 	if c.capacity != 0 && c.ll.Len() > c.capacity {
 		k, v, ok := c.DeleteOldest()
 		if ok && c.onEviction != nil {
@@ -125,6 +131,7 @@ func (c *LRUCache[K, V]) Range(f func(K, V) bool) {
 
 // Delete removes a key from the cache.
 // Returns true if the key was found and removed, false otherwise.
+// Time complexity: O(1) average case.
 func (c *LRUCache[K, V]) Delete(key K) bool {
 	if e, hit := c.cache[key]; hit {
 		c.deleteElement(e)
@@ -192,28 +199,35 @@ func (c *LRUCache[K, V]) DeleteMany(keys []K) map[K]bool {
 }
 
 // Purge removes all keys and values from the cache.
+// This operation resets the cache to its initial state.
+// Time complexity: O(1) - just reallocates the data structures.
 func (c *LRUCache[K, V]) Purge() {
 	c.ll = list.New()
 	c.cache = make(map[K]*list.Element)
 }
 
 // Capacity returns the maximum number of items the cache can hold.
+// Returns 0 if the cache has unlimited capacity.
 func (c *LRUCache[K, V]) Capacity() int {
 	return c.capacity
 }
 
 // Algorithm returns the name of the eviction algorithm used by the cache.
+// This is used for debugging and monitoring purposes.
 func (c *LRUCache[K, V]) Algorithm() string {
 	return "lru"
 }
 
 // Len returns the current number of items in the cache.
+// Time complexity: O(1) - the list maintains its length.
 func (c *LRUCache[K, V]) Len() int {
 	return c.ll.Len()
 }
 
 // DeleteOldest removes and returns the least recently used item from the cache.
 // Returns the key, value, and a boolean indicating if an item was removed.
+// This method is used internally for eviction when the cache reaches capacity.
+// Time complexity: O(1) - removes from the back of the list.
 func (c *LRUCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 	e := c.ll.Back()
 	if e != nil {
@@ -226,7 +240,9 @@ func (c *LRUCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 }
 
 // deleteElement removes an element from both the list and the map.
-// This is an internal helper method.
+// This is an internal helper method that ensures consistency between
+// the list and map data structures.
+// Time complexity: O(1) average case.
 func (c *LRUCache[K, V]) deleteElement(e *list.Element) {
 	c.ll.Remove(e)
 	kv := e.Value.(*entry[K, V])
