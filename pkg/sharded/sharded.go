@@ -6,7 +6,7 @@ import (
 )
 
 func NewShardedInMemoryCache[K comparable, V any](shards uint64, newCache func() base.InMemoryCache[K, V], fn Hasher[K]) base.InMemoryCache[K, V] {
-	caches := map[uint64]base.InMemoryCache[K, V]{}
+	caches := make([]base.InMemoryCache[K, V], shards)
 	for i := uint64(0); i < shards; i++ {
 		caches[i] = newCache()
 	}
@@ -24,7 +24,7 @@ type ShardedInMemoryCache[K comparable, V any] struct {
 
 	shards uint64
 	fn     Hasher[K]
-	caches map[uint64]base.InMemoryCache[K, V]
+	caches []base.InMemoryCache[K, V]
 }
 
 var _ base.InMemoryCache[string, int] = (*ShardedInMemoryCache[string, int])(nil)
@@ -241,5 +241,5 @@ func (c *ShardedInMemoryCache[K, V]) Len() int {
 	for i := range c.caches {
 		sum += c.caches[i].Len()
 	}
-	return 0
+	return sum
 }

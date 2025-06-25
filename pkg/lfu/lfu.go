@@ -22,7 +22,7 @@ func NewLFUCache[K comparable, V any](capacity int) *LFUCache[K, V] {
 }
 
 func NewLFUCacheWithEvictionCallback[K comparable, V any](capacity int, onEviction base.EvictionCallback[K, V]) *LFUCache[K, V] {
-	return NewLFUCacheWithEvictionSizeAndCallback[K, V](capacity, DefaultEvictionSize, onEviction)
+	return NewLFUCacheWithEvictionSizeAndCallback(capacity, DefaultEvictionSize, onEviction)
 }
 
 func NewLFUCacheWithEvictionSize[K comparable, V any](capacity int, evictionSize int) *LFUCache[K, V] {
