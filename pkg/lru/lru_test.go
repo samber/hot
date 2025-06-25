@@ -535,6 +535,8 @@ func TestInternalState_DeleteOldest(t *testing.T) {
 
 	// Try to delete from empty cache
 	key, value, ok = cache.DeleteOldest()
+	is.Zero(key)
+	is.Zero(value)
 	is.False(ok)
 }
 

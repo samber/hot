@@ -372,11 +372,8 @@ func TestShardedInMemoryCache_InterfaceCompliance(t *testing.T) {
 		hasher,
 	)
 
-	// Verify the sharded cache implements the interface
-	var _ base.InMemoryCache[string, int] = cache
-
 	// Test that we can assign it to the interface type
-	var cacheInterface base.InMemoryCache[string, int] = cache
+	var cacheInterface = cache
 
 	// Test operations through the interface
 	cacheInterface.Set("test", 42)

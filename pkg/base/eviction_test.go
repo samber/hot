@@ -10,10 +10,7 @@ func TestEvictionCallback(t *testing.T) {
 	is := assert.New(t)
 
 	// Test that EvictionCallback can be assigned to a variable
-	var callback EvictionCallback[string, int]
-
-	// Test that we can assign a function to it
-	callback = func(key string, value int) {
+	var callback EvictionCallback[string, int] = func(key string, value int) {
 		// This is just a test to ensure the type works
 	}
 
@@ -107,12 +104,6 @@ func TestEvictionCallback_Closure(t *testing.T) {
 
 func TestEvictionCallback_InterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
-
-	// Test that EvictionCallback can be used in interfaces
-	type CacheWithEviction[K comparable, V any] interface {
-		SetEvictionCallback(callback EvictionCallback[K, V])
-		TriggerEviction(key K, value V)
-	}
 
 	// Mock implementation
 	mockCache := &mockCacheWithEviction[string, int]{

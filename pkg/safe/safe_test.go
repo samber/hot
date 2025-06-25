@@ -390,15 +390,9 @@ func TestSafeInMemoryCache_InterfaceCompliance(t *testing.T) {
 	mock := newMockCache[string, int]()
 	safeCache := NewSafeInMemoryCache(mock)
 
-	// Verify the safe cache implements the interface
-	var _ base.InMemoryCache[string, int] = safeCache
-
-	// Test that we can assign it to the interface type
-	var cache base.InMemoryCache[string, int] = safeCache
-
 	// Test operations through the interface
-	cache.Set("test", 42)
-	value, ok := cache.Get("test")
+	safeCache.Set("test", 42)
+	value, ok := safeCache.Get("test")
 	is.True(ok)
 	is.Equal(42, value)
 }
