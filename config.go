@@ -140,7 +140,7 @@ func (cfg HotCacheConfig[K, V]) WithMissingCache(algorithm EvictionAlgorithm, ca
 // WithTTL sets the time-to-live for cache entries.
 // After this duration, entries will be considered expired and will be removed.
 func (cfg HotCacheConfig[K, V]) WithTTL(ttl time.Duration) HotCacheConfig[K, V] {
-	assertValue(ttl >= 0, "ttl must be a positive value")
+	assertValue(ttl > 0, "ttl must be a positive value")
 
 	cfg.ttl = ttl
 	return cfg
