@@ -24,7 +24,7 @@ func TestComposeInternalCache(t *testing.T) {
 	is.True(ok)
 
 	cache = composeInternalCache[string, int](true, TwoQueue, 42, 0, nil, nil)
-	is.Equal(52, cache.Capacity())
+	is.Equal(42, cache.Capacity())
 	is.Equal("2q", cache.Algorithm())
 	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
@@ -46,7 +46,7 @@ func TestComposeInternalCache(t *testing.T) {
 	is.False(ok)
 
 	cache = composeInternalCache[string, int](false, TwoQueue, 42, 0, nil, nil)
-	is.Equal(52, cache.Capacity())
+	is.Equal(42, cache.Capacity())
 	is.Equal("2q", cache.Algorithm())
 	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.False(ok)

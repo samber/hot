@@ -1,6 +1,8 @@
 package twoqueue
 
 import (
+	"container/list"
+
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 	"github.com/samber/hot/pkg/lru"
@@ -54,23 +56,28 @@ func New2QCacheWithRatioAndEvictionCallback[K comparable, V any](capacity int, r
 
 	// Determine the sub-capacities based on the provided ratios
 	recentCapacity := int(float64(capacity) * recentRatio)
-	recentEvictCapacity := int(float64(capacity) * ghostRatio)
+	ghostCapacity := int(float64(capacity) * ghostRatio)
+	frequentCapacity := capacity - recentCapacity
 
-	// Allocate the LRU caches for each component
-	recent := lru.NewLRUCache[K, V](capacity)
-	frequent := lru.NewLRUCache[K, V](capacity)
-	recentEvict := lru.NewLRUCache[K, struct{}](recentEvictCapacity)
+	// Ensure minimum capacities
+	if recentCapacity < 1 {
+		recentCapacity = 1
+	}
+	if frequentCapacity < 1 {
+		frequentCapacity = 1
+	}
 
 	return &TwoQueueCache[K, V]{
-		capacity:            capacity,
-		recentCapacity:      recentCapacity,
-		recentEvictCapacity: recentEvictCapacity,
-		recentRatio:         recentRatio,
-		ghostRatio:          ghostRatio,
+		capacity:         capacity,
+		recentCapacity:   recentCapacity,
+		ghostCapacity:    ghostCapacity,
+		frequentCapacity: frequentCapacity,
+		recentRatio:      recentRatio,
+		ghostRatio:       ghostRatio,
 
-		recent:      recent,
-		frequent:    frequent,
-		recentEvict: recentEvict,
+		recent:   newFIFOCache[K, V](recentCapacity),
+		frequent: lru.NewLRUCache[K, V](frequentCapacity),
+		ghost:    newFIFOCache[K, struct{}](ghostCapacity),
 
 		onEviction: onEviction,
 	}
@@ -85,16 +92,16 @@ func New2QCacheWithRatioAndEvictionCallback[K comparable, V any](capacity int, r
 type TwoQueueCache[K comparable, V any] struct {
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	capacity            int     // Total cache capacity
-	recentCapacity      int     // Capacity allocated for recent entries
-	recentEvictCapacity int     // Capacity allocated for ghost entries
-	recentRatio         float64 // Ratio of capacity for recent entries
-	ghostRatio          float64 // Ratio of capacity for ghost entries
+	capacity         int     // Total cache capacity
+	recentCapacity   int     // Capacity allocated for recent entries
+	ghostCapacity    int     // Capacity allocated for ghost entries
+	frequentCapacity int     // Capacity allocated for frequent entries
+	recentRatio      float64 // Ratio of capacity for recent entries
+	ghostRatio       float64 // Ratio of capacity for ghost entries
 
-	// @TODO: recent and recentEvict should be FIFO lists
-	recent      *lru.LRUCache[K, V]        // @TODO: build a custom FIFO implementation
-	frequent    *lru.LRUCache[K, V]        // @TODO: build a custom list.List implementation
-	recentEvict *lru.LRUCache[K, struct{}] // @TODO: build a custom FIFO implementation
+	recent   *FIFOCache[K, V]        // FIFO list for recently accessed items
+	frequent *lru.LRUCache[K, V]     // LRU list for frequently accessed items
+	ghost    *FIFOCache[K, struct{}] // FIFO list for ghost entries
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
@@ -109,29 +116,30 @@ var _ base.InMemoryCache[string, int] = (*TwoQueueCache[string, int])(nil)
 // 3. If the key is in the ghost cache, add it directly to the frequent cache
 // 4. Otherwise, add it to the recent cache
 func (c *TwoQueueCache[K, V]) Set(key K, value V) {
-	// Check if the value is frequently used already, and just update the value
+	// Check if the key is already in the frequent cache
 	if c.frequent.Has(key) {
 		c.frequent.Set(key, value)
 		return
 	}
 
-	// Check if the value is recently used, and promote the value into the frequent list
+	// Check if the key is in the recent cache, promote to frequent
 	if c.recent.Has(key) {
 		c.recent.Delete(key)
+		c.ensureFrequentSpace()
 		c.frequent.Set(key, value)
 		return
 	}
 
-	// If the value was recently evicted, add it to the frequently used list
-	if c.recentEvict.Has(key) {
-		c.ensureSpace(true)
-		c.recentEvict.Delete(key)
+	// Check if the key is in the ghost cache, add directly to frequent
+	if c.ghost.Has(key) {
+		c.ghost.Delete(key)
+		c.ensureFrequentSpace()
 		c.frequent.Set(key, value)
 		return
 	}
 
-	// Add to the recently seen list
-	c.ensureSpace(false)
+	// Add to the recent cache
+	c.ensureRecentSpace()
 	c.recent.Set(key, value)
 }
 
@@ -154,6 +162,7 @@ func (c *TwoQueueCache[K, V]) Get(key K) (value V, ok bool) {
 	// If the value is contained in recent, then we promote it to frequent
 	if val, ok := c.recent.Peek(key); ok {
 		c.recent.Delete(key)
+		c.ensureFrequentSpace()
 		c.frequent.Set(key, val)
 		return val, ok
 	}
@@ -202,7 +211,7 @@ func (c *TwoQueueCache[K, V]) Range(f func(K, V) bool) {
 // Delete removes a key from all caches (frequent, recent, and ghost).
 // Returns true if the key was found and removed from any cache, false otherwise.
 func (c *TwoQueueCache[K, V]) Delete(key K) bool {
-	return c.frequent.Delete(key) || c.recent.Delete(key) || c.recentEvict.Delete(key)
+	return c.frequent.Delete(key) || c.recent.Delete(key) || c.ghost.Delete(key)
 }
 
 // Purge removes all keys and values from all caches.
@@ -210,7 +219,7 @@ func (c *TwoQueueCache[K, V]) Delete(key K) bool {
 func (c *TwoQueueCache[K, V]) Purge() {
 	c.recent.Purge()
 	c.frequent.Purge()
-	c.recentEvict.Purge()
+	c.ghost.Purge()
 }
 
 // SetMany stores multiple key-value pairs in the cache.
@@ -278,7 +287,7 @@ func (c *TwoQueueCache[K, V]) DeleteMany(keys []K) map[K]bool {
 // Capacity returns the total capacity of the cache.
 // This is the sum of the capacities of all cache components.
 func (c *TwoQueueCache[K, V]) Capacity() int {
-	return c.frequent.Capacity() + c.recentCapacity
+	return c.capacity
 }
 
 // Algorithm returns the name of the eviction algorithm used by the cache.
@@ -293,33 +302,176 @@ func (c *TwoQueueCache[K, V]) Len() int {
 	return c.frequent.Len() + c.recent.Len()
 }
 
-// ensureSpace makes room for new entries by evicting items when necessary.
-// The recentEvict parameter indicates whether we're making space for an item
-// that was recently evicted (true) or a new item (false).
-// This method implements the eviction policy of the 2Q algorithm.
-func (c *TwoQueueCache[K, V]) ensureSpace(recentEvict bool) {
-	// If we have space, nothing to do
-	recentLen := c.recent.Len()
-	freqLen := c.frequent.Len()
-	if recentLen+freqLen < c.capacity {
+// ensureRecentSpace makes room in the recent cache by evicting items when necessary.
+// Evicted items from recent are added to the ghost cache.
+func (c *TwoQueueCache[K, V]) ensureRecentSpace() {
+	if c.recent.Len() < c.recentCapacity {
 		return
 	}
 
-	// If the recent buffer is larger than
-	// the target, evict from there
-	if recentLen > 0 && (recentLen > c.recentCapacity || (recentLen == c.recentCapacity && !recentEvict)) {
-		k, v, ok := c.recent.DeleteOldest()
-		if ok && c.onEviction != nil {
-			c.onEviction(k, v)
+	// Evict oldest item from recent and add to ghost
+	if key, value, ok := c.recent.DeleteOldest(); ok {
+		if c.onEviction != nil {
+			c.onEviction(key, value)
 		}
+		c.ensureGhostSpace()
+		c.ghost.Set(key, struct{}{})
+	}
+}
 
-		c.recentEvict.Set(k, struct{}{})
+// ensureFrequentSpace makes room in the frequent cache by evicting items when necessary.
+// Evicted items from frequent are discarded (not added to ghost).
+func (c *TwoQueueCache[K, V]) ensureFrequentSpace() {
+	if c.frequent.Len() < c.frequentCapacity {
 		return
 	}
 
-	// Remove from the frequent list otherwise
-	k, v, ok := c.frequent.DeleteOldest()
-	if ok && c.onEviction != nil {
-		c.onEviction(k, v)
+	// Evict oldest item from frequent
+	if key, value, ok := c.frequent.DeleteOldest(); ok {
+		if c.onEviction != nil {
+			c.onEviction(key, value)
+		}
 	}
+}
+
+// ensureGhostSpace makes room in the ghost cache by evicting items when necessary.
+// Evicted items from ghost are discarded.
+func (c *TwoQueueCache[K, V]) ensureGhostSpace() {
+	if c.ghost.Len() < c.ghostCapacity {
+		return
+	}
+
+	// Evict oldest item from ghost
+	c.ghost.DeleteOldest()
+}
+
+// FIFOCache implements a simple FIFO (First-In-First-Out) cache using a linked list.
+// This is used for the recent and ghost components of the 2Q algorithm.
+type FIFOCache[K comparable, V any] struct {
+	capacity int
+	ll       *list.List
+	cache    map[K]*list.Element
+}
+
+// newFIFOCache creates a new FIFO cache with the specified capacity.
+func newFIFOCache[K comparable, V any](capacity int) *FIFOCache[K, V] {
+	return &FIFOCache[K, V]{
+		capacity: capacity,
+		ll:       list.New(),
+		cache:    make(map[K]*list.Element),
+	}
+}
+
+// entry represents a key-value pair stored in the FIFO cache.
+type entry[K comparable, V any] struct {
+	key   K
+	value V
+}
+
+// Set stores a key-value pair in the FIFO cache.
+// If the key already exists, its value is updated but position is not changed.
+// If the cache is at capacity, the oldest item is evicted.
+func (c *FIFOCache[K, V]) Set(key K, value V) {
+	if e, ok := c.cache[key]; ok {
+		// Key exists: update value but don't change position
+		e.Value.(*entry[K, V]).value = value
+		return
+	}
+
+	// Key doesn't exist: create new entry at back of list (FIFO)
+	e := c.ll.PushBack(&entry[K, V]{key, value})
+	c.cache[key] = e
+
+	// Check if we need to evict the oldest item
+	if c.capacity > 0 && c.ll.Len() > c.capacity {
+		c.DeleteOldest()
+	}
+}
+
+// Has checks if a key exists in the FIFO cache.
+func (c *FIFOCache[K, V]) Has(key K) bool {
+	_, hit := c.cache[key]
+	return hit
+}
+
+// Get retrieves a value from the FIFO cache.
+// This operation does not change the position of the item in the FIFO order.
+func (c *FIFOCache[K, V]) Get(key K) (value V, ok bool) {
+	if e, hit := c.cache[key]; hit {
+		return e.Value.(*entry[K, V]).value, true
+	}
+	return value, false
+}
+
+// Peek retrieves a value from the FIFO cache without affecting the cache state.
+func (c *FIFOCache[K, V]) Peek(key K) (value V, ok bool) {
+	return c.Get(key)
+}
+
+// Delete removes a key from the FIFO cache.
+// Returns true if the key was found and removed, false otherwise.
+func (c *FIFOCache[K, V]) Delete(key K) bool {
+	if e, hit := c.cache[key]; hit {
+		c.deleteElement(e)
+		return true
+	}
+	return false
+}
+
+// DeleteOldest removes and returns the oldest item from the FIFO cache.
+// Returns the key, value, and a boolean indicating if an item was removed.
+func (c *FIFOCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
+	e := c.ll.Front()
+	if e != nil {
+		c.deleteElement(e)
+		kv := e.Value.(*entry[K, V])
+		return kv.key, kv.value, true
+	}
+	return k, v, false
+}
+
+// deleteElement removes an element from both the list and the map.
+func (c *FIFOCache[K, V]) deleteElement(e *list.Element) {
+	c.ll.Remove(e)
+	kv := e.Value.(*entry[K, V])
+	delete(c.cache, kv.key)
+}
+
+// Keys returns all keys currently in the FIFO cache.
+func (c *FIFOCache[K, V]) Keys() []K {
+	all := make([]K, 0, c.ll.Len())
+	for k := range c.cache {
+		all = append(all, k)
+	}
+	return all
+}
+
+// Values returns all values currently in the FIFO cache.
+func (c *FIFOCache[K, V]) Values() []V {
+	all := make([]V, 0, c.ll.Len())
+	for _, v := range c.cache {
+		all = append(all, v.Value.(*entry[K, V]).value)
+	}
+	return all
+}
+
+// Range iterates over all key-value pairs in the FIFO cache.
+// The iteration stops if the function returns false.
+func (c *FIFOCache[K, V]) Range(f func(K, V) bool) {
+	for k, v := range c.cache {
+		if !f(k, v.Value.(*entry[K, V]).value) {
+			break
+		}
+	}
+}
+
+// Purge removes all keys and values from the FIFO cache.
+func (c *FIFOCache[K, V]) Purge() {
+	c.ll = list.New()
+	c.cache = make(map[K]*list.Element)
+}
+
+// Len returns the current number of items in the FIFO cache.
+func (c *FIFOCache[K, V]) Len() int {
+	return c.ll.Len()
 }

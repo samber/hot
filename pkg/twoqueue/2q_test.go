@@ -16,12 +16,12 @@ func TestNew2QCache(t *testing.T) {
 	cache := New2QCache[string, int](42)
 	is.Equal(42, cache.capacity)
 	is.Equal(10, cache.recentCapacity)
-	is.Equal(21, cache.recentEvictCapacity)
+	is.Equal(21, cache.ghostCapacity)
 	is.Equal(0.25, cache.recentRatio)
 	is.Equal(0.50, cache.ghostRatio)
 	is.NotNil(cache.recent)
 	is.NotNil(cache.frequent)
-	is.NotNil(cache.recentEvict)
+	is.NotNil(cache.ghost)
 }
 
 func TestNew2QCacheWithRatio(t *testing.T) {
@@ -46,12 +46,12 @@ func TestNew2QCacheWithRatio(t *testing.T) {
 	cache := New2QCacheWithRatio[string, int](42, 0.5, 0.25)
 	is.Equal(42, cache.capacity)
 	is.Equal(21, cache.recentCapacity)
-	is.Equal(10, cache.recentEvictCapacity)
+	is.Equal(10, cache.ghostCapacity)
 	is.Equal(0.50, cache.recentRatio)
 	is.Equal(0.25, cache.ghostRatio)
 	is.NotNil(cache.recent)
 	is.NotNil(cache.frequent)
-	is.NotNil(cache.recentEvict)
+	is.NotNil(cache.ghost)
 }
 
 func TestSet(t *testing.T) {
@@ -122,28 +122,59 @@ func TestGet(t *testing.T) {
 	is.Equal(3, val)
 }
 
+func printKeys(keys []string) {
+	for _, k := range keys {
+		print(k, " ")
+	}
+	println()
+}
+
 func TestKey(t *testing.T) {
 	is := assert.New(t)
 
 	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
+	print("after Set a: ")
+	printKeys(cache.Keys())
 	cache.Set("b", 2)
+	print("after Set b: ")
+	printKeys(cache.Keys())
 	cache.Set("c", 3)
+	print("after Set c: ")
+	printKeys(cache.Keys())
 	cache.Get("c")
+	print("after Get c: ")
+	printKeys(cache.Keys())
 	cache.Set("d", 4)
+	print("after Set d: ")
+	printKeys(cache.Keys())
 	cache.Set("e", 5)
+	print("after Set e: ")
+	printKeys(cache.Keys())
 
 	is.ElementsMatch([]string{"c", "e"}, cache.Keys())
 
 	cache = New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
+	print("[2] after Set a: ")
+	printKeys(cache.Keys())
 	cache.Set("b", 2)
+	print("[2] after Set b: ")
+	printKeys(cache.Keys())
 	cache.Set("c", 3)
+	print("[2] after Set c: ")
+	printKeys(cache.Keys())
 	cache.Set("d", 4)
+	print("[2] after Set d: ")
+	printKeys(cache.Keys())
 	cache.Set("e", 5)
+	print("[2] after Set e: ")
+	printKeys(cache.Keys())
 	cache.Get("c")
+	print("[2] after Get c: ")
+	printKeys(cache.Keys())
 
-	is.ElementsMatch([]string{"d", "e"}, cache.Keys())
+	is.ElementsMatch([]string{"e"}, cache.Keys())
 }
 
 func TestValues(t *testing.T) {
@@ -252,7 +283,7 @@ func verify2QState[K comparable, V any](t *testing.T, cache *TwoQueueCache[K, V]
 	frequentKeys := cache.frequent.Keys()
 
 	// Get ghost list keys
-	ghostKeys := cache.recentEvict.Keys()
+	ghostKeys := cache.ghost.Keys()
 
 	return recentKeys, frequentKeys, ghostKeys
 }
@@ -266,7 +297,7 @@ func TestInternalState_InitialState(t *testing.T) {
 	is.Equal(0, cache.Len())
 	is.Equal(0, cache.recent.Len())
 	is.Equal(0, cache.frequent.Len())
-	is.Equal(0, cache.recentEvict.Len())
+	is.Equal(0, cache.ghost.Len())
 
 	recent, frequent, ghost := verify2QState(t, cache)
 	is.Empty(recent)
@@ -284,7 +315,7 @@ func TestInternalState_SingleElement(t *testing.T) {
 	is.Equal(1, cache.Len())
 	is.Equal(1, cache.recent.Len())
 	is.Equal(0, cache.frequent.Len())
-	is.Equal(0, cache.recentEvict.Len())
+	is.Equal(0, cache.ghost.Len())
 
 	recent, frequent, ghost := verify2QState(t, cache)
 	is.Equal([]string{"a"}, recent)
@@ -446,10 +477,10 @@ func TestInternalState_CapacityAndRatios(t *testing.T) {
 	cache := New2QCacheWithRatio[string, int](10, 0.3, 0.2)
 
 	// Verify capacities
-	is.Equal(13, cache.Capacity())
+	is.Equal(10, cache.Capacity())
 	is.Equal(10, cache.capacity)
-	is.Equal(3, cache.recentCapacity)      // 10 * 0.3
-	is.Equal(2, cache.recentEvictCapacity) // 10 * 0.2
+	is.Equal(3, cache.recentCapacity) // 10 * 0.3
+	is.Equal(2, cache.ghostCapacity)  // 10 * 0.2
 	is.Equal(0.3, cache.recentRatio)
 	is.Equal(0.2, cache.ghostRatio)
 }
