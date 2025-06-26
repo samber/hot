@@ -1,9 +1,13 @@
 package metrics
 
 import (
+	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/samber/hot/pkg/lru"
+	"github.com/samber/hot/pkg/safe"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -289,4 +293,372 @@ func TestInstrumentedCache_UpdateSizeBytes(t *testing.T) {
 	value, found := metricsCache.Get("key1")
 	is.True(found)
 	is.Equal(100, value)
+}
+
+func TestInstrumentedCache_WithPrometheusCollector(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache
+	underlyingCache := lru.NewLRUCache[string, int](5)
+
+	// Create Prometheus collector directly
+	collector := NewPrometheusCollector("test-cache", map[string]string{"env": "test"}, 5, "lru", nil, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Test basic operations
+	metricsCache.Set("key1", 100)
+	value, found := metricsCache.Get("key1")
+	is.True(found)
+	is.Equal(100, value)
+
+	// Test that metrics are being tracked
+	// Note: We can't easily verify the actual metric values without Prometheus registry
+	// But we can verify the operations work correctly
+	metricsCache.Set("key2", 200)
+	metricsCache.Get("key2") // hit
+	metricsCache.Get("key3") // miss
+
+	is.Equal(2, metricsCache.Len())
+}
+
+func TestInstrumentedCache_WithNoOpCollector(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache
+	underlyingCache := lru.NewLRUCache[string, int](5)
+
+	// Create NoOp collector
+	collector := &NoOpCollector{}
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Test basic operations
+	metricsCache.Set("key1", 100)
+	value, found := metricsCache.Get("key1")
+	is.True(found)
+	is.Equal(100, value)
+
+	// Test that operations work correctly with NoOp metrics
+	metricsCache.Set("key2", 200)
+	metricsCache.Get("key2") // hit
+	metricsCache.Get("key3") // miss
+
+	is.Equal(2, metricsCache.Len())
+}
+
+func TestInstrumentedCache_ConcurrentAccess(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache with thread-safe wrapper
+	underlyingCache := safe.NewSafeInMemoryCache(lru.NewLRUCache[string, int](100))
+
+	// Create metrics collector
+	collector := NewCollector("test-cache", -1, 100, "lru", nil, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Test concurrent access
+	const numGoroutines = 10
+	const operationsPerGoroutine = 100
+
+	var wg sync.WaitGroup
+
+	// Concurrent Set operations
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < operationsPerGoroutine; j++ {
+				key := fmt.Sprintf("key_%d_%d", id, j)
+				metricsCache.Set(key, j)
+			}
+		}(i)
+	}
+
+	// Concurrent Get operations
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < operationsPerGoroutine; j++ {
+				key := fmt.Sprintf("key_%d_%d", id, j)
+				metricsCache.Get(key)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify the cache still works correctly
+	is.Greater(metricsCache.Len(), 0)
+}
+
+func TestInstrumentedCache_EvictionMetrics(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache with small capacity to trigger evictions
+	underlyingCache := lru.NewLRUCache[string, int](2)
+
+	// Create metrics collector
+	collector := NewCollector("test-cache", -1, 2, "lru", nil, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Fill the cache to trigger evictions
+	metricsCache.Set("key1", 100)
+	metricsCache.Set("key2", 200)
+	metricsCache.Set("key3", 300) // This should evict key1
+
+	// Verify eviction occurred
+	is.Equal(2, metricsCache.Len())
+	is.False(metricsCache.Has("key1"))
+	is.True(metricsCache.Has("key2"))
+	is.True(metricsCache.Has("key3"))
+
+	// Test manual deletion
+	metricsCache.Delete("key2")
+	is.Equal(1, metricsCache.Len())
+	is.False(metricsCache.Has("key2"))
+}
+
+func TestInstrumentedCache_BulkOperations(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache
+	underlyingCache := lru.NewLRUCache[string, int](10)
+
+	// Create metrics collector
+	collector := NewCollector("test-cache", -1, 10, "lru", nil, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Test SetMany
+	items := map[string]int{
+		"key1": 100,
+		"key2": 200,
+		"key3": 300,
+		"key4": 400,
+	}
+	metricsCache.SetMany(items)
+
+	// Test GetMany
+	values, missing := metricsCache.GetMany([]string{"key1", "key2", "key5", "key6"})
+	is.Equal(2, len(values))
+	is.Equal(2, len(missing))
+	is.Equal(100, values["key1"])
+	is.Equal(200, values["key2"])
+	is.Contains(missing, "key5")
+	is.Contains(missing, "key6")
+
+	// Test HasMany
+	hasResults := metricsCache.HasMany([]string{"key1", "key2", "key5", "key6"})
+	is.True(hasResults["key1"])
+	is.True(hasResults["key2"])
+	is.False(hasResults["key5"])
+	is.False(hasResults["key6"])
+
+	// Test PeekMany
+	peekValues, peekMissing := metricsCache.PeekMany([]string{"key1", "key2", "key5"})
+	is.Equal(2, len(peekValues))
+	is.Equal(1, len(peekMissing))
+	is.Equal(100, peekValues["key1"])
+	is.Equal(200, peekValues["key2"])
+
+	// Test DeleteMany
+	deletedMap := metricsCache.DeleteMany([]string{"key1", "key2", "key7"})
+	is.True(deletedMap["key1"])
+	is.True(deletedMap["key2"])
+	is.False(deletedMap["key7"])
+}
+
+func TestInstrumentedCache_RangeOperation(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache
+	underlyingCache := lru.NewLRUCache[string, int](10)
+
+	// Create metrics collector
+	collector := NewCollector("test-cache", -1, 10, "lru", nil, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Add some items
+	metricsCache.Set("key1", 100)
+	metricsCache.Set("key2", 200)
+	metricsCache.Set("key3", 300)
+
+	// Test Range operation
+	visited := make(map[string]int)
+	metricsCache.Range(func(k string, v int) bool {
+		visited[k] = v
+		return true // continue iteration
+	})
+
+	is.Equal(3, len(visited))
+	is.Equal(100, visited["key1"])
+	is.Equal(200, visited["key2"])
+	is.Equal(300, visited["key3"])
+
+	// Test Range with early termination
+	visited = make(map[string]int)
+	metricsCache.Range(func(k string, v int) bool {
+		visited[k] = v
+		return false // stop iteration after first item
+	})
+
+	is.Equal(1, len(visited))
+}
+
+func TestInstrumentedCache_Performance(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache with larger capacity for performance test
+	underlyingCache := lru.NewLRUCache[string, int](10000)
+
+	// Create metrics collector
+	collector := NewCollector("test-cache", -1, 10000, "lru", nil, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Benchmark Set operations
+	const iterations = 10000
+
+	start := time.Now()
+	for i := 0; i < iterations; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		metricsCache.Set(key, i)
+	}
+	setDuration := time.Since(start)
+
+	// Benchmark Get operations
+	start = time.Now()
+	for i := 0; i < iterations; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		metricsCache.Get(key)
+	}
+	getDuration := time.Since(start)
+
+	// Log performance metrics
+	t.Logf("InstrumentedCache performance metrics (%d operations each):", iterations)
+	t.Logf("  Set: %v", setDuration)
+	t.Logf("  Get: %v", getDuration)
+
+	// Verify operations completed successfully
+	is.Equal(iterations, metricsCache.Len())
+
+	// Verify operations are reasonably fast
+	maxDuration := 100 * time.Millisecond
+	is.Less(setDuration, maxDuration, "Set operations should be fast")
+	is.Less(getDuration, maxDuration, "Get operations should be fast")
+}
+
+func TestInstrumentedCache_ShardLabeling(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache
+	underlyingCache := lru.NewLRUCache[string, int](10)
+
+	// Create metrics collector with shard label
+	collector := NewCollector("test-cache", 5, 10, "lru", nil, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Test basic operations
+	metricsCache.Set("key1", 100)
+	value, found := metricsCache.Get("key1")
+	is.True(found)
+	is.Equal(100, value)
+
+	// Verify the collector has the correct shard label
+	// Note: We can't easily verify the actual labels without Prometheus registry
+	// But we can verify the operations work correctly
+	is.Equal(1, metricsCache.Len())
+}
+
+func TestInstrumentedCache_AllAlgorithms(t *testing.T) {
+	is := assert.New(t)
+
+	algorithms := []string{"lru", "lfu", "arc", "2q"}
+
+	for _, algo := range algorithms {
+		t.Run(algo, func(t *testing.T) {
+			// Create underlying cache
+			underlyingCache := lru.NewLRUCache[string, int](10)
+
+			// Create metrics collector with different algorithm
+			collector := NewCollector("test-cache", -1, 10, algo, nil, nil, nil, nil, nil)
+
+			// Create metrics wrapper
+			metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+			// Test basic operations
+			metricsCache.Set("key1", 100)
+			value, found := metricsCache.Get("key1")
+			is.True(found)
+			is.Equal(100, value)
+
+			// Verify algorithm is reported correctly
+			is.Equal("lru", metricsCache.Algorithm()) // Underlying cache is still LRU
+		})
+	}
+}
+
+func TestInstrumentedCache_WithTTL(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache
+	underlyingCache := lru.NewLRUCache[string, int](10)
+
+	// Create metrics collector with TTL
+	ttl := 30 * time.Second
+	collector := NewCollector("test-cache", -1, 10, "lru", &ttl, nil, nil, nil, nil)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Test basic operations
+	metricsCache.Set("key1", 100)
+	value, found := metricsCache.Get("key1")
+	is.True(found)
+	is.Equal(100, value)
+
+	// Verify operations work correctly with TTL configuration
+	is.Equal(1, metricsCache.Len())
+}
+
+func TestInstrumentedCache_WithAllSettings(t *testing.T) {
+	is := assert.New(t)
+
+	// Create underlying cache
+	underlyingCache := lru.NewLRUCache[string, int](10)
+
+	// Create metrics collector with all optional settings
+	ttl := 30 * time.Second
+	jitterLambda := 0.1
+	jitterUpperBound := 5 * time.Second
+	stale := 60 * time.Second
+	missingCapacity := 50
+
+	collector := NewCollector("test-cache", -1, 10, "lru", &ttl, &jitterLambda, &jitterUpperBound, &stale, &missingCapacity)
+
+	// Create metrics wrapper
+	metricsCache := NewInstrumentedCache(underlyingCache, collector)
+
+	// Test basic operations
+	metricsCache.Set("key1", 100)
+	value, found := metricsCache.Get("key1")
+	is.True(found)
+	is.Equal(100, value)
+
+	// Verify operations work correctly with all settings
+	is.Equal(1, metricsCache.Len())
 }
