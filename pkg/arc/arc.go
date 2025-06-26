@@ -262,7 +262,7 @@ func (c *ARCCache[K, V]) evictFromT1() {
 
 	// Call eviction callback
 	if c.onEviction != nil {
-		c.onEviction(entryValue.key, entryValue.value)
+		c.onEviction(base.EvictionReasonCapacity, entryValue.key, entryValue.value)
 	}
 }
 
@@ -296,7 +296,7 @@ func (c *ARCCache[K, V]) evictFromT2() {
 
 	// Call eviction callback
 	if c.onEviction != nil {
-		c.onEviction(entryValue.key, entryValue.value)
+		c.onEviction(base.EvictionReasonCapacity, entryValue.key, entryValue.value)
 	}
 }
 

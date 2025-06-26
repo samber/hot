@@ -77,8 +77,8 @@ func composeInternalCache[K comparable, V any](
 
 	var onItemEviction base.EvictionCallback[K, *item[V]]
 	if onEviction != nil {
-		onItemEviction = func(key K, value *item[V]) {
-			onEviction(key, value.value)
+		onItemEviction = func(reason base.EvictionReason, key K, value *item[V]) {
+			onEviction(reason, key, value.value)
 		}
 	}
 

@@ -3,6 +3,7 @@ package lru
 import (
 	"testing"
 
+	"github.com/samber/hot/pkg/base"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +24,8 @@ func TestSet(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := 0
-	cache := NewLRUCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewLRUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted += v
 	})
 
@@ -427,7 +429,8 @@ func TestInternalState_Eviction(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewLRUCacheWithEvictionCallback(3, func(k string, v int) {
+	cache := NewLRUCacheWithEvictionCallback(3, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 	})
 

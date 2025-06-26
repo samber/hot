@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/hot/pkg/base"
 )
 
 var _ Collector = (*PrometheusCollector)(nil)
@@ -49,7 +50,7 @@ func NewPrometheusCollector(name string, labels map[string]string, capacity int,
 	}
 
 	// Initialize eviction counters for common reasons
-	for _, reason := range EvictionReasons {
+	for _, reason := range base.EvictionReasons {
 		var count int64
 		collector.evictionCount[string(reason)] = &count
 	}
@@ -168,7 +169,7 @@ func (p *PrometheusCollector) AddInsertions(count int64) {
 }
 
 // IncEviction atomically increments the eviction counter for the given reason.
-func (p *PrometheusCollector) IncEviction(reason EvictionReason) {
+func (p *PrometheusCollector) IncEviction(reason base.EvictionReason) {
 	if counter, exists := p.evictionCount[string(reason)]; exists {
 		atomic.AddInt64(counter, 1)
 	} else {
@@ -180,7 +181,7 @@ func (p *PrometheusCollector) IncEviction(reason EvictionReason) {
 }
 
 // AddEvictions atomically adds the specified count to the eviction counter for the given reason.
-func (p *PrometheusCollector) AddEvictions(reason EvictionReason, count int64) {
+func (p *PrometheusCollector) AddEvictions(reason base.EvictionReason, count int64) {
 	if counter, exists := p.evictionCount[string(reason)]; exists {
 		atomic.AddInt64(counter, count)
 	} else {
@@ -216,106 +217,106 @@ func (p *PrometheusCollector) SetSizeBytes(bytes int64) {
 	atomic.StoreInt64(&p.sizeBytes, bytes)
 }
 
-// Collect implements prometheus.Collector interface.
-func (p *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
-	// Collect counters
-	ch <- prometheus.MustNewConstMetric(
-		p.insertionDesc,
-		prometheus.CounterValue,
-		float64(atomic.LoadInt64(&p.insertionCount)),
-	)
+// // Collect implements prometheus.Collector interface.
+// func (p *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
+// 	// Collect counters
+// 	ch <- prometheus.MustNewConstMetric(
+// 		p.insertionDesc,
+// 		prometheus.CounterValue,
+// 		float64(atomic.LoadInt64(&p.insertionCount)),
+// 	)
 
-	ch <- prometheus.MustNewConstMetric(
-		p.hitDesc,
-		prometheus.CounterValue,
-		float64(atomic.LoadInt64(&p.hitCount)),
-	)
+// 	ch <- prometheus.MustNewConstMetric(
+// 		p.hitDesc,
+// 		prometheus.CounterValue,
+// 		float64(atomic.LoadInt64(&p.hitCount)),
+// 	)
 
-	ch <- prometheus.MustNewConstMetric(
-		p.missDesc,
-		prometheus.CounterValue,
-		float64(atomic.LoadInt64(&p.missCount)),
-	)
+// 	ch <- prometheus.MustNewConstMetric(
+// 		p.missDesc,
+// 		prometheus.CounterValue,
+// 		float64(atomic.LoadInt64(&p.missCount)),
+// 	)
 
-	// Collect eviction counters
-	for reason, counter := range p.evictionCount {
-		evictionLabels := make(prometheus.Labels)
-		for k, v := range p.labels {
-			evictionLabels[k] = v
-		}
-		evictionLabels["reason"] = reason
+// 	// Collect eviction counters
+// 	for reason, counter := range p.evictionCount {
+// 		evictionLabels := make(prometheus.Labels)
+// 		for k, v := range p.labels {
+// 			evictionLabels[k] = v
+// 		}
+// 		evictionLabels["reason"] = reason
 
-		evictionDesc := prometheus.NewDesc(
-			"hot_eviction_total",
-			"Total number of items evicted from the cache",
-			[]string{"reason"}, p.labels,
-		)
+// 		evictionDesc := prometheus.NewDesc(
+// 			"hot_eviction_total",
+// 			"Total number of items evicted from the cache",
+// 			[]string{"reason"}, p.labels,
+// 		)
 
-		ch <- prometheus.MustNewConstMetric(
-			evictionDesc,
-			prometheus.CounterValue,
-			float64(atomic.LoadInt64(counter)),
-			reason,
-		)
-	}
+// 		ch <- prometheus.MustNewConstMetric(
+// 			evictionDesc,
+// 			prometheus.CounterValue,
+// 			float64(atomic.LoadInt64(counter)),
+// 			reason,
+// 		)
+// 	}
 
-	// Collect size gauge
-	ch <- prometheus.MustNewConstMetric(
-		p.sizeDesc,
-		prometheus.GaugeValue,
-		float64(atomic.LoadInt64(&p.sizeBytes)),
-	)
+// 	// Collect size gauge
+// 	ch <- prometheus.MustNewConstMetric(
+// 		p.sizeDesc,
+// 		prometheus.GaugeValue,
+// 		float64(atomic.LoadInt64(&p.sizeBytes)),
+// 	)
 
-	// Collect configuration gauges
-	if p.settingsCapacity != nil {
-		p.settingsCapacity.Collect(ch)
-	}
-	if p.settingsTTL != nil {
-		p.settingsTTL.Collect(ch)
-	}
-	if p.settingsJitterLambda != nil {
-		p.settingsJitterLambda.Collect(ch)
-	}
-	if p.settingsJitterUpperBound != nil {
-		p.settingsJitterUpperBound.Collect(ch)
-	}
-	if p.settingsStale != nil {
-		p.settingsStale.Collect(ch)
-	}
-	if p.settingsMissingCapacity != nil {
-		p.settingsMissingCapacity.Collect(ch)
-	}
-	if p.settingsAlgorithm != nil {
-		p.settingsAlgorithm.Collect(ch)
-	}
-}
+// 	// Collect configuration gauges
+// 	if p.settingsCapacity != nil {
+// 		p.settingsCapacity.Collect(ch)
+// 	}
+// 	if p.settingsTTL != nil {
+// 		p.settingsTTL.Collect(ch)
+// 	}
+// 	if p.settingsJitterLambda != nil {
+// 		p.settingsJitterLambda.Collect(ch)
+// 	}
+// 	if p.settingsJitterUpperBound != nil {
+// 		p.settingsJitterUpperBound.Collect(ch)
+// 	}
+// 	if p.settingsStale != nil {
+// 		p.settingsStale.Collect(ch)
+// 	}
+// 	if p.settingsMissingCapacity != nil {
+// 		p.settingsMissingCapacity.Collect(ch)
+// 	}
+// 	if p.settingsAlgorithm != nil {
+// 		p.settingsAlgorithm.Collect(ch)
+// 	}
+// }
 
-// Describe implements prometheus.Collector interface.
-func (p *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- p.insertionDesc
-	ch <- p.evictionDesc
-	ch <- p.hitDesc
-	ch <- p.missDesc
-	ch <- p.sizeDesc
-	if p.settingsCapacity != nil {
-		ch <- p.settingsCapacity.Desc()
-	}
-	if p.settingsTTL != nil {
-		ch <- p.settingsTTL.Desc()
-	}
-	if p.settingsJitterLambda != nil {
-		ch <- p.settingsJitterLambda.Desc()
-	}
-	if p.settingsJitterUpperBound != nil {
-		ch <- p.settingsJitterUpperBound.Desc()
-	}
-	if p.settingsStale != nil {
-		ch <- p.settingsStale.Desc()
-	}
-	if p.settingsMissingCapacity != nil {
-		ch <- p.settingsMissingCapacity.Desc()
-	}
-	if p.settingsAlgorithm != nil {
-		ch <- p.settingsAlgorithm.Desc()
-	}
-}
+// // Describe implements prometheus.Collector interface.
+// func (p *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
+// 	ch <- p.insertionDesc
+// 	ch <- p.evictionDesc
+// 	ch <- p.hitDesc
+// 	ch <- p.missDesc
+// 	ch <- p.sizeDesc
+// 	if p.settingsCapacity != nil {
+// 		ch <- p.settingsCapacity.Desc()
+// 	}
+// 	if p.settingsTTL != nil {
+// 		ch <- p.settingsTTL.Desc()
+// 	}
+// 	if p.settingsJitterLambda != nil {
+// 		ch <- p.settingsJitterLambda.Desc()
+// 	}
+// 	if p.settingsJitterUpperBound != nil {
+// 		ch <- p.settingsJitterUpperBound.Desc()
+// 	}
+// 	if p.settingsStale != nil {
+// 		ch <- p.settingsStale.Desc()
+// 	}
+// 	if p.settingsMissingCapacity != nil {
+// 		ch <- p.settingsMissingCapacity.Desc()
+// 	}
+// 	if p.settingsAlgorithm != nil {
+// 		ch <- p.settingsAlgorithm.Desc()
+// 	}
+// }

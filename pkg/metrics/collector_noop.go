@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/hot/pkg/base"
 )
 
 var _ Collector = (*NoOpCollector)(nil)
@@ -10,13 +10,12 @@ var _ Collector = (*NoOpCollector)(nil)
 // This provides better performance than conditional checks when metrics are disabled.
 type NoOpCollector struct{}
 
-func (n *NoOpCollector) IncInsertion()                                   {}
-func (n *NoOpCollector) AddInsertions(count int64)                       {}
-func (n *NoOpCollector) IncEviction(reason EvictionReason)               {}
-func (n *NoOpCollector) AddEvictions(reason EvictionReason, count int64) {}
-func (n *NoOpCollector) IncHit()                                         {}
-func (n *NoOpCollector) AddHits(count int64)                             {}
-func (n *NoOpCollector) IncMiss()                                        {}
-func (n *NoOpCollector) AddMisses(count int64)                           {}
-func (n *NoOpCollector) SetSizeBytes(bytes int64)                        {}
-func (n *NoOpCollector) Collect(ch chan<- prometheus.Metric)             {}
+func (n *NoOpCollector) IncInsertion()                                        {}
+func (n *NoOpCollector) AddInsertions(count int64)                            {}
+func (n *NoOpCollector) IncEviction(reason base.EvictionReason)               {}
+func (n *NoOpCollector) AddEvictions(reason base.EvictionReason, count int64) {}
+func (n *NoOpCollector) IncHit()                                              {}
+func (n *NoOpCollector) AddHits(count int64)                                  {}
+func (n *NoOpCollector) IncMiss()                                             {}
+func (n *NoOpCollector) AddMisses(count int64)                                {}
+func (n *NoOpCollector) SetSizeBytes(bytes int64)                             {}

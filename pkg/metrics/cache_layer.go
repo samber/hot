@@ -69,7 +69,7 @@ func (m *InstrumentedCache[K, V]) GetMany(keys []K) (map[K]V, []K) {
 func (m *InstrumentedCache[K, V]) Delete(key K) bool {
 	deleted := m.cache.Delete(key)
 	if deleted {
-		m.metrics.IncEviction("manual")
+		m.metrics.IncEviction(base.EvictionReasonManual)
 	}
 	return deleted
 }
@@ -87,7 +87,7 @@ func (m *InstrumentedCache[K, V]) DeleteMany(keys []K) map[K]bool {
 	}
 
 	if totalDeleted > 0 {
-		m.metrics.AddEvictions("manual", int64(totalDeleted))
+		m.metrics.AddEvictions(base.EvictionReasonManual, int64(totalDeleted))
 	}
 
 	return deleted
@@ -167,7 +167,7 @@ func (m *InstrumentedCache[K, V]) Purge() {
 	m.cache.Purge()
 
 	if itemCount > 0 {
-		m.metrics.AddEvictions("manual", int64(itemCount))
+		m.metrics.AddEvictions(base.EvictionReasonManual, int64(itemCount))
 	}
 }
 

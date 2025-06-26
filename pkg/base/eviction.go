@@ -10,4 +10,20 @@ package base
 // - Triggering background operations when items are removed
 // The callback is called synchronously during the eviction process, so it should be fast
 // to avoid blocking cache operations. For expensive operations, consider using a goroutine.
-type EvictionCallback[K comparable, V any] func(K, V)
+type EvictionCallback[K comparable, V any] func(EvictionReason, K, V)
+
+type EvictionReason string
+
+const (
+	EvictionReasonCapacity EvictionReason = "capacity"
+	EvictionReasonTTL      EvictionReason = "ttl"
+	EvictionReasonManual   EvictionReason = "manual"
+	EvictionReasonStale    EvictionReason = "stale"
+)
+
+var EvictionReasons = []EvictionReason{
+	EvictionReasonCapacity,
+	EvictionReasonTTL,
+	EvictionReasonManual,
+	EvictionReasonStale,
+}

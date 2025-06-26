@@ -32,7 +32,8 @@ func TestSet(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := 0
-	cache := NewARCCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted += v
 	})
 
@@ -523,7 +524,8 @@ func TestEvictionCallback(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewARCCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 	})
 
@@ -539,7 +541,8 @@ func TestEvictionCallbackWithSetMany(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewARCCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 	})
 
@@ -558,7 +561,8 @@ func TestEvictionCallbackWithDeleteMany(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewARCCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 		t.Logf("Evicted: %s = %d", k, v)
 	})
@@ -767,7 +771,8 @@ func TestEvictFromT2WithCallback(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := 0
-	cache := NewARCCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted += v
 	})
 

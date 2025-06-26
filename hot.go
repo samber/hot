@@ -560,7 +560,7 @@ func (c *HotCache[K, V]) Janitor() {
 					if c.onEviction != nil {
 						for k, ok := range deleted {
 							if ok {
-								c.onEviction(k, toDeleteKV[k])
+								c.onEviction(base.EvictionReasonTTL, k, toDeleteKV[k])
 							}
 						}
 					}
@@ -584,7 +584,7 @@ func (c *HotCache[K, V]) Janitor() {
 					if c.onEviction != nil {
 						for k, ok := range deleted {
 							if ok {
-								c.onEviction(k, toDeleteKV[k])
+								c.onEviction(base.EvictionReasonTTL, k, toDeleteKV[k])
 							}
 						}
 					}
@@ -710,7 +710,7 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 
 		ok := c.cache.Delete(key)
 		if ok && c.onEviction != nil {
-			c.onEviction(key, item.value)
+			c.onEviction(base.EvictionReasonTTL, key, item.value)
 		}
 	}
 
@@ -723,7 +723,7 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 
 			ok := c.missingCache.Delete(key)
 			if ok && c.onEviction != nil {
-				c.onEviction(key, item.value)
+				c.onEviction(base.EvictionReasonTTL, key, item.value)
 			}
 		}
 	}
@@ -765,7 +765,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 		if c.onEviction != nil {
 			for k, ok := range deleted {
 				if ok {
-					c.onEviction(k, onEvictKV[k])
+					c.onEviction(base.EvictionReasonTTL, k, onEvictKV[k])
 				}
 			}
 		}
@@ -796,7 +796,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 			if c.onEviction != nil {
 				for k, ok := range deleted {
 					if ok {
-						c.onEviction(k, onEvictKV[k])
+						c.onEviction(base.EvictionReasonTTL, k, onEvictKV[k])
 					}
 				}
 			}

@@ -71,7 +71,7 @@ func (c *LRUCache[K, V]) Set(key K, value V) {
 	if c.capacity != 0 && c.ll.Len() > c.capacity {
 		k, v, ok := c.DeleteOldest()
 		if ok && c.onEviction != nil {
-			c.onEviction(k, v)
+			c.onEviction(base.EvictionReasonCapacity, k, v)
 		}
 	}
 }

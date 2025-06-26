@@ -312,7 +312,7 @@ func (c *TwoQueueCache[K, V]) ensureRecentSpace() {
 	// Evict oldest item from recent and add to ghost
 	if key, value, ok := c.recent.DeleteOldest(); ok {
 		if c.onEviction != nil {
-			c.onEviction(key, value)
+			c.onEviction(base.EvictionReasonCapacity, key, value)
 		}
 		c.ensureGhostSpace()
 		c.ghost.Set(key, struct{}{})
@@ -329,7 +329,7 @@ func (c *TwoQueueCache[K, V]) ensureFrequentSpace() {
 	// Evict oldest item from frequent
 	if key, value, ok := c.frequent.DeleteOldest(); ok {
 		if c.onEviction != nil {
-			c.onEviction(key, value)
+			c.onEviction(base.EvictionReasonCapacity, key, value)
 		}
 	}
 }

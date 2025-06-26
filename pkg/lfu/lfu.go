@@ -97,7 +97,7 @@ func (c *LFUCache[K, V]) Set(key K, value V) {
 		for i := 0; i < c.evictionSize; i++ {
 			k, v, ok := c.DeleteLeastFrequent()
 			if ok && c.onEviction != nil {
-				c.onEviction(k, v)
+				c.onEviction(base.EvictionReasonCapacity, k, v)
 			}
 		}
 	}

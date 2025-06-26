@@ -10,7 +10,7 @@ func TestEvictionCallback(t *testing.T) {
 	is := assert.New(t)
 
 	// Test that EvictionCallback can be assigned to a variable
-	var callback EvictionCallback[string, int] = func(key string, value int) {
+	var callback EvictionCallback[string, int] = func(reason EvictionReason, key string, value int) {
 		// This is just a test to ensure the type works
 	}
 
@@ -20,11 +20,13 @@ func TestEvictionCallback(t *testing.T) {
 func TestEvictionCallback_Execution(t *testing.T) {
 	is := assert.New(t)
 
+	var capturedReason EvictionReason
 	var capturedKey string
 	var capturedValue int
 
 	// Create an eviction callback that captures the parameters
-	callback := EvictionCallback[string, int](func(key string, value int) {
+	callback := EvictionCallback[string, int](func(reason EvictionReason, key string, value int) {
+		capturedReason = reason
 		capturedKey = key
 		capturedValue = value
 	})
@@ -33,8 +35,9 @@ func TestEvictionCallback_Execution(t *testing.T) {
 	testKey := "test-key"
 	testValue := 42
 
-	callback(testKey, testValue)
+	callback(EvictionReasonStale, testKey, testValue)
 
+	is.Equal(EvictionReasonStale, capturedReason)
 	is.Equal(testKey, capturedKey)
 	is.Equal(testValue, capturedValue)
 }
@@ -47,7 +50,7 @@ func TestEvictionCallback_NilCallback(t *testing.T) {
 
 	// This should panic
 	is.Panics(func() {
-		callback("key", 42)
+		callback(EvictionReasonStale, "key", 42)
 	})
 
 	is.True(true) // If we get here, no panic occurred
@@ -62,25 +65,25 @@ func TestEvictionCallback_DifferentTypes(t *testing.T) {
 	var boolFloatCallback EvictionCallback[bool, float64]
 
 	// Test string key, int value
-	stringIntCallback = func(key string, value int) {
+	stringIntCallback = func(reason EvictionReason, key string, value int) {
 		is.Equal("test", key)
 		is.Equal(123, value)
 	}
-	stringIntCallback("test", 123)
+	stringIntCallback(EvictionReasonStale, "test", 123)
 
 	// Test int key, string value
-	intStringCallback = func(key int, value string) {
+	intStringCallback = func(reason EvictionReason, key int, value string) {
 		is.Equal(456, key)
 		is.Equal("value", value)
 	}
-	intStringCallback(456, "value")
+	intStringCallback(EvictionReasonStale, 456, "value")
 
 	// Test bool key, float64 value
-	boolFloatCallback = func(key bool, value float64) {
+	boolFloatCallback = func(reason EvictionReason, key bool, value float64) {
 		is.Equal(true, key)
 		is.Equal(3.14, value)
 	}
-	boolFloatCallback(true, 3.14)
+	boolFloatCallback(EvictionReasonStale, true, 3.14)
 }
 
 func TestEvictionCallback_Closure(t *testing.T) {
@@ -90,14 +93,14 @@ func TestEvictionCallback_Closure(t *testing.T) {
 	counter := 0
 	expectedCount := 3
 
-	callback := EvictionCallback[string, int](func(key string, value int) {
+	callback := EvictionCallback[string, int](func(reason EvictionReason, key string, value int) {
 		counter++
 	})
 
 	// Execute the callback multiple times
-	callback("key1", 1)
-	callback("key2", 2)
-	callback("key3", 3)
+	callback(EvictionReasonStale, "key1", 1)
+	callback(EvictionReasonStale, "key2", 2)
+	callback(EvictionReasonStale, "key3", 3)
 
 	is.Equal(expectedCount, counter)
 }
@@ -114,13 +117,13 @@ func TestEvictionCallback_InterfaceCompliance(t *testing.T) {
 	testKey := "evicted-key"
 	testValue := 999
 
-	evictionCallback := EvictionCallback[string, int](func(key string, value int) {
+	evictionCallback := EvictionCallback[string, int](func(reason EvictionReason, key string, value int) {
 		is.Equal(testKey, key)
 		is.Equal(testValue, value)
 	})
 
 	mockCache.SetEvictionCallback(evictionCallback)
-	mockCache.TriggerEviction(testKey, testValue)
+	mockCache.TriggerEviction(EvictionReasonStale, testKey, testValue)
 }
 
 // Mock implementation for testing
@@ -132,8 +135,8 @@ func (m *mockCacheWithEviction[K, V]) SetEvictionCallback(callback EvictionCallb
 	m.callback = callback
 }
 
-func (m *mockCacheWithEviction[K, V]) TriggerEviction(key K, value V) {
+func (m *mockCacheWithEviction[K, V]) TriggerEviction(reason EvictionReason, key K, value V) {
 	if m.callback != nil {
-		m.callback(key, value)
+		m.callback(reason, key, value)
 	}
 }

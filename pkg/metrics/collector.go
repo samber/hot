@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/hot/pkg/base"
 )
 
 // NewCollector creates a new metric collector based on whether metrics are enabled.
@@ -34,12 +34,11 @@ func NewCollector(
 type Collector interface {
 	IncInsertion()
 	AddInsertions(count int64)
-	IncEviction(reason EvictionReason)
-	AddEvictions(reason EvictionReason, count int64)
+	IncEviction(reason base.EvictionReason)
+	AddEvictions(reason base.EvictionReason, count int64)
 	IncHit()
 	AddHits(count int64)
 	IncMiss()
 	AddMisses(count int64)
 	SetSizeBytes(bytes int64)
-	Collect(ch chan<- prometheus.Metric)
 }
