@@ -286,20 +286,8 @@ func (p *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 
 	// Collect eviction counters
 	for reason, counter := range p.evictionCount {
-		evictionLabels := make(prometheus.Labels)
-		for k, v := range p.labels {
-			evictionLabels[k] = v
-		}
-		evictionLabels["reason"] = reason
-
-		evictionDesc := prometheus.NewDesc(
-			"hot_eviction_total",
-			"Total number of items evicted from the cache",
-			[]string{"reason"}, p.labels,
-		)
-
 		ch <- prometheus.MustNewConstMetric(
-			evictionDesc,
+			p.evictionDesc,
 			prometheus.CounterValue,
 			float64(atomic.LoadInt64(counter)),
 			reason,
