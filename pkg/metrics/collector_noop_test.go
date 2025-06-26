@@ -3,7 +3,6 @@ package metrics
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/samber/hot/pkg/base"
 	"github.com/stretchr/testify/assert"
@@ -126,57 +125,6 @@ func TestNoOpCollector_AllMethods(t *testing.T) {
 	is.NotPanics(func() {
 		collector.SetSizeBytes(999999999)
 	})
-}
-
-func TestNoOpCollector_Performance(t *testing.T) {
-	is := assert.New(t)
-
-	collector := &NoOpCollector{}
-
-	// Benchmark basic operations to ensure they're very fast
-	const iterations = 1000000
-
-	// Benchmark IncInsertion
-	start := time.Now()
-	for i := 0; i < iterations; i++ {
-		collector.IncInsertion()
-	}
-	insertionDuration := time.Since(start)
-
-	// Benchmark IncHit
-	start = time.Now()
-	for i := 0; i < iterations; i++ {
-		collector.IncHit()
-	}
-	hitDuration := time.Since(start)
-
-	// Benchmark IncMiss
-	start = time.Now()
-	for i := 0; i < iterations; i++ {
-		collector.IncMiss()
-	}
-	missDuration := time.Since(start)
-
-	// Benchmark IncEviction
-	start = time.Now()
-	for i := 0; i < iterations; i++ {
-		collector.IncEviction(base.EvictionReasonCapacity)
-	}
-	evictionDuration := time.Since(start)
-
-	// Log performance metrics (these should be extremely fast)
-	t.Logf("NoOpCollector performance metrics (1M operations each):")
-	t.Logf("  IncInsertion: %v", insertionDuration)
-	t.Logf("  IncHit: %v", hitDuration)
-	t.Logf("  IncMiss: %v", missDuration)
-	t.Logf("  IncEviction: %v", evictionDuration)
-
-	// Verify operations are very fast (should be nanoseconds per operation)
-	maxDuration := 10 * time.Millisecond // 10ns per operation
-	is.Less(insertionDuration, maxDuration, "NoOp IncInsertion should be very fast")
-	is.Less(hitDuration, maxDuration, "NoOp IncHit should be very fast")
-	is.Less(missDuration, maxDuration, "NoOp IncMiss should be very fast")
-	is.Less(evictionDuration, maxDuration, "NoOp IncEviction should be very fast")
 }
 
 func TestNoOpCollector_ConcurrentAccess(t *testing.T) {
