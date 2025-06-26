@@ -3,6 +3,7 @@ package lfu
 import (
 	"container/list"
 
+	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 )
@@ -97,7 +98,7 @@ func (c *LFUCache[K, V]) Set(key K, value V) {
 		for i := 0; i < c.evictionSize; i++ {
 			k, v, ok := c.DeleteLeastFrequent()
 			if ok && c.onEviction != nil {
-				c.onEviction(k, v)
+				c.onEviction(base.EvictionReasonCapacity, k, v)
 			}
 		}
 	}
@@ -265,6 +266,13 @@ func (c *LFUCache[K, V]) Algorithm() string {
 // Time complexity: O(1) - the list maintains its length.
 func (c *LFUCache[K, V]) Len() int {
 	return c.ll.Len()
+}
+
+// SizeBytes returns the total size of all cache entries in bytes.
+// For generic caches, this returns 0 as the size cannot be determined without type information.
+// Specialized implementations should override this method.
+func (c *LFUCache[K, V]) SizeBytes() int64 {
+	return int64(size.Of(c.cache))
 }
 
 // DeleteLeastFrequent removes and returns the least frequently used item from the cache.

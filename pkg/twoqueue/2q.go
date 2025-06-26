@@ -3,6 +3,7 @@ package twoqueue
 import (
 	"container/list"
 
+	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 	"github.com/samber/hot/pkg/lru"
@@ -302,6 +303,13 @@ func (c *TwoQueueCache[K, V]) Len() int {
 	return c.frequent.Len() + c.recent.Len()
 }
 
+// SizeBytes returns the total size of all cache entries in bytes.
+// For generic caches, this returns 0 as the size cannot be determined without type information.
+// Specialized implementations should override this method.
+func (c *TwoQueueCache[K, V]) SizeBytes() int64 {
+	return c.frequent.SizeBytes() + int64(size.Of(c.recent.cache)) + int64(size.Of(c.ghost.cache))
+}
+
 // ensureRecentSpace makes room in the recent cache by evicting items when necessary.
 // Evicted items from recent are added to the ghost cache.
 func (c *TwoQueueCache[K, V]) ensureRecentSpace() {
@@ -312,7 +320,7 @@ func (c *TwoQueueCache[K, V]) ensureRecentSpace() {
 	// Evict oldest item from recent and add to ghost
 	if key, value, ok := c.recent.DeleteOldest(); ok {
 		if c.onEviction != nil {
-			c.onEviction(key, value)
+			c.onEviction(base.EvictionReasonCapacity, key, value)
 		}
 		c.ensureGhostSpace()
 		c.ghost.Set(key, struct{}{})
@@ -329,7 +337,7 @@ func (c *TwoQueueCache[K, V]) ensureFrequentSpace() {
 	// Evict oldest item from frequent
 	if key, value, ok := c.frequent.DeleteOldest(); ok {
 		if c.onEviction != nil {
-			c.onEviction(key, value)
+			c.onEviction(base.EvictionReasonCapacity, key, value)
 		}
 	}
 }

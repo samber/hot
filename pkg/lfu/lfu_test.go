@@ -37,7 +37,8 @@ func TestSet(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := 0
-	cache := NewLFUCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewLFUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted += v
 	})
 
@@ -76,7 +77,8 @@ func TestSet(t *testing.T) {
 	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
 	is.Equal(1, evicted)
 
-	cache = NewLFUCacheWithEvictionSizeAndCallback(3, 2, func(k string, v int) {
+	cache = NewLFUCacheWithEvictionSizeAndCallback(3, 2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted += v
 	})
 	cache.Set("a", 1)
@@ -365,7 +367,8 @@ func TestSetMany_WithEviction(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := 0
-	cache := NewLFUCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewLFUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted++
 	})
 
@@ -572,7 +575,8 @@ func TestEvictionCallback_WithSetMany(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewLFUCacheWithEvictionCallback(2, func(k string, v int) {
+	cache := NewLFUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 	})
 
@@ -594,7 +598,8 @@ func TestEvictionCallback_WithDeleteMany(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewLFUCacheWithEvictionCallback(5, func(k string, v int) {
+	cache := NewLFUCacheWithEvictionCallback(5, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 	})
 
@@ -799,7 +804,8 @@ func TestInternalState_Eviction(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewLFUCacheWithEvictionCallback(3, func(k string, v int) {
+	cache := NewLFUCacheWithEvictionCallback(3, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 	})
 
@@ -827,7 +833,8 @@ func TestInternalState_EvictionWithFrequency(t *testing.T) {
 	is := assert.New(t)
 
 	evicted := make(map[string]int)
-	cache := NewLFUCacheWithEvictionCallback(3, func(k string, v int) {
+	cache := NewLFUCacheWithEvictionCallback(3, func(reason base.EvictionReason, k string, v int) {
+		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted[k] = v
 	})
 

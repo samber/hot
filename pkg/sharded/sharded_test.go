@@ -13,7 +13,7 @@ func TestNewShardedInMemoryCache(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		42,
-		func() base.InMemoryCache[int, int] {
+		func(shardIndex int) base.InMemoryCache[int, int] {
 			return lru.NewLRUCache[int, int](42)
 		},
 		func(i int) uint64 {
@@ -43,7 +43,7 @@ func TestShardedInMemoryCache_BasicOperations(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -92,7 +92,7 @@ func TestShardedInMemoryCache_BatchOperations(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -148,7 +148,7 @@ func TestShardedInMemoryCache_KeysAndValues(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -180,7 +180,7 @@ func TestShardedInMemoryCache_Range(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -211,7 +211,7 @@ func TestShardedInMemoryCache_Purge(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -238,7 +238,7 @@ func TestShardedInMemoryCache_EmptyOperations(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -276,7 +276,7 @@ func TestShardedInMemoryCache_CapacityAndAlgorithm(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		3,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -298,7 +298,7 @@ func TestShardedInMemoryCache_Len(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -337,7 +337,7 @@ func TestShardedInMemoryCache_InterfaceCompliance(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		2,
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -362,7 +362,7 @@ func TestShardedInMemoryCache_SingleShard(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		1, // single shard
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](10)
 		},
 		hasher,
@@ -389,7 +389,7 @@ func TestShardedInMemoryCache_ManyShards(t *testing.T) {
 
 	cache := NewShardedInMemoryCache(
 		10, // many shards
-		func() base.InMemoryCache[string, int] {
+		func(shardIndex int) base.InMemoryCache[string, int] {
 			return lru.NewLRUCache[string, int](100)
 		},
 		hasher,

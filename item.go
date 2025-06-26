@@ -5,7 +5,6 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
 )
 
@@ -30,9 +29,9 @@ func newItemWithValue[V any](v V, ttlMicro int64, staleMicro int64) *item[V] {
 	}
 
 	return &item[V]{
-		hasValue:         true,
-		value:            v,
-		bytes:            uint(size.Of(v)),
+		hasValue: true,
+		value:    v,
+		// bytes:            uint(size.Of(v)),
 		expiryMicro:      expiryMicro,
 		staleExpiryMicro: staleExpiryMicro,
 	}
@@ -61,7 +60,7 @@ func newItemNoValue[V any](ttlMicro int64, staleMicro int64) *item[V] {
 type item[V any] struct {
 	hasValue bool
 	value    V
-	bytes    uint
+	// bytes    uint
 	// Store int64 microseconds instead of time.Time for better performance
 	// (benchmark resulted in 10x speedup)
 	expiryMicro      int64

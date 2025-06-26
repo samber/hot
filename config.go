@@ -4,23 +4,19 @@ import (
 	"errors"
 	"time"
 
-	"github.com/samber/hot/pkg/arc"
 	"github.com/samber/hot/pkg/base"
-	"github.com/samber/hot/pkg/lfu"
-	"github.com/samber/hot/pkg/lru"
-	"github.com/samber/hot/pkg/safe"
+	"github.com/samber/hot/pkg/metrics"
 	"github.com/samber/hot/pkg/sharded"
-	"github.com/samber/hot/pkg/twoqueue"
 )
 
 // EvictionAlgorithm represents the cache eviction policy to use.
-type EvictionAlgorithm int
+type EvictionAlgorithm string
 
 const (
-	LRU EvictionAlgorithm = iota
-	LFU
-	TwoQueue
-	ARC
+	LRU      EvictionAlgorithm = "lru"
+	LFU      EvictionAlgorithm = "lfu"
+	TwoQueue EvictionAlgorithm = "2q"
+	ARC      EvictionAlgorithm = "arc"
 )
 
 // revalidationErrorPolicy defines how to handle errors during revalidation.
@@ -30,59 +26,6 @@ const (
 	DropOnError revalidationErrorPolicy = iota
 	KeepOnError
 )
-
-// composeInternalCache creates an internal cache instance based on the provided configuration.
-// It handles sharding, locking, and different eviction algorithms.
-func composeInternalCache[K comparable, V any](locking bool, algorithm EvictionAlgorithm, capacity int, shards uint64, shardingFn sharded.Hasher[K], onEviction base.EvictionCallback[K, V]) base.InMemoryCache[K, *item[V]] {
-	assertValue(capacity >= 0, "capacity must be a positive value")
-	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
-
-	if shards > 1 {
-		return sharded.NewShardedInMemoryCache(
-			shards,
-			func() base.InMemoryCache[K, *item[V]] {
-				return composeInternalCache(false, algorithm, capacity, 0, nil, onEviction)
-			},
-			shardingFn,
-		)
-	}
-
-	var cache base.InMemoryCache[K, *item[V]]
-
-	var onItemEviction base.EvictionCallback[K, *item[V]]
-	if onEviction != nil {
-		onItemEviction = func(key K, value *item[V]) {
-			onEviction(key, value.value)
-		}
-	}
-
-	switch algorithm {
-	case LRU:
-		cache = lru.NewLRUCacheWithEvictionCallback(capacity, onItemEviction)
-	case LFU:
-		cache = lfu.NewLFUCacheWithEvictionCallback(capacity, onItemEviction)
-	case TwoQueue:
-		cache = twoqueue.New2QCacheWithEvictionCallback(capacity, onItemEviction)
-	case ARC:
-		cache = arc.NewARCCacheWithEvictionCallback(capacity, onItemEviction)
-	default:
-		panic("unknown cache algorithm")
-	}
-
-	if locking {
-		return safe.NewSafeInMemoryCache(cache)
-	}
-
-	return cache
-}
-
-// assertValue panics with the given message if the condition is false.
-// This is used for validating configuration parameters.
-func assertValue(ok bool, msg string) {
-	if !ok {
-		panic(msg)
-	}
-}
 
 // NewHotCache creates a new HotCache configuration with the specified eviction algorithm and capacity.
 // This is the starting point for building a cache with the builder pattern.
@@ -112,6 +55,11 @@ type HotCacheConfig[K comparable, V any] struct {
 
 	lockingDisabled bool
 	janitorEnabled  bool
+
+	// Metrics configuration
+	prometheusMetricsEnabled bool
+	cacheName                string
+	collectors               []metrics.Collector
 
 	warmUpFn                func() (map[K]V, []K, error)
 	loaderFns               LoaderChain[K, V]
@@ -263,22 +211,38 @@ func (cfg HotCacheConfig[K, V]) WithCopyOnWrite(copyOnWrite func(V) V) HotCacheC
 	return cfg
 }
 
+// WithPrometheusMetrics enables metric collection for the cache with the specified name.
+// The cache name is required when metrics are enabled and will be used as a label in Prometheus metrics.
+// When the cache is sharded, metrics will be collected for each shard with the shard number as an additional label.
+func (cfg HotCacheConfig[K, V]) WithPrometheusMetrics(cacheName string) HotCacheConfig[K, V] {
+	assertValue(cacheName != "", "cache name is required when metrics are enabled")
+
+	cfg.prometheusMetricsEnabled = true
+	cfg.cacheName = cacheName
+	return cfg
+}
+
 // Build creates and returns a new HotCache instance with the current configuration.
 // This method validates the configuration and creates all necessary internal components.
 // The cache is ready to use immediately after this call.
 func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	assertValue(!cfg.janitorEnabled || !cfg.lockingDisabled, "lockingDisabled and janitorEnabled cannot be used together")
 
-	// Using mutexMock costs ~3ns per operation, which is more than the cost of calling base.SafeInMemoryCache abstraction (1ns).
-	// Using mutexMock is more performant for this library when locking is enabled most of the time.
+	var collectorBuilderMain func(shard int) metrics.Collector
+	var collectorBuilderMissing func(shard int) metrics.Collector
+	if cfg.prometheusMetricsEnabled {
+		collectorBuilderMain = cfg.buildPrometheusCollector(base.CacheModeMain)
+		collectorBuilderMissing = cfg.buildPrometheusCollector(base.CacheModeMissing)
+	}
 
 	var missingCache base.InMemoryCache[K, *item[V]]
 	if cfg.missingCacheCapacity > 0 {
-		missingCache = composeInternalCache(!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction)
+		missingCache = composeInternalCache(!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilderMissing)
 	}
 
+	cacheInstance := composeInternalCache(!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilderMain)
 	hot := newHotCache(
-		composeInternalCache(!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, cfg.shardingFn, cfg.onEviction),
+		cacheInstance,
 		cfg.missingSharedCache,
 		missingCache,
 
@@ -293,6 +257,8 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 		cfg.onEviction,
 		cfg.copyOnRead,
 		cfg.copyOnWrite,
+
+		cfg.collectors,
 	)
 
 	if cfg.warmUpFn != nil {
@@ -305,4 +271,25 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	}
 
 	return hot
+}
+
+func (cfg *HotCacheConfig[K, V]) buildPrometheusCollector(mode base.CacheMode) func(shard int) metrics.Collector {
+	return func(shard int) metrics.Collector {
+		collector := metrics.NewPrometheusCollector(
+			cfg.cacheName,
+			shard,
+			mode,
+			cfg.cacheCapacity,
+			string(cfg.cacheAlgo),
+			emptyableToPtr(cfg.ttl),
+			emptyableToPtr(cfg.jitterLambda),
+			emptyableToPtr(cfg.jitterUpperBound),
+			emptyableToPtr(cfg.stale),
+			emptyableToPtr(cfg.missingCacheCapacity),
+		)
+
+		cfg.collectors = append(cfg.collectors, collector)
+
+		return collector
+	}
 }

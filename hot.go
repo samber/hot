@@ -4,11 +4,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/go-singleflightx"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 	"github.com/samber/hot/pkg/metrics"
 )
+
+var _ prometheus.Collector = (*HotCache[any, any])(nil)
 
 // newHotCache creates a new HotCache instance with the specified configuration.
 // This is an internal constructor used by the builder pattern.
@@ -28,6 +31,8 @@ func newHotCache[K comparable, V any](
 	onEviction base.EvictionCallback[K, V],
 	copyOnRead func(V) V,
 	copyOnWrite func(V) V,
+
+	prometheusCollectors []metrics.Collector,
 ) *HotCache[K, V] {
 	return &HotCache[K, V]{
 		cache:              cache,
@@ -48,8 +53,9 @@ func newHotCache[K comparable, V any](
 		copyOnRead:              copyOnRead,
 		copyOnWrite:             copyOnWrite,
 
-		group:   singleflightx.Group[K, V]{},
-		metrics: metrics.NewMetrics(ttl, jitterLambda, jitterUpperBound, stale),
+		group: singleflightx.Group[K, V]{},
+
+		prometheusCollectors: prometheusCollectors,
 	}
 }
 
@@ -82,8 +88,10 @@ type HotCache[K comparable, V any] struct {
 	copyOnRead              func(V) V
 	copyOnWrite             func(V) V
 
-	group   singleflightx.Group[K, V]
-	metrics *metrics.Metrics
+	group singleflightx.Group[K, V]
+
+	// Prometheus collector for metrics registration
+	prometheusCollectors []metrics.Collector
 }
 
 // Set adds a value to the cache. If the key already exists, its value is updated.
@@ -430,7 +438,7 @@ func (c *HotCache[K, V]) DeleteMany(keys []K) map[K]bool {
 }
 
 // Purge removes all keys and values from the cache.
-// This operation is irreversible and will clear both the main cache and missing cache.
+// This operation clears both the main cache and the missing cache if enabled.
 func (c *HotCache[K, V]) Purge() {
 	c.cache.Purge()
 	if c.missingCache != nil {
@@ -464,7 +472,6 @@ func (c *HotCache[K, V]) Algorithm() (mainCacheAlgorithm string, missingCacheAlg
 // Len returns the number of items in the main cache.
 // This includes both valid values and missing keys if using shared missing cache.
 func (c *HotCache[K, V]) Len() int {
-
 	if c.missingCache != nil {
 		// @TODO: should be done in a single call to avoid multiple locks
 		return c.cache.Len() + c.missingCache.Len()
@@ -564,7 +571,7 @@ func (c *HotCache[K, V]) Janitor() {
 					if c.onEviction != nil {
 						for k, ok := range deleted {
 							if ok {
-								c.onEviction(k, toDeleteKV[k])
+								c.onEviction(base.EvictionReasonTTL, k, toDeleteKV[k])
 							}
 						}
 					}
@@ -588,7 +595,7 @@ func (c *HotCache[K, V]) Janitor() {
 					if c.onEviction != nil {
 						for k, ok := range deleted {
 							if ok {
-								c.onEviction(k, toDeleteKV[k])
+								c.onEviction(base.EvictionReasonTTL, k, toDeleteKV[k])
 							}
 						}
 					}
@@ -714,7 +721,7 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 
 		ok := c.cache.Delete(key)
 		if ok && c.onEviction != nil {
-			c.onEviction(key, item.value)
+			c.onEviction(base.EvictionReasonTTL, key, item.value)
 		}
 	}
 
@@ -727,7 +734,7 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 
 			ok := c.missingCache.Delete(key)
 			if ok && c.onEviction != nil {
-				c.onEviction(key, item.value)
+				c.onEviction(base.EvictionReasonTTL, key, item.value)
 			}
 		}
 	}
@@ -769,7 +776,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 		if c.onEviction != nil {
 			for k, ok := range deleted {
 				if ok {
-					c.onEviction(k, onEvictKV[k])
+					c.onEviction(base.EvictionReasonTTL, k, onEvictKV[k])
 				}
 			}
 		}
@@ -800,7 +807,7 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 			if c.onEviction != nil {
 				for k, ok := range deleted {
 					if ok {
-						c.onEviction(k, onEvictKV[k])
+						c.onEviction(base.EvictionReasonTTL, k, onEvictKV[k])
 					}
 				}
 			}
@@ -901,5 +908,30 @@ func (c *HotCache[K, V]) revalidate(items map[K]*item[V], fallbackLoaders Loader
 		}
 
 		c.setManyUnsafe(valid, missing, c.ttlMicro)
+	}
+}
+
+// Describe implements the prometheus.Collector interface.
+func (c *HotCache[K, V]) Describe(ch chan<- *prometheus.Desc) {
+	for _, collector := range c.prometheusCollectors {
+		if prometheusCollector, ok := collector.(prometheus.Collector); ok {
+			prometheusCollector.Describe(ch)
+		}
+	}
+}
+
+// Collect implements the prometheus.Collector interface.
+func (c *HotCache[K, V]) Collect(ch chan<- prometheus.Metric) {
+	// Triggers a size calculation.
+	// Warning: This is very slow.
+	c.cache.SizeBytes()
+	if c.missingCache != nil {
+		c.missingCache.SizeBytes()
+	}
+
+	for _, collector := range c.prometheusCollectors {
+		if prometheusCollector, ok := collector.(prometheus.Collector); ok {
+			prometheusCollector.Collect(ch)
+		}
 	}
 }
