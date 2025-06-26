@@ -228,17 +228,19 @@ func (cfg HotCacheConfig[K, V]) WithPrometheusMetrics(cacheName string) HotCache
 func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	assertValue(!cfg.janitorEnabled || !cfg.lockingDisabled, "lockingDisabled and janitorEnabled cannot be used together")
 
-	var collectorBuilder func(shard int) metrics.Collector
+	var collectorBuilderMain func(shard int) metrics.Collector
+	var collectorBuilderMissing func(shard int) metrics.Collector
 	if cfg.prometheusMetricsEnabled {
-		collectorBuilder = cfg.buildPrometheusCollector
+		collectorBuilderMain = cfg.buildPrometheusCollector(base.CacheModeMain)
+		collectorBuilderMissing = cfg.buildPrometheusCollector(base.CacheModeMissing)
 	}
 
 	var missingCache base.InMemoryCache[K, *item[V]]
 	if cfg.missingCacheCapacity > 0 {
-		missingCache = composeInternalCache(!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilder)
+		missingCache = composeInternalCache(!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilderMissing)
 	}
 
-	cacheInstance := composeInternalCache(!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilder)
+	cacheInstance := composeInternalCache(!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilderMain)
 	hot := newHotCache(
 		cacheInstance,
 		cfg.missingSharedCache,
@@ -271,20 +273,23 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	return hot
 }
 
-func (cfg *HotCacheConfig[K, V]) buildPrometheusCollector(shard int) metrics.Collector {
-	collector := metrics.NewPrometheusCollector(
-		cfg.cacheName,
-		shard,
-		cfg.cacheCapacity,
-		string(cfg.cacheAlgo),
-		emptyableToPtr(cfg.ttl),
-		emptyableToPtr(cfg.jitterLambda),
-		emptyableToPtr(cfg.jitterUpperBound),
-		emptyableToPtr(cfg.stale),
-		emptyableToPtr(cfg.missingCacheCapacity),
-	)
+func (cfg *HotCacheConfig[K, V]) buildPrometheusCollector(mode base.CacheMode) func(shard int) metrics.Collector {
+	return func(shard int) metrics.Collector {
+		collector := metrics.NewPrometheusCollector(
+			cfg.cacheName,
+			shard,
+			mode,
+			cfg.cacheCapacity,
+			string(cfg.cacheAlgo),
+			emptyableToPtr(cfg.ttl),
+			emptyableToPtr(cfg.jitterLambda),
+			emptyableToPtr(cfg.jitterUpperBound),
+			emptyableToPtr(cfg.stale),
+			emptyableToPtr(cfg.missingCacheCapacity),
+		)
 
-	cfg.collectors = append(cfg.collectors, collector)
+		cfg.collectors = append(cfg.collectors, collector)
 
-	return collector
+		return collector
+	}
 }

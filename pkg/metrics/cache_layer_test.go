@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samber/hot/pkg/base"
 	"github.com/samber/hot/pkg/lru"
 	"github.com/samber/hot/pkg/safe"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ func TestInstrumentedCache_BasicOperations(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](10)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 10, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -108,7 +109,7 @@ func TestInstrumentedCache_MetricsTracking(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](5)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 5, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 5, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -174,7 +175,7 @@ func TestInstrumentedCache_EdgeCases(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](3)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 3, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 3, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -230,7 +231,7 @@ func TestInstrumentedCache_CapacityAndEviction(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](2)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 2, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 2, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -268,7 +269,7 @@ func TestInstrumentedCache_UpdateSizeBytes(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](10)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 10, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -292,7 +293,7 @@ func TestInstrumentedCache_WithPrometheusCollector(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](5)
 
 	// Create Prometheus collector directly
-	collector := NewPrometheusCollector("test-cache", -1, 5, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 5, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -346,7 +347,7 @@ func TestInstrumentedCache_ConcurrentAccess(t *testing.T) {
 	underlyingCache := safe.NewSafeInMemoryCache(lru.NewLRUCache[string, int](100))
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -394,7 +395,7 @@ func TestInstrumentedCache_EvictionMetrics(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](2)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 2, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 2, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -423,7 +424,7 @@ func TestInstrumentedCache_BulkOperations(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](10)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 10, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -474,7 +475,7 @@ func TestInstrumentedCache_RangeOperation(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](10)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 10, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -513,7 +514,7 @@ func TestInstrumentedCache_Performance(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](10000)
 
 	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, 10000, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10000, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -557,7 +558,7 @@ func TestInstrumentedCache_ShardLabeling(t *testing.T) {
 	underlyingCache := lru.NewLRUCache[string, int](10)
 
 	// Create metrics collector with shard label
-	collector := NewPrometheusCollector("test-cache", 5, 10, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", 5, base.CacheModeMain, 10, "lru", nil, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -585,7 +586,7 @@ func TestInstrumentedCache_AllAlgorithms(t *testing.T) {
 			underlyingCache := lru.NewLRUCache[string, int](10)
 
 			// Create metrics collector with different algorithm
-			collector := NewPrometheusCollector("test-cache", -1, 10, algo, nil, nil, nil, nil, nil)
+			collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10, algo, nil, nil, nil, nil, nil)
 
 			// Create metrics wrapper
 			metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -610,7 +611,7 @@ func TestInstrumentedCache_WithTTL(t *testing.T) {
 
 	// Create metrics collector with TTL
 	ttl := 30 * time.Second
-	collector := NewPrometheusCollector("test-cache", -1, 10, "lru", &ttl, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10, "lru", &ttl, nil, nil, nil, nil)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
@@ -638,7 +639,7 @@ func TestInstrumentedCache_WithAllSettings(t *testing.T) {
 	stale := 60 * time.Second
 	missingCapacity := 50
 
-	collector := NewPrometheusCollector("test-cache", -1, 10, "lru", &ttl, &jitterLambda, &jitterUpperBound, &stale, &missingCapacity)
+	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10, "lru", &ttl, &jitterLambda, &jitterUpperBound, &stale, &missingCapacity)
 
 	// Create metrics wrapper
 	metricsCache := NewInstrumentedCache(underlyingCache, collector)
