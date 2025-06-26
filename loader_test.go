@@ -2,6 +2,7 @@ package hot
 
 import (
 	"errors"
+	"sort"
 	"sync/atomic"
 	"testing"
 
@@ -93,6 +94,7 @@ func TestLoaders_runEmptyChain(t *testing.T) {
 
 	results, missing, err := loaders.run([]int{1, 2, 3})
 	is.EqualValues(map[int]int{}, results)
+	sort.Ints(missing)
 	is.EqualValues([]int{1, 2, 3}, missing)
 	is.Nil(err)
 }
