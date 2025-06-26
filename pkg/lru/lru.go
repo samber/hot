@@ -3,6 +3,7 @@ package lru
 import (
 	"container/list"
 
+	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 )
@@ -222,6 +223,13 @@ func (c *LRUCache[K, V]) Algorithm() string {
 // Time complexity: O(1) - the list maintains its length.
 func (c *LRUCache[K, V]) Len() int {
 	return c.ll.Len()
+}
+
+// SizeBytes returns the total size of all cache entries in bytes.
+// For generic caches, this returns 0 as the size cannot be determined without type information.
+// Specialized implementations should override this method.
+func (c *LRUCache[K, V]) SizeBytes() int64 {
+	return int64(size.Of(c.cache))
 }
 
 // DeleteOldest removes and returns the least recently used item from the cache.

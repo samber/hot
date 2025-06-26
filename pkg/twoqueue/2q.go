@@ -3,6 +3,7 @@ package twoqueue
 import (
 	"container/list"
 
+	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 	"github.com/samber/hot/pkg/lru"
@@ -300,6 +301,13 @@ func (c *TwoQueueCache[K, V]) Algorithm() string {
 // This is the sum of the lengths of frequent and recent caches (ghost cache not included).
 func (c *TwoQueueCache[K, V]) Len() int {
 	return c.frequent.Len() + c.recent.Len()
+}
+
+// SizeBytes returns the total size of all cache entries in bytes.
+// For generic caches, this returns 0 as the size cannot be determined without type information.
+// Specialized implementations should override this method.
+func (c *TwoQueueCache[K, V]) SizeBytes() int64 {
+	return int64(c.frequent.SizeBytes() + int64(size.Of(c.recent.cache)) + int64(size.Of(c.ghost.cache)))
 }
 
 // ensureRecentSpace makes room in the recent cache by evicting items when necessary.

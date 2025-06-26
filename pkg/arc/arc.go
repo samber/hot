@@ -3,6 +3,7 @@ package arc
 import (
 	"container/list"
 
+	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
 )
@@ -508,6 +509,13 @@ func (c *ARCCache[K, V]) Algorithm() string {
 // Len returns the current number of items in the cache.
 func (c *ARCCache[K, V]) Len() int {
 	return c.t1.Len() + c.t2.Len()
+}
+
+// SizeBytes returns the total size of all cache entries in bytes.
+// For generic caches, this returns 0 as the size cannot be determined without type information.
+// Specialized implementations should override this method.
+func (c *ARCCache[K, V]) SizeBytes() int64 {
+	return int64(size.Of(c.t1Map) + size.Of(c.t2Map) + size.Of(c.b1Map) + size.Of(c.b2Map))
 }
 
 // DeleteOldest removes and returns the least recently used item from the cache.

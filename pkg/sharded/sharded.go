@@ -298,3 +298,13 @@ func (c *ShardedInMemoryCache[K, V]) Len() int {
 	}
 	return total
 }
+
+// SizeBytes returns the total size of all cache entries in bytes across all shards.
+// Time complexity: O(n) where n is the number of shards.
+func (c *ShardedInMemoryCache[K, V]) SizeBytes() int64 {
+	total := int64(0)
+	for i := range c.caches {
+		total += c.caches[i].SizeBytes()
+	}
+	return total
+}

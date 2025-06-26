@@ -1,7 +1,6 @@
 package hot
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -923,7 +922,10 @@ func (c *HotCache[K, V]) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (c *HotCache[K, V]) Collect(ch chan<- prometheus.Metric) {
-	fmt.Println("-------------", len(c.prometheusCollectors))
+	// Triggers a size calculation.
+	// Warning: This is very slow.
+	c.cache.SizeBytes()
+
 	for _, collector := range c.prometheusCollectors {
 		if prometheusCollector, ok := collector.(prometheus.Collector); ok {
 			prometheusCollector.Collect(ch)

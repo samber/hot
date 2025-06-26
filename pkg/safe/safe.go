@@ -188,3 +188,11 @@ func (c *SafeInMemoryCache[K, V]) Len() int {
 	defer c.RUnlock()
 	return c.InMemoryCache.Len()
 }
+
+// SizeBytes returns the total size of all cache entries in bytes using a shared read lock.
+// The size is accurate at the time of the lock acquisition.
+func (c *SafeInMemoryCache[K, V]) SizeBytes() int64 {
+	c.RLock()
+	defer c.RUnlock()
+	return c.InMemoryCache.SizeBytes()
+}

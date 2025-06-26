@@ -149,6 +149,13 @@ func (m *InstrumentedCache[K, V]) Len() int {
 	return m.cache.Len()
 }
 
+// SizeBytes returns the total size of all cache entries in bytes.
+func (m *InstrumentedCache[K, V]) SizeBytes() int64 {
+	totalSize := m.cache.SizeBytes()
+	m.metrics.UpdateSizeBytes(totalSize)
+	return totalSize
+}
+
 // Capacity returns the capacity of the cache.
 func (m *InstrumentedCache[K, V]) Capacity() int {
 	return m.cache.Capacity()

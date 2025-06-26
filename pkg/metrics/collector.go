@@ -15,4 +15,5 @@ type Collector interface {
 	AddHits(count int64)
 	IncMiss()
 	AddMisses(count int64)
+	UpdateSizeBytes(sizeBytes int64)
 }

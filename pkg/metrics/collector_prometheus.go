@@ -23,7 +23,7 @@ type PrometheusCollector struct {
 	missCount      int64
 
 	// Gauges
-	// sizeBytes int64
+	sizeBytes int64
 
 	// Static configuration gauges (one per setting)
 	settingsCapacity         prometheus.Gauge
@@ -220,6 +220,11 @@ func (p *PrometheusCollector) AddMisses(count int64) {
 	atomic.AddInt64(&p.missCount, count)
 }
 
+// UpdateSizeBytes atomically updates the cache size in bytes.
+func (p *PrometheusCollector) UpdateSizeBytes(sizeBytes int64) {
+	atomic.StoreInt64(&p.sizeBytes, sizeBytes)
+}
+
 // Describe implements prometheus.Collector interface.
 func (p *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- p.insertionDesc
@@ -269,6 +274,13 @@ func (p *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 		p.missDesc,
 		prometheus.CounterValue,
 		float64(atomic.LoadInt64(&p.missCount)),
+	)
+
+	// Collect size gauge
+	ch <- prometheus.MustNewConstMetric(
+		p.sizeDesc,
+		prometheus.GaugeValue,
+		float64(atomic.LoadInt64(&p.sizeBytes)),
 	)
 
 	// Collect eviction counters

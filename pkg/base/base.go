@@ -66,4 +66,7 @@ type InMemoryCache[K comparable, V any] interface {
 
 	// Len returns the current number of items in the cache.
 	Len() int
+
+	// SizeBytes returns the total size of all cache entries in bytes.
+	SizeBytes() int64
 }

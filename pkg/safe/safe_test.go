@@ -135,6 +135,10 @@ func (m *mockCache[K, V]) Len() int {
 	return len(m.data)
 }
 
+func (m *mockCache[K, V]) SizeBytes() int64 {
+	return 0 // Mock implementation returns 0
+}
+
 func TestNewSafeInMemoryCache(t *testing.T) {
 	is := assert.New(t)
 
