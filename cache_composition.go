@@ -61,7 +61,7 @@ func composeInternalCache[K comparable, V any](
 	collectorBuilder func(shard int) metrics.Collector,
 ) base.InMemoryCache[K, *item[V]] {
 	assertValue(capacity >= 0, "capacity must be a positive value")
-	assertValue((shards > 1 && shardingFn != nil) || shards == 0, "sharded cache requires sharding function")
+	assertValue((shards > 1 && shardingFn != nil) || shards <= 1, "sharded cache requires sharding function")
 
 	if shards > 1 {
 		return sharded.NewShardedInMemoryCache(

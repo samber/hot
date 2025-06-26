@@ -925,6 +925,9 @@ func (c *HotCache[K, V]) Collect(ch chan<- prometheus.Metric) {
 	// Triggers a size calculation.
 	// Warning: This is very slow.
 	c.cache.SizeBytes()
+	if c.missingCache != nil {
+		c.missingCache.SizeBytes()
+	}
 
 	for _, collector := range c.prometheusCollectors {
 		if prometheusCollector, ok := collector.(prometheus.Collector); ok {

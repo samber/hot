@@ -620,3 +620,281 @@ func TestInternalState_ComplexOperations(t *testing.T) {
 	order = verifyLRUOrder(t, cache)
 	assert.Equal(t, []string{"e", "c", "b"}, order)
 }
+
+func TestSetMany(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewLRUCache[string, int](3)
+
+	// Test setting multiple items
+	items := map[string]int{"a": 1, "b": 2, "c": 3}
+	cache.SetMany(items)
+
+	is.Equal(3, cache.Len())
+	is.True(cache.Has("a"))
+	is.True(cache.Has("b"))
+	is.True(cache.Has("c"))
+
+	val, ok := cache.Get("a")
+	is.True(ok)
+	is.Equal(1, val)
+
+	val, ok = cache.Get("b")
+	is.True(ok)
+	is.Equal(2, val)
+
+	val, ok = cache.Get("c")
+	is.True(ok)
+	is.Equal(3, val)
+
+	// Test setting more items than capacity (should evict oldest)
+	items2 := map[string]int{"d": 4, "e": 5, "f": 6}
+	cache.SetMany(items2)
+
+	is.Equal(3, cache.Len())
+	is.False(cache.Has("a"))
+	is.False(cache.Has("b"))
+	is.False(cache.Has("c"))
+	is.True(cache.Has("d"))
+	is.True(cache.Has("e"))
+	is.True(cache.Has("f"))
+
+	// Test setting empty map
+	cache.SetMany(map[string]int{})
+	is.Equal(3, cache.Len()) // Should not change anything
+}
+
+func TestHasMany(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewLRUCache[string, int](3)
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	// Test checking multiple existing keys
+	keys := []string{"a", "b", "c"}
+	results := cache.HasMany(keys)
+
+	is.Equal(3, len(results))
+	is.True(results["a"])
+	is.True(results["b"])
+	is.True(results["c"])
+
+	// Test checking mixed existing and non-existing keys
+	keys2 := []string{"a", "d", "b", "e"}
+	results2 := cache.HasMany(keys2)
+
+	is.Equal(4, len(results2))
+	is.True(results2["a"])
+	is.False(results2["d"])
+	is.True(results2["b"])
+	is.False(results2["e"])
+
+	// Test checking empty slice
+	results3 := cache.HasMany([]string{})
+	is.Equal(0, len(results3))
+
+	// Test checking non-existing keys
+	keys4 := []string{"x", "y", "z"}
+	results4 := cache.HasMany(keys4)
+
+	is.Equal(3, len(results4))
+	is.False(results4["x"])
+	is.False(results4["y"])
+	is.False(results4["z"])
+}
+
+func TestGetMany(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewLRUCache[string, int](3)
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	// Test getting multiple existing keys
+	keys := []string{"a", "b", "c"}
+	values, missing := cache.GetMany(keys)
+
+	is.Equal(3, len(values))
+	is.Equal(0, len(missing))
+	is.Equal(1, values["a"])
+	is.Equal(2, values["b"])
+	is.Equal(3, values["c"])
+
+	// Test getting mixed existing and non-existing keys
+	keys2 := []string{"a", "d", "b", "e"}
+	values2, missing2 := cache.GetMany(keys2)
+
+	is.Equal(2, len(values2))
+	is.Equal(2, len(missing2))
+	is.Equal(1, values2["a"])
+	is.Equal(2, values2["b"])
+	is.Contains(missing2, "d")
+	is.Contains(missing2, "e")
+
+	// Test getting empty slice
+	values3, missing3 := cache.GetMany([]string{})
+	is.Equal(0, len(values3))
+	is.Equal(0, len(missing3))
+
+	// Test getting only non-existing keys
+	keys4 := []string{"x", "y", "z"}
+	values4, missing4 := cache.GetMany(keys4)
+
+	is.Equal(0, len(values4))
+	is.Equal(3, len(missing4))
+	is.Contains(missing4, "x")
+	is.Contains(missing4, "y")
+	is.Contains(missing4, "z")
+}
+
+func TestPeekMany(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewLRUCache[string, int](3)
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	// Test peeking multiple existing keys
+	keys := []string{"a", "b", "c"}
+	values, missing := cache.PeekMany(keys)
+
+	is.Equal(3, len(values))
+	is.Equal(0, len(missing))
+	is.Equal(1, values["a"])
+	is.Equal(2, values["b"])
+	is.Equal(3, values["c"])
+
+	// Test peeking mixed existing and non-existing keys
+	keys2 := []string{"a", "d", "b", "e"}
+	values2, missing2 := cache.PeekMany(keys2)
+
+	is.Equal(2, len(values2))
+	is.Equal(2, len(missing2))
+	is.Equal(1, values2["a"])
+	is.Equal(2, values2["b"])
+	is.Contains(missing2, "d")
+	is.Contains(missing2, "e")
+
+	// Test peeking empty slice
+	values3, missing3 := cache.PeekMany([]string{})
+	is.Equal(0, len(values3))
+	is.Equal(0, len(missing3))
+
+	// Test peeking only non-existing keys
+	keys4 := []string{"x", "y", "z"}
+	values4, missing4 := cache.PeekMany(keys4)
+
+	is.Equal(0, len(values4))
+	is.Equal(3, len(missing4))
+	is.Contains(missing4, "x")
+	is.Contains(missing4, "y")
+	is.Contains(missing4, "z")
+
+	// Verify that peeking doesn't change access order
+	// Get "a" to move it to front
+	cache.Get("a")
+
+	// Peek "b" and "c" - they should still be in original order
+	peekKeys := []string{"b", "c"}
+	peekValues, _ := cache.PeekMany(peekKeys)
+	is.Equal(2, len(peekValues))
+	is.Equal(2, peekValues["b"])
+	is.Equal(3, peekValues["c"])
+
+	// Verify order hasn't changed by checking that "b" is still the oldest
+	// and will be evicted when we add a new item
+	// Order after Get("a"): a (front), c, b (back)
+	cache.Set("d", 4)
+	is.False(cache.Has("b")) // "b" should be evicted as it was oldest
+	is.True(cache.Has("a"))  // "a" should still exist (was moved to front)
+	is.True(cache.Has("c"))  // "c" should still exist
+	is.True(cache.Has("d"))  // "d" should exist
+}
+
+func TestDeleteMany(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewLRUCache[string, int](3)
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	// Test deleting multiple existing keys
+	keys := []string{"a", "b"}
+	results := cache.DeleteMany(keys)
+
+	is.Equal(2, len(results))
+	is.True(results["a"])
+	is.True(results["b"])
+	is.False(cache.Has("a"))
+	is.False(cache.Has("b"))
+	is.True(cache.Has("c"))
+	is.Equal(1, cache.Len())
+
+	// Test deleting mixed existing and non-existing keys
+	cache.Set("d", 4)
+	keys2 := []string{"c", "e", "d", "f"}
+	results2 := cache.DeleteMany(keys2)
+
+	is.Equal(4, len(results2))
+	is.True(results2["c"])
+	is.False(results2["e"])
+	is.True(results2["d"])
+	is.False(results2["f"])
+	is.False(cache.Has("c"))
+	is.False(cache.Has("d"))
+	is.Equal(0, cache.Len())
+
+	// Test deleting empty slice
+	cache.Set("x", 10)
+	results3 := cache.DeleteMany([]string{})
+	is.Equal(0, len(results3))
+	is.True(cache.Has("x"))
+	is.Equal(1, cache.Len())
+
+	// Test deleting only non-existing keys
+	keys4 := []string{"y", "z"}
+	results4 := cache.DeleteMany(keys4)
+
+	is.Equal(2, len(results4))
+	is.False(results4["y"])
+	is.False(results4["z"])
+	is.True(cache.Has("x")) // Should still exist
+	is.Equal(1, cache.Len())
+}
+
+func TestPeek(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewLRUCache[string, int](2)
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+
+	// Test peeking existing key
+	val, ok := cache.Peek("a")
+	is.True(ok)
+	is.Equal(1, val)
+
+	val, ok = cache.Peek("b")
+	is.True(ok)
+	is.Equal(2, val)
+
+	// Test peeking non-existing key
+	val, ok = cache.Peek("c")
+	is.False(ok)
+	is.Zero(val)
+
+	// Test that peek doesn't change access order
+	// Peek "a" should not move it to front
+	cache.Peek("a")
+
+	// Add a new item - "a" should be evicted because it wasn't moved to front
+	cache.Set("c", 3)
+	is.False(cache.Has("a"))
+	is.True(cache.Has("b"))
+	is.True(cache.Has("c"))
+}
