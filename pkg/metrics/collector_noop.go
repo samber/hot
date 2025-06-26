@@ -19,3 +19,4 @@ func (n *NoOpCollector) AddHits(count int64)                                  {}
 func (n *NoOpCollector) IncMiss()                                             {}
 func (n *NoOpCollector) AddMisses(count int64)                                {}
 func (n *NoOpCollector) UpdateSizeBytes(sizeBytes int64)                      {}
+func (n *NoOpCollector) UpdateLength(length int64)                            {}

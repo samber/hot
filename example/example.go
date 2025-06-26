@@ -33,6 +33,9 @@ func main() {
 	cache.Set("key1", "value1")
 	cache.Set("key2", "value2")
 
+	// Missing
+	_, _, _ = cache.Get("key3")
+
 	value, found, err := cache.Get("key1")
 	if err != nil {
 		log.Printf("Error getting key1: %v", err)

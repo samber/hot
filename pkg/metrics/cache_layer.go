@@ -146,7 +146,9 @@ func (m *InstrumentedCache[K, V]) Range(f func(K, V) bool) {
 
 // Len returns the number of items in the cache.
 func (m *InstrumentedCache[K, V]) Len() int {
-	return m.cache.Len()
+	length := m.cache.Len()
+	m.metrics.UpdateLength(int64(length))
+	return length
 }
 
 // SizeBytes returns the total size of all cache entries in bytes.

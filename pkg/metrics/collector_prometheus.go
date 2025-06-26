@@ -24,6 +24,7 @@ type PrometheusCollector struct {
 
 	// Gauges
 	sizeBytes int64
+	length    int64
 
 	// Static configuration gauges (one per setting)
 	settingsCapacity         prometheus.Gauge
@@ -40,6 +41,7 @@ type PrometheusCollector struct {
 	hitDesc       *prometheus.Desc
 	missDesc      *prometheus.Desc
 	sizeDesc      *prometheus.Desc
+	lengthDesc    *prometheus.Desc
 }
 
 // NewPrometheusCollector creates a new Prometheus-based metric collector.
@@ -88,6 +90,11 @@ func NewPrometheusCollector(name string, shard int, mode base.CacheMode, capacit
 	collector.sizeDesc = prometheus.NewDesc(
 		"hot_size_bytes",
 		"Current size of the cache in bytes (including keys and values)",
+		nil, labels,
+	)
+	collector.lengthDesc = prometheus.NewDesc(
+		"hot_length",
+		"Current length of the cache",
 		nil, labels,
 	)
 
@@ -226,6 +233,11 @@ func (p *PrometheusCollector) UpdateSizeBytes(sizeBytes int64) {
 	atomic.StoreInt64(&p.sizeBytes, sizeBytes)
 }
 
+// UpdateLength atomically updates the cache length.
+func (p *PrometheusCollector) UpdateLength(length int64) {
+	atomic.StoreInt64(&p.length, length)
+}
+
 // Describe implements prometheus.Collector interface.
 func (p *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- p.insertionDesc
@@ -233,6 +245,7 @@ func (p *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- p.hitDesc
 	ch <- p.missDesc
 	ch <- p.sizeDesc
+	ch <- p.lengthDesc
 	if p.settingsCapacity != nil {
 		ch <- p.settingsCapacity.Desc()
 	}
@@ -282,6 +295,13 @@ func (p *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 		p.sizeDesc,
 		prometheus.GaugeValue,
 		float64(atomic.LoadInt64(&p.sizeBytes)),
+	)
+
+	// Collect length gauge
+	ch <- prometheus.MustNewConstMetric(
+		p.lengthDesc,
+		prometheus.GaugeValue,
+		float64(atomic.LoadInt64(&p.length)),
 	)
 
 	// Collect eviction counters

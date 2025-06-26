@@ -12,6 +12,95 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// MockCollector is a test implementation of Collector that tracks method calls
+type MockCollector struct {
+	mu sync.Mutex
+
+	// Method call counters
+	insertionCount int64
+	evictionCount  map[string]int64
+	hitCount       int64
+	missCount      int64
+	sizeBytes      int64
+	length         int64
+
+	// Optional callback functions for testing
+	updateLengthFn func(int64)
+	updateSizeFn   func(int64)
+}
+
+func (m *MockCollector) IncInsertion() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.insertionCount++
+}
+
+func (m *MockCollector) AddInsertions(count int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.insertionCount += count
+}
+
+func (m *MockCollector) IncEviction(reason base.EvictionReason) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.evictionCount == nil {
+		m.evictionCount = make(map[string]int64)
+	}
+	m.evictionCount[string(reason)]++
+}
+
+func (m *MockCollector) AddEvictions(reason base.EvictionReason, count int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.evictionCount == nil {
+		m.evictionCount = make(map[string]int64)
+	}
+	m.evictionCount[string(reason)] += count
+}
+
+func (m *MockCollector) IncHit() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.hitCount++
+}
+
+func (m *MockCollector) AddHits(count int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.hitCount += count
+}
+
+func (m *MockCollector) IncMiss() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.missCount++
+}
+
+func (m *MockCollector) AddMisses(count int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.missCount += count
+}
+
+func (m *MockCollector) UpdateSizeBytes(sizeBytes int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sizeBytes = sizeBytes
+	if m.updateSizeFn != nil {
+		m.updateSizeFn(sizeBytes)
+	}
+}
+
+func (m *MockCollector) UpdateLength(length int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.length = length
+	if m.updateLengthFn != nil {
+		m.updateLengthFn(length)
+	}
+}
+
 func TestInstrumentedCache_BasicOperations(t *testing.T) {
 	is := assert.New(t)
 
@@ -652,4 +741,48 @@ func TestInstrumentedCache_WithAllSettings(t *testing.T) {
 
 	// Verify operations work correctly with all settings
 	is.Equal(1, metricsCache.Len())
+}
+
+func TestInstrumentedCache_LengthMetric(t *testing.T) {
+	// Create a mock collector to track length updates
+	var lastLength int64
+	mockCollector := &MockCollector{
+		updateLengthFn: func(length int64) {
+			lastLength = length
+		},
+	}
+
+	// Create a cache with capacity 3 to test evictions
+	cache := lru.NewLRUCache[int, string](3)
+	instrumentedCache := NewInstrumentedCache(cache, mockCollector)
+
+	// Test initial length
+	instrumentedCache.Len() // This should update the metric
+	assert.Equal(t, int64(0), lastLength)
+
+	// Test length after insertion
+	instrumentedCache.Set(1, "one")
+	instrumentedCache.Len() // This should update the metric
+	assert.Equal(t, int64(1), lastLength)
+
+	// Test length after multiple insertions
+	instrumentedCache.Set(2, "two")
+	instrumentedCache.Set(3, "three")
+	instrumentedCache.Len() // This should update the metric
+	assert.Equal(t, int64(3), lastLength)
+
+	// Test length after capacity-based eviction
+	instrumentedCache.Set(4, "four")      // This should evict key 1
+	instrumentedCache.Len()               // This should update the metric
+	assert.Equal(t, int64(3), lastLength) // Should still be 3 due to capacity limit
+
+	// Test length after deletion
+	instrumentedCache.Delete(2)
+	instrumentedCache.Len() // This should update the metric
+	assert.Equal(t, int64(2), lastLength)
+
+	// Test length after purge
+	instrumentedCache.Purge()
+	instrumentedCache.Len() // This should update the metric
+	assert.Equal(t, int64(0), lastLength)
 }
