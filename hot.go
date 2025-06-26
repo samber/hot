@@ -7,7 +7,6 @@ import (
 	"github.com/samber/go-singleflightx"
 	"github.com/samber/hot/internal"
 	"github.com/samber/hot/pkg/base"
-	"github.com/samber/hot/pkg/metrics"
 )
 
 // newHotCache creates a new HotCache instance with the specified configuration.
@@ -48,8 +47,7 @@ func newHotCache[K comparable, V any](
 		copyOnRead:              copyOnRead,
 		copyOnWrite:             copyOnWrite,
 
-		group:   singleflightx.Group[K, V]{},
-		metrics: metrics.NewMetrics(ttl, jitterLambda, jitterUpperBound, stale),
+		group: singleflightx.Group[K, V]{},
 	}
 }
 
@@ -82,8 +80,7 @@ type HotCache[K comparable, V any] struct {
 	copyOnRead              func(V) V
 	copyOnWrite             func(V) V
 
-	group   singleflightx.Group[K, V]
-	metrics *metrics.Metrics
+	group singleflightx.Group[K, V]
 }
 
 // Set adds a value to the cache. If the key already exists, its value is updated.
@@ -430,7 +427,7 @@ func (c *HotCache[K, V]) DeleteMany(keys []K) map[K]bool {
 }
 
 // Purge removes all keys and values from the cache.
-// This operation is irreversible and will clear both the main cache and missing cache.
+// This operation clears both the main cache and the missing cache if enabled.
 func (c *HotCache[K, V]) Purge() {
 	c.cache.Purge()
 	if c.missingCache != nil {
@@ -464,7 +461,6 @@ func (c *HotCache[K, V]) Algorithm() (mainCacheAlgorithm string, missingCacheAlg
 // Len returns the number of items in the main cache.
 // This includes both valid values and missing keys if using shared missing cache.
 func (c *HotCache[K, V]) Len() int {
-
 	if c.missingCache != nil {
 		// @TODO: should be done in a single call to avoid multiple locks
 		return c.cache.Len() + c.missingCache.Len()
@@ -903,3 +899,90 @@ func (c *HotCache[K, V]) revalidate(items map[K]*item[V], fallbackLoaders Loader
 		c.setManyUnsafe(valid, missing, c.ttlMicro)
 	}
 }
+
+// // CollectMetrics collects Prometheus metrics from the cache.
+// // This method calculates the current size of all cached items and keys,
+// // and collects all metrics including counters and configuration settings.
+// func (c *HotCache[K, V]) CollectMetrics(ch chan<- prometheus.Metric) {
+// 	// Calculate total size in bytes (keys + values)
+// 	var totalSize int64
+
+// 	// Calculate size from main cache
+// 	c.cache.Range(func(key K, item *item[V]) bool {
+// 		// Estimate key size (assuming string representation)
+// 		keySize := len(fmt.Sprintf("%v", key))
+
+// 		// Estimate value size
+// 		var valueSize int
+// 		if item.hasValue {
+// 			// Use reflection to estimate size of the value
+// 			valueSize = estimateSize(item.value)
+// 		}
+
+// 		// Add item overhead (timestamp, flags, etc.)
+// 		itemOverhead := 24 // Rough estimate for item struct overhead
+
+// 		totalSize += int64(keySize + valueSize + itemOverhead)
+// 		return true
+// 	})
+
+// 	// Calculate size from missing cache if it exists
+// 	if c.missingCache != nil {
+// 		c.missingCache.Range(func(key K, item *item[V]) bool {
+// 			keySize := len(fmt.Sprintf("%v", key))
+// 			itemOverhead := 24
+// 			totalSize += int64(keySize + itemOverhead)
+// 			return true
+// 		})
+// 	}
+
+// 	// Update size metric
+// 	c.metrics.SetSizeBytes(totalSize)
+
+// 	// Collect all metrics
+// 	c.metrics.Collect(ch)
+
+// 	// If this is a sharded cache, collect metrics from all shards
+// 	if shardedCache, ok := c.cache.(interface {
+// 		CollectMetrics(ch chan<- prometheus.Metric)
+// 	}); ok {
+// 		shardedCache.CollectMetrics(ch)
+// 	}
+// }
+
+// // estimateSize provides a rough estimate of the size of a value in bytes.
+// // This is a simple implementation that can be improved for better accuracy.
+// func estimateSize(v any) int {
+// 	switch val := v.(type) {
+// 	case string:
+// 		return len(val)
+// 	case []byte:
+// 		return len(val)
+// 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+// 		return 8
+// 	case float32, float64:
+// 		return 8
+// 	case bool:
+// 		return 1
+// 	default:
+// 		// For complex types, use a rough estimate based on string representation
+// 		return len(fmt.Sprintf("%v", val))
+// 	}
+// }
+
+// // RegisterWithPrometheus registers the cache metrics with the default Prometheus registry.
+// // This allows the metrics to be collected when Prometheus scrapes the metrics endpoint.
+// // Only works when metrics are enabled for the cache.
+// func (c *HotCache[K, V]) RegisterWithPrometheus() {
+// 	if collector, ok := c.metrics.(prometheus.Collector); ok {
+// 		prometheus.MustRegister(collector)
+// 	}
+// }
+
+// // UnregisterFromPrometheus unregisters the cache metrics from the default Prometheus registry.
+// // This should be called when the cache is no longer needed to prevent memory leaks.
+// func (c *HotCache[K, V]) UnregisterFromPrometheus() {
+// 	if collector, ok := c.metrics.(prometheus.Collector); ok {
+// 		prometheus.Unregister(collector)
+// 	}
+// }

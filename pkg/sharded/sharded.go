@@ -9,11 +9,11 @@ import (
 // underlying cache instances for better concurrency performance.
 // The cache uses a hash function to determine which shard each key belongs to.
 // Each shard is an independent cache instance that can be accessed concurrently.
-func NewShardedInMemoryCache[K comparable, V any](shards uint64, newCache func() base.InMemoryCache[K, V], fn Hasher[K]) base.InMemoryCache[K, V] {
+func NewShardedInMemoryCache[K comparable, V any](shards uint64, newCache func(shardIndex int) base.InMemoryCache[K, V], fn Hasher[K]) base.InMemoryCache[K, V] {
 	// Create the specified number of cache shards
 	caches := make([]base.InMemoryCache[K, V], shards)
 	for i := uint64(0); i < shards; i++ {
-		caches[i] = newCache()
+		caches[i] = newCache(int(i))
 	}
 
 	return &ShardedInMemoryCache[K, V]{
@@ -290,7 +290,7 @@ func (c *ShardedInMemoryCache[K, V]) Algorithm() string {
 }
 
 // Len returns the total number of items across all shards.
-// This is the sum of the lengths of all individual cache shards.
+// Time complexity: O(n) where n is the number of shards.
 func (c *ShardedInMemoryCache[K, V]) Len() int {
 	total := 0
 	for i := range c.caches {

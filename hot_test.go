@@ -14,8 +14,8 @@ import (
 func TestNewHotCache(t *testing.T) {
 	is := assert.New(t)
 
-	lru := composeInternalCache[int, int](false, LRU, 42, 0, nil, nil)
-	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, nil, nil)
+	lru := composeInternalCache[int, int](false, LRU, 42, 0, -1, nil, nil, nil)
+	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, -1, nil, nil, nil)
 
 	// locking
 	cache := newHotCache(lru, false, nil, 0, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil)
@@ -29,8 +29,7 @@ func TestNewHotCache(t *testing.T) {
 
 	// ttl, stale, jitter
 	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil)
-	cache.metrics = nil
-	is.EqualValues(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42, 21, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.EqualValues(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42, 21, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests
