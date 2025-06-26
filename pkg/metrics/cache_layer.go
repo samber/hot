@@ -171,23 +171,6 @@ func (m *InstrumentedCache[K, V]) Purge() {
 	}
 }
 
-// UpdateSizeBytes updates the size metric for the cache.
-// This should be called periodically or when the cache size changes significantly.
-func (m *InstrumentedCache[K, V]) UpdateSizeBytes(estimateSize func(V) int) {
-	totalSize := int64(0)
-	m.cache.Range(func(key K, value V) bool {
-		// Estimate key size (using reflection or a more generic approach)
-		keySize := 0
-		// For now, we'll use a conservative estimate for key size
-		// In practice, you might want to pass a key size estimator function
-		valueSize := estimateSize(value)
-		totalSize += int64(keySize + valueSize)
-		return true
-	})
-
-	m.metrics.SetSizeBytes(totalSize)
-}
-
 // Peek retrieves a value from the cache without updating access order and tracks hit/miss metrics.
 func (m *InstrumentedCache[K, V]) Peek(key K) (V, bool) {
 	value, found := m.cache.Peek(key)

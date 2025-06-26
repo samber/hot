@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -22,7 +23,7 @@ type PrometheusCollector struct {
 	missCount      int64
 
 	// Gauges
-	sizeBytes int64
+	// sizeBytes int64
 
 	// Static configuration gauges (one per setting)
 	settingsCapacity         prometheus.Gauge
@@ -42,7 +43,14 @@ type PrometheusCollector struct {
 }
 
 // NewPrometheusCollector creates a new Prometheus-based metric collector.
-func NewPrometheusCollector(name string, labels map[string]string, capacity int, algorithm string, ttl *time.Duration, jitterLambda *float64, jitterUpperBound *time.Duration, stale *time.Duration, missingCapacity *int) *PrometheusCollector {
+func NewPrometheusCollector(name string, shard int, capacity int, algorithm string, ttl *time.Duration, jitterLambda *float64, jitterUpperBound *time.Duration, stale *time.Duration, missingCapacity *int) *PrometheusCollector {
+	labels := map[string]string{
+		"name": name,
+	}
+	if shard >= 0 {
+		labels["shard"] = fmt.Sprintf("%d", shard)
+	}
+
 	collector := &PrometheusCollector{
 		name:          name,
 		labels:        prometheus.Labels(labels),
@@ -212,111 +220,99 @@ func (p *PrometheusCollector) AddMisses(count int64) {
 	atomic.AddInt64(&p.missCount, count)
 }
 
-// SetSizeBytes atomically sets the cache size in bytes.
-func (p *PrometheusCollector) SetSizeBytes(bytes int64) {
-	atomic.StoreInt64(&p.sizeBytes, bytes)
+// Describe implements prometheus.Collector interface.
+func (p *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- p.insertionDesc
+	ch <- p.evictionDesc
+	ch <- p.hitDesc
+	ch <- p.missDesc
+	ch <- p.sizeDesc
+	if p.settingsCapacity != nil {
+		ch <- p.settingsCapacity.Desc()
+	}
+	if p.settingsTTL != nil {
+		ch <- p.settingsTTL.Desc()
+	}
+	if p.settingsJitterLambda != nil {
+		ch <- p.settingsJitterLambda.Desc()
+	}
+	if p.settingsJitterUpperBound != nil {
+		ch <- p.settingsJitterUpperBound.Desc()
+	}
+	if p.settingsStale != nil {
+		ch <- p.settingsStale.Desc()
+	}
+	if p.settingsMissingCapacity != nil {
+		ch <- p.settingsMissingCapacity.Desc()
+	}
+	if p.settingsAlgorithm != nil {
+		ch <- p.settingsAlgorithm.Desc()
+	}
 }
 
-// // Collect implements prometheus.Collector interface.
-// func (p *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
-// 	// Collect counters
-// 	ch <- prometheus.MustNewConstMetric(
-// 		p.insertionDesc,
-// 		prometheus.CounterValue,
-// 		float64(atomic.LoadInt64(&p.insertionCount)),
-// 	)
+// Collect implements prometheus.Collector interface.
+func (p *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
+	// Collect counters
+	ch <- prometheus.MustNewConstMetric(
+		p.insertionDesc,
+		prometheus.CounterValue,
+		float64(atomic.LoadInt64(&p.insertionCount)),
+	)
 
-// 	ch <- prometheus.MustNewConstMetric(
-// 		p.hitDesc,
-// 		prometheus.CounterValue,
-// 		float64(atomic.LoadInt64(&p.hitCount)),
-// 	)
+	ch <- prometheus.MustNewConstMetric(
+		p.hitDesc,
+		prometheus.CounterValue,
+		float64(atomic.LoadInt64(&p.hitCount)),
+	)
 
-// 	ch <- prometheus.MustNewConstMetric(
-// 		p.missDesc,
-// 		prometheus.CounterValue,
-// 		float64(atomic.LoadInt64(&p.missCount)),
-// 	)
+	ch <- prometheus.MustNewConstMetric(
+		p.missDesc,
+		prometheus.CounterValue,
+		float64(atomic.LoadInt64(&p.missCount)),
+	)
 
-// 	// Collect eviction counters
-// 	for reason, counter := range p.evictionCount {
-// 		evictionLabels := make(prometheus.Labels)
-// 		for k, v := range p.labels {
-// 			evictionLabels[k] = v
-// 		}
-// 		evictionLabels["reason"] = reason
+	// Collect eviction counters
+	for reason, counter := range p.evictionCount {
+		evictionLabels := make(prometheus.Labels)
+		for k, v := range p.labels {
+			evictionLabels[k] = v
+		}
+		evictionLabels["reason"] = reason
 
-// 		evictionDesc := prometheus.NewDesc(
-// 			"hot_eviction_total",
-// 			"Total number of items evicted from the cache",
-// 			[]string{"reason"}, p.labels,
-// 		)
+		evictionDesc := prometheus.NewDesc(
+			"hot_eviction_total",
+			"Total number of items evicted from the cache",
+			[]string{"reason"}, p.labels,
+		)
 
-// 		ch <- prometheus.MustNewConstMetric(
-// 			evictionDesc,
-// 			prometheus.CounterValue,
-// 			float64(atomic.LoadInt64(counter)),
-// 			reason,
-// 		)
-// 	}
+		ch <- prometheus.MustNewConstMetric(
+			evictionDesc,
+			prometheus.CounterValue,
+			float64(atomic.LoadInt64(counter)),
+			reason,
+		)
+	}
 
-// 	// Collect size gauge
-// 	ch <- prometheus.MustNewConstMetric(
-// 		p.sizeDesc,
-// 		prometheus.GaugeValue,
-// 		float64(atomic.LoadInt64(&p.sizeBytes)),
-// 	)
-
-// 	// Collect configuration gauges
-// 	if p.settingsCapacity != nil {
-// 		p.settingsCapacity.Collect(ch)
-// 	}
-// 	if p.settingsTTL != nil {
-// 		p.settingsTTL.Collect(ch)
-// 	}
-// 	if p.settingsJitterLambda != nil {
-// 		p.settingsJitterLambda.Collect(ch)
-// 	}
-// 	if p.settingsJitterUpperBound != nil {
-// 		p.settingsJitterUpperBound.Collect(ch)
-// 	}
-// 	if p.settingsStale != nil {
-// 		p.settingsStale.Collect(ch)
-// 	}
-// 	if p.settingsMissingCapacity != nil {
-// 		p.settingsMissingCapacity.Collect(ch)
-// 	}
-// 	if p.settingsAlgorithm != nil {
-// 		p.settingsAlgorithm.Collect(ch)
-// 	}
-// }
-
-// // Describe implements prometheus.Collector interface.
-// func (p *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
-// 	ch <- p.insertionDesc
-// 	ch <- p.evictionDesc
-// 	ch <- p.hitDesc
-// 	ch <- p.missDesc
-// 	ch <- p.sizeDesc
-// 	if p.settingsCapacity != nil {
-// 		ch <- p.settingsCapacity.Desc()
-// 	}
-// 	if p.settingsTTL != nil {
-// 		ch <- p.settingsTTL.Desc()
-// 	}
-// 	if p.settingsJitterLambda != nil {
-// 		ch <- p.settingsJitterLambda.Desc()
-// 	}
-// 	if p.settingsJitterUpperBound != nil {
-// 		ch <- p.settingsJitterUpperBound.Desc()
-// 	}
-// 	if p.settingsStale != nil {
-// 		ch <- p.settingsStale.Desc()
-// 	}
-// 	if p.settingsMissingCapacity != nil {
-// 		ch <- p.settingsMissingCapacity.Desc()
-// 	}
-// 	if p.settingsAlgorithm != nil {
-// 		ch <- p.settingsAlgorithm.Desc()
-// 	}
-// }
+	// Collect configuration gauges
+	if p.settingsCapacity != nil {
+		p.settingsCapacity.Collect(ch)
+	}
+	if p.settingsTTL != nil {
+		p.settingsTTL.Collect(ch)
+	}
+	if p.settingsJitterLambda != nil {
+		p.settingsJitterLambda.Collect(ch)
+	}
+	if p.settingsJitterUpperBound != nil {
+		p.settingsJitterUpperBound.Collect(ch)
+	}
+	if p.settingsStale != nil {
+		p.settingsStale.Collect(ch)
+	}
+	if p.settingsMissingCapacity != nil {
+		p.settingsMissingCapacity.Collect(ch)
+	}
+	if p.settingsAlgorithm != nil {
+		p.settingsAlgorithm.Collect(ch)
+	}
+}

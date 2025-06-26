@@ -14,10 +14,9 @@ func TestNewPrometheusCollector(t *testing.T) {
 	is := assert.New(t)
 
 	// Test basic constructor with minimal parameters
-	collector := NewPrometheusCollector("test-cache", map[string]string{"env": "test"}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, 100, "lru", nil, nil, nil, nil, nil)
 	is.NotNil(collector)
 	is.Equal("test-cache", collector.name)
-	is.Equal("test", collector.labels["env"])
 	is.NotNil(collector.settingsCapacity)
 	is.NotNil(collector.settingsAlgorithm)
 
@@ -30,7 +29,7 @@ func TestNewPrometheusCollector(t *testing.T) {
 
 	collector = NewPrometheusCollector(
 		"full-cache",
-		map[string]string{"env": "prod", "region": "us-west"},
+		-1,
 		200,
 		"lfu",
 		&ttl,
@@ -42,8 +41,6 @@ func TestNewPrometheusCollector(t *testing.T) {
 
 	is.NotNil(collector)
 	is.Equal("full-cache", collector.name)
-	is.Equal("prod", collector.labels["env"])
-	is.Equal("us-west", collector.labels["region"])
 	is.NotNil(collector.settingsCapacity)
 	is.NotNil(collector.settingsAlgorithm)
 	is.NotNil(collector.settingsTTL)
@@ -55,8 +52,6 @@ func TestNewPrometheusCollector(t *testing.T) {
 
 func TestNewPrometheusCollector_AlgorithmValues(t *testing.T) {
 	is := assert.New(t)
-
-	labels := map[string]string{"test": "value"}
 
 	// Test all algorithm values - just verify the constructor doesn't panic
 	testCases := []struct {
@@ -70,7 +65,7 @@ func TestNewPrometheusCollector_AlgorithmValues(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		collector := NewPrometheusCollector("test", labels, 100, tc.algorithm, nil, nil, nil, nil, nil)
+		collector := NewPrometheusCollector("test", -1, 100, tc.algorithm, nil, nil, nil, nil, nil)
 		is.NotNil(collector, "Constructor should not return nil for algorithm %s", tc.algorithm)
 		is.NotNil(collector.settingsAlgorithm, "Algorithm gauge should not be nil for %s", tc.algorithm)
 	}
@@ -79,7 +74,7 @@ func TestNewPrometheusCollector_AlgorithmValues(t *testing.T) {
 func TestPrometheusCollector_InsertionCounters(t *testing.T) {
 	is := assert.New(t)
 
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test", -1, 100, "lru", nil, nil, nil, nil, nil)
 
 	// Test IncInsertion
 	collector.IncInsertion()
@@ -103,7 +98,7 @@ func TestPrometheusCollector_InsertionCounters(t *testing.T) {
 func TestPrometheusCollector_EvictionCounters(t *testing.T) {
 	is := assert.New(t)
 
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test", -1, 100, "lru", nil, nil, nil, nil, nil)
 
 	// Test IncEviction with known reasons
 	collector.IncEviction(base.EvictionReasonCapacity)
@@ -140,7 +135,7 @@ func TestPrometheusCollector_EvictionCounters(t *testing.T) {
 func TestPrometheusCollector_HitMissCounters(t *testing.T) {
 	is := assert.New(t)
 
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test", -1, 100, "lru", nil, nil, nil, nil, nil)
 
 	// Test hit counters
 	collector.IncHit()
@@ -178,29 +173,10 @@ func TestPrometheusCollector_HitMissCounters(t *testing.T) {
 	is.Equal(int64(7), atomic.LoadInt64(&collector.missCount))
 }
 
-func TestPrometheusCollector_SizeBytes(t *testing.T) {
-	is := assert.New(t)
-
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
-
-	// Test SetSizeBytes
-	collector.SetSizeBytes(1024)
-	is.Equal(int64(1024), atomic.LoadInt64(&collector.sizeBytes))
-
-	collector.SetSizeBytes(2048)
-	is.Equal(int64(2048), atomic.LoadInt64(&collector.sizeBytes))
-
-	collector.SetSizeBytes(0)
-	is.Equal(int64(0), atomic.LoadInt64(&collector.sizeBytes))
-
-	collector.SetSizeBytes(-100)
-	is.Equal(int64(-100), atomic.LoadInt64(&collector.sizeBytes))
-}
-
 func TestPrometheusCollector_ConcurrentAccess(t *testing.T) {
 	is := assert.New(t)
 
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test", -1, 100, "lru", nil, nil, nil, nil, nil)
 
 	// Test concurrent access to counters
 	const numGoroutines = 100
@@ -268,7 +244,7 @@ func TestPrometheusCollector_InterfaceCompliance(t *testing.T) {
 	// Verify PrometheusCollector implements Collector interface
 	var _ Collector = (*PrometheusCollector)(nil)
 
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test", -1, 100, "lru", nil, nil, nil, nil, nil)
 	is.NotNil(collector)
 
 	// Test all interface methods
@@ -280,7 +256,6 @@ func TestPrometheusCollector_InterfaceCompliance(t *testing.T) {
 	collector.AddHits(2)
 	collector.IncMiss()
 	collector.AddMisses(1)
-	collector.SetSizeBytes(1024)
 
 	// Verify the operations worked
 	is.Equal(int64(6), atomic.LoadInt64(&collector.insertionCount))
@@ -288,35 +263,39 @@ func TestPrometheusCollector_InterfaceCompliance(t *testing.T) {
 	is.Equal(int64(3), atomic.LoadInt64(collector.evictionCount[string(base.EvictionReasonTTL)]))
 	is.Equal(int64(3), atomic.LoadInt64(&collector.hitCount))
 	is.Equal(int64(2), atomic.LoadInt64(&collector.missCount))
-	is.Equal(int64(1024), atomic.LoadInt64(&collector.sizeBytes))
 }
 
 func TestPrometheusCollector_EdgeCases(t *testing.T) {
 	is := assert.New(t)
 
 	// Test with empty labels
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test", -1, 100, "lru", nil, nil, nil, nil, nil)
 	is.NotNil(collector)
 	is.Equal("test", collector.name)
-	is.Empty(collector.labels)
+	is.Len(collector.labels, 1)
+	is.Equal("test", collector.labels["name"])
 
-	// Test with nil labels
-	collector = NewPrometheusCollector("test", nil, 100, "lru", nil, nil, nil, nil, nil)
+	// Test with sharding
+	collector = NewPrometheusCollector("test", 2, 100, "lru", nil, nil, nil, nil, nil)
 	is.NotNil(collector)
-	is.Nil(collector.labels)
+	is.NotNil(collector.labels)
+	is.NotEmpty(collector.labels)
+	is.Len(collector.labels, 2)
+	is.Equal("test", collector.labels["name"])
+	is.Equal("2", collector.labels["shard"])
 
 	// Test with zero capacity
-	collector = NewPrometheusCollector("test", map[string]string{}, 0, "lru", nil, nil, nil, nil, nil)
+	collector = NewPrometheusCollector("test", -1, 0, "lru", nil, nil, nil, nil, nil)
 	is.NotNil(collector)
 	is.NotNil(collector.settingsCapacity)
 
 	// Test with negative capacity
-	collector = NewPrometheusCollector("test", map[string]string{}, -100, "lru", nil, nil, nil, nil, nil)
+	collector = NewPrometheusCollector("test", -1, -100, "lru", nil, nil, nil, nil, nil)
 	is.NotNil(collector)
 	is.NotNil(collector.settingsCapacity)
 
 	// Test with very large values
-	collector = NewPrometheusCollector("test", map[string]string{}, 999999999, "lru", nil, nil, nil, nil, nil)
+	collector = NewPrometheusCollector("test", -1, 999999999, "lru", nil, nil, nil, nil, nil)
 	is.NotNil(collector)
 	is.NotNil(collector.settingsCapacity)
 }
@@ -324,7 +303,7 @@ func TestPrometheusCollector_EdgeCases(t *testing.T) {
 func TestPrometheusCollector_EvictionReasonsInitialization(t *testing.T) {
 	is := assert.New(t)
 
-	collector := NewPrometheusCollector("test", map[string]string{}, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test", -1, 100, "lru", nil, nil, nil, nil, nil)
 
 	// Verify all known eviction reasons are initialized
 	for _, reason := range base.EvictionReasons {
@@ -342,8 +321,7 @@ func TestPrometheusCollector_EvictionReasonsInitialization(t *testing.T) {
 func TestPrometheusCollector_MetricDescriptors(t *testing.T) {
 	is := assert.New(t)
 
-	labels := map[string]string{"env": "test", "region": "us-east"}
-	collector := NewPrometheusCollector("test-cache", labels, 100, "lru", nil, nil, nil, nil, nil)
+	collector := NewPrometheusCollector("test-cache", -1, 100, "lru", nil, nil, nil, nil, nil)
 
 	// Test insertion descriptor
 	is.NotNil(collector.insertionDesc)
@@ -378,7 +356,7 @@ func TestPrometheusCollector_SettingsGauges(t *testing.T) {
 
 	collector := NewPrometheusCollector(
 		"test",
-		map[string]string{},
+		-1,
 		100,
 		"arc",
 		&ttl,
@@ -398,7 +376,7 @@ func TestPrometheusCollector_SettingsGauges(t *testing.T) {
 	is.NotNil(collector.settingsMissingCapacity)
 
 	// Test with no optional settings
-	collector = NewPrometheusCollector("test", map[string]string{}, 100, "2q", nil, nil, nil, nil, nil)
+	collector = NewPrometheusCollector("test", -1, 100, "2q", nil, nil, nil, nil, nil)
 
 	// Verify required gauges are created
 	is.NotNil(collector.settingsCapacity)

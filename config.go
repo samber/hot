@@ -59,6 +59,7 @@ type HotCacheConfig[K comparable, V any] struct {
 	// Metrics configuration
 	prometheusMetricsEnabled bool
 	cacheName                string
+	collectors               []metrics.Collector
 
 	warmUpFn                func() (map[K]V, []K, error)
 	loaderFns               LoaderChain[K, V]
@@ -229,19 +230,7 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 
 	var collectorBuilder func(shard int) metrics.Collector
 	if cfg.prometheusMetricsEnabled {
-		collectorBuilder = func(shard int) metrics.Collector {
-			return metrics.NewCollector(
-				cfg.cacheName,
-				shard,
-				cfg.cacheCapacity,
-				string(cfg.cacheAlgo),
-				emptyableToPtr(cfg.ttl),
-				emptyableToPtr(cfg.jitterLambda),
-				emptyableToPtr(cfg.jitterUpperBound),
-				emptyableToPtr(cfg.stale),
-				emptyableToPtr(cfg.missingCacheCapacity),
-			)
-		}
+		collectorBuilder = cfg.buildPrometheusCollector
 	}
 
 	var missingCache base.InMemoryCache[K, *item[V]]
@@ -249,8 +238,9 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 		missingCache = composeInternalCache(!cfg.lockingDisabled, cfg.missingCacheAlgo, cfg.missingCacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilder)
 	}
 
+	cacheInstance := composeInternalCache(!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilder)
 	hot := newHotCache(
-		composeInternalCache(!cfg.lockingDisabled, cfg.cacheAlgo, cfg.cacheCapacity, cfg.shards, -1, cfg.shardingFn, cfg.onEviction, collectorBuilder),
+		cacheInstance,
 		cfg.missingSharedCache,
 		missingCache,
 
@@ -265,6 +255,8 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 		cfg.onEviction,
 		cfg.copyOnRead,
 		cfg.copyOnWrite,
+
+		cfg.collectors,
 	)
 
 	if cfg.warmUpFn != nil {
@@ -277,4 +269,22 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 	}
 
 	return hot
+}
+
+func (cfg *HotCacheConfig[K, V]) buildPrometheusCollector(shard int) metrics.Collector {
+	collector := metrics.NewPrometheusCollector(
+		cfg.cacheName,
+		shard,
+		cfg.cacheCapacity,
+		string(cfg.cacheAlgo),
+		emptyableToPtr(cfg.ttl),
+		emptyableToPtr(cfg.jitterLambda),
+		emptyableToPtr(cfg.jitterUpperBound),
+		emptyableToPtr(cfg.stale),
+		emptyableToPtr(cfg.missingCacheCapacity),
+	)
+
+	cfg.collectors = append(cfg.collectors, collector)
+
+	return collector
 }

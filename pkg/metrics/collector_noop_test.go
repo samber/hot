@@ -108,23 +108,6 @@ func TestNoOpCollector_AllMethods(t *testing.T) {
 	is.NotPanics(func() {
 		collector.AddMisses(-3)
 	})
-
-	// Test size method
-	is.NotPanics(func() {
-		collector.SetSizeBytes(1024)
-	})
-
-	is.NotPanics(func() {
-		collector.SetSizeBytes(0)
-	})
-
-	is.NotPanics(func() {
-		collector.SetSizeBytes(-100)
-	})
-
-	is.NotPanics(func() {
-		collector.SetSizeBytes(999999999)
-	})
 }
 
 func TestNoOpCollector_ConcurrentAccess(t *testing.T) {
@@ -182,17 +165,6 @@ func TestNoOpCollector_ConcurrentAccess(t *testing.T) {
 		}()
 	}
 
-	// Concurrent size operations
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < operationsPerGoroutine; j++ {
-				collector.SetSizeBytes(int64(j))
-			}
-		}()
-	}
-
 	wg.Wait()
 
 	// NoOpCollector should complete all operations without any issues
@@ -235,14 +207,6 @@ func TestNoOpCollector_EdgeCases(t *testing.T) {
 
 	is.NotPanics(func() {
 		collector.AddEvictions(base.EvictionReasonCapacity, -9223372036854775808)
-	})
-
-	is.NotPanics(func() {
-		collector.SetSizeBytes(9223372036854775807)
-	})
-
-	is.NotPanics(func() {
-		collector.SetSizeBytes(-9223372036854775808)
 	})
 
 	// Test with empty string eviction reason

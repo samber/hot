@@ -18,18 +18,18 @@ func TestNewHotCache(t *testing.T) {
 	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, -1, nil, nil, nil)
 
 	// locking
-	cache := newHotCache(lru, false, nil, 0, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil)
+	cache := newHotCache(lru, false, nil, 0, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil, nil)
 	_, ok := cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.False(ok)
-	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil)
+	cache = newHotCache(safeLru, false, safeLru, 0, 0, 0, 0, nil, nil, DropOnError, nil, nil, nil, nil)
 	_, ok = cache.cache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
 	_, ok = cache.missingCache.(*safe.SafeInMemoryCache[int, *item[int]])
 	is.True(ok)
 
 	// ttl, stale, jitter
-	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil)
-	is.EqualValues(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42, 21, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}}, cache)
+	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, nil)
+	is.EqualValues(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42, 21, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests
