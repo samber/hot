@@ -36,25 +36,25 @@ func TestMutexMock(t *testing.T) {
 	is.NotPanics(func() {
 		mock.Lock()
 		mock.Lock()
-		mock.Unlock()
+		mock.Unlock() //nolint:staticcheck
 		mock.Unlock()
 	})
 
 	is.NotPanics(func() {
 		mock.RLock()
 		mock.RLock()
-		mock.RUnlock()
+		mock.RUnlock() //nolint:staticcheck
 		mock.RUnlock()
 	})
 
 	// Test mixed read/write operations
 	is.NotPanics(func() {
 		mock.Lock()
-		mock.Unlock()
+		mock.Unlock() //nolint:staticcheck
 		mock.RLock()
-		mock.RUnlock()
+		mock.RUnlock() //nolint:staticcheck
 		mock.Lock()
-		mock.Unlock()
+		mock.Unlock() //nolint:staticcheck
 	})
 }
 
@@ -73,9 +73,9 @@ func TestMutexMockConcurrency(t *testing.T) {
 			// Call all methods multiple times
 			for j := 0; j < 100; j++ {
 				mock.Lock()
-				mock.Unlock()
+				mock.Unlock() //nolint:staticcheck
 				mock.RLock()
-				mock.RUnlock()
+				mock.RUnlock() //nolint:staticcheck
 			}
 		}()
 	}
