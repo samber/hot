@@ -36,6 +36,7 @@
 - [🍱 API Reference](#-api-reference)
 - [🏛️ Architecture](#️-architecture)
 - [🪄 Examples](#-examples)
+- [👀 Observability](#-observability)
 - [🤝 Contributing](#-contributing)
 
 ## 🏎️ Performance
@@ -145,6 +146,13 @@ WithEvictionCallback(callback func(key K, value V))
 WithWarmUp(loader func() (map[K]V, []K, error))
 // Preload with timeout protection for slow data sources
 WithWarmUpWithTimeout(timeout time.Duration, loader func() (map[K]V, []K, error))
+```
+
+Monitoring and metrics:
+
+```go
+// Enable Prometheus metrics collection with the specified cache name
+WithPrometheusMetrics(cacheName string)
 ```
 
 Eviction algorithms:
@@ -538,6 +546,80 @@ cache := hot.NewHotCache[string, *User](hot.LRU, 100_000).
 ```
 
 If WithRevalidation is used without loaders, the one provided in `WithRevalidation()` or `GetWithLoaders()` is used.
+
+## 👀 Observability
+
+HOT provides comprehensive Prometheus metrics for monitoring cache performance and behavior. Enable metrics by calling `WithPrometheusMetrics()` with a cache name:
+
+```go
+import (
+    "github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/client_golang/prometheus/promhttp"
+    "github.com/samber/hot"
+    "net/http"
+)
+
+// Create cache with Prometheus metrics
+cache := hot.NewHotCache[string, string](hot.LRU, 1000).
+    WithTTL(5*time.Minute).
+    WithJitter(0.5, 10*time.Second).
+    WithRevalidation(10*time.Second).
+    WithRevalidationErrorPolicy(hot.KeepOnError).
+    WithPrometheusMetrics("users-by-id").
+    WithMissingCache(hot.ARC, 1000).
+    Build()
+
+// Register the cache metrics with Prometheus
+err := prometheus.Register(cache)
+if err != nil {
+    log.Fatalf("Failed to register metrics: %v", err)
+}
+defer prometheus.Unregister(cache)
+
+// Set up HTTP server to expose metrics
+http.Handle("/metrics", promhttp.Handler())
+http.ListenAndServe(":8080", nil)
+```
+
+### Available Metrics
+
+**Counters:**
+- `hot_insertion_total` - Total number of items inserted into the cache
+- `hot_eviction_total{reason}` - Total number of items evicted from the cache (by reason)
+- `hot_hit_total` - Total number of cache hits
+- `hot_miss_total` - Total number of cache misses
+
+**Gauges:**
+- `hot_size_bytes` - Current size of the cache in bytes (including keys and values)
+- `hot_length` - Current number of items in the cache
+
+**Configuration Gauges:**
+- `hot_settings_capacity` - Maximum number of items the cache can hold
+- `hot_settings_algorithm` - Eviction algorithm type (0=lru, 1=lfu, 2=arc, 3=2q)
+- `hot_settings_ttl_seconds` - Time-to-live duration in seconds (if set)
+- `hot_settings_jitter_lambda` - Jitter lambda parameter for TTL randomization (if set)
+- `hot_settings_jitter_upper_bound_seconds` - Jitter upper bound duration in seconds (if set)
+- `hot_settings_stale_seconds` - Stale duration in seconds (if set)
+- `hot_settings_missing_capacity` - Maximum number of missing keys the cache can hold (if set)
+
+#### Example Prometheus Queries
+
+```promql
+# Cache hit ratio
+rate(hot_hit_total[5m]) / (rate(hot_hit_total[5m]) + rate(hot_miss_total[5m]))
+
+# Eviction rate by reason
+rate(hot_eviction_total[5m])
+
+# Cache size in MB
+hot_size_bytes / 1024 / 1024
+
+# Cache utilization percentage
+hot_length / hot_settings_capacity * 100
+
+# Insertion rate
+rate(hot_insertion_total[5m])
+```
 
 ## 🏎️ Benchmark
 

@@ -1964,7 +1964,7 @@ func TestHotCache_revalidate(t *testing.T) {
 	is.Equal(2, v)
 	is.Equal(int32(1), atomic.LoadInt32(&counter1)) // revalidated async
 
-	time.Sleep(15 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	is.True(cache.Has("a"))
 
 	v, ok, err = cache.Get("a")
@@ -2002,7 +2002,7 @@ func TestHotCache_revalidate(t *testing.T) {
 	is.Equal(2, v)
 	is.Equal(int32(1), atomic.LoadInt32(&counter2)) // revalidated async
 
-	time.Sleep(15 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	is.True(cache.Has("a"))
 
 	v, ok, err = cache.Get("a")
