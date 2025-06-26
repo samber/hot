@@ -15,6 +15,9 @@ func main() {
 	// Create a cache with Prometheus metrics enabled
 	cache := hot.NewHotCache[string, string](hot.LRU, 1000).
 		WithTTL(5*time.Minute).
+		WithJitter(0.5, 10*time.Second).
+		WithRevalidation(10*time.Second).
+		WithRevalidationErrorPolicy(hot.KeepOnError).
 		WithPrometheusMetrics("my-cache").
 		WithMissingCache(hot.ARC, 1000).
 		Build()

@@ -1668,7 +1668,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
-		WithRevalidation(10 * time.Millisecond).
+		WithRevalidation(50 * time.Millisecond).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
 	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Microseconds())
@@ -1688,14 +1688,14 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is.Len(revalidate, 0)
 	is.Equal(2, cache.cache.Len())
 
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
 	is.Len(missing, 0)
 	is.Len(revalidate, 1)
 	is.Equal(2, cache.cache.Len())
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(70 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 0)
 	is.Len(missing, 1)
@@ -1704,7 +1704,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 
 	// shared missing cache
 	cache = NewHotCache[string, int](LRU, 10).
-		WithRevalidation(10 * time.Millisecond).
+		WithRevalidation(50 * time.Millisecond).
 		WithMissingSharedCache().
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
@@ -1725,14 +1725,14 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is.Len(revalidate, 0)
 	is.Equal(3, cache.cache.Len())
 
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
 	is.Len(missing, 0)
 	is.Len(revalidate, 1)
 	is.Equal(3, cache.cache.Len())
 
-	time.Sleep(15 * time.Millisecond)
+	time.Sleep(70 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 0)
 	is.Len(missing, 1)
@@ -1741,7 +1741,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 
 	// dedicated missing cache
 	cache = NewHotCache[string, int](LRU, 10).
-		WithRevalidation(10*time.Millisecond).
+		WithRevalidation(50*time.Millisecond).
 		WithMissingCache(LRU, 10).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
@@ -1762,14 +1762,14 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	is.Len(revalidate, 0)
 	is.Equal(2, cache.missingCache.Len())
 
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
 	is.Len(missing, 0)
 	is.Len(revalidate, 1)
 	is.Equal(2, cache.missingCache.Len())
 
-	time.Sleep(15 * time.Millisecond)
+	time.Sleep(70 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 0)
 	is.Len(missing, 1)
