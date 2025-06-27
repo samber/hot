@@ -14,7 +14,7 @@ Demonstrates performance optimization through batch operations in the HOT cache 
 - **Performance Comparison**: Individual vs batch Set/Get operations
 - **Batch SetMany**: Store multiple items at once
 - **Batch GetMany**: Retrieve multiple items efficiently
-- **Different Policies**: LRU, LFU, ARC, 2Q with batch operations
+- **Different Policies**: LRU, LFU, ARC, 2Q, FIFO with batch operations
 - **Data Types**: Strings, integers, floats with batch operations
 
 ## Quick Start
@@ -51,6 +51,7 @@ go run batch-operations.go
 ✅ LFU: 100/100 items in 0.9ms
 ✅ ARC: 100/100 items in 1.1ms
 ✅ 2Q: 100/100 items in 0.7ms
+✅ FIFO: 100/100 items in 0.9ms
 ```
 
 ## Performance Benefits

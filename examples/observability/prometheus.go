@@ -42,7 +42,7 @@ func main() {
 	// Generate some hits and misses
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("key:%d", i%60) // Some will hit, some will miss
-		cache.Get(key)
+		_, _, _ = cache.Get(key)           //nolint:errcheck
 	}
 
 	// Show cache statistics

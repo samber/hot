@@ -50,7 +50,7 @@ func main() {
 	fmt.Println("🔄 Testing individual Get operations...")
 	start = time.Now()
 	for i := 0; i < 100; i++ {
-		cache.Get(fmt.Sprintf("batch:%d", i))
+		_, _, _ = cache.Get(fmt.Sprintf("batch:%d", i)) //nolint:errcheck
 	}
 	individualGetDuration := time.Since(start)
 	fmt.Printf("⏱️ Individual Get: 100 operations in %v\n", individualGetDuration)
@@ -82,6 +82,7 @@ func main() {
 		{"LFU", hot.LFU},
 		{"ARC", hot.ARC},
 		{"2Q", hot.TwoQueue},
+		{"FIFO", hot.FIFO},
 	}
 
 	for _, p := range policies {

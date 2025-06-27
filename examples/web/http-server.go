@@ -131,7 +131,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 // userHandler handles user CRUD operations
@@ -163,20 +163,20 @@ func (s *Server) getUserHandler(w http.ResponseWriter, r *http.Request, userID s
 		log.Printf("Error retrieving user %s: %v", userID, err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Internal server error"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Internal server error"}) //nolint:errcheck
 		return
 	} else if !found {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "User not found"}) //nolint:errcheck
 		return
 	}
 
 	// Check if this was a cache hit or miss by looking at the cache state
 	// Note: In a real implementation, you might want to track this differently
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Cache", "HIT") // The loader chain handles the miss automatically
-	json.NewEncoder(w).Encode(user)
+	w.Header().Set("X-Cache", "HIT")    // The loader chain handles the miss automatically
+	_ = json.NewEncoder(w).Encode(user) //nolint:errcheck
 }
 
 // createUserHandler creates a new user
@@ -185,7 +185,7 @@ func (s *Server) createUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"}) //nolint:errcheck
 		return
 	}
 
@@ -193,7 +193,7 @@ func (s *Server) createUserHandler(w http.ResponseWriter, r *http.Request) {
 	if user.Name == "" || user.Email == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Name and email are required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Name and email are required"}) //nolint:errcheck
 		return
 	}
 
@@ -210,7 +210,7 @@ func (s *Server) createUserHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error saving user to database: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create user"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create user"}) //nolint:errcheck
 		return
 	}
 
@@ -219,7 +219,7 @@ func (s *Server) createUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	_ = json.NewEncoder(w).Encode(user) //nolint:errcheck
 }
 
 // updateUserHandler updates an existing user
@@ -228,7 +228,7 @@ func (s *Server) updateUserHandler(w http.ResponseWriter, r *http.Request, userI
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"}) //nolint:errcheck
 		return
 	}
 
@@ -236,7 +236,7 @@ func (s *Server) updateUserHandler(w http.ResponseWriter, r *http.Request, userI
 	if user.Name == "" || user.Email == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Name and email are required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Name and email are required"}) //nolint:errcheck
 		return
 	}
 
@@ -248,7 +248,7 @@ func (s *Server) updateUserHandler(w http.ResponseWriter, r *http.Request, userI
 		log.Printf("Error updating user in database: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update user"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update user"}) //nolint:errcheck
 		return
 	}
 
@@ -256,7 +256,7 @@ func (s *Server) updateUserHandler(w http.ResponseWriter, r *http.Request, userI
 	s.userCache.Set(userID, &user)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	_ = json.NewEncoder(w).Encode(user) //nolint:errcheck
 }
 
 // deleteUserHandler deletes a user
@@ -266,7 +266,7 @@ func (s *Server) deleteUserHandler(w http.ResponseWriter, r *http.Request, userI
 		log.Printf("Error deleting user from database: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete user"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete user"}) //nolint:errcheck
 		return
 	}
 
@@ -299,7 +299,7 @@ func (s *Server) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error listing users: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to list users"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to list users"}) //nolint:errcheck
 		return
 	}
 
@@ -311,7 +311,7 @@ func (s *Server) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 // productHandler handles product CRUD operations
@@ -343,20 +343,20 @@ func (s *Server) getProductHandler(w http.ResponseWriter, r *http.Request, produ
 		log.Printf("Error retrieving product %s: %v", productID, err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Internal server error"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Internal server error"}) //nolint:errcheck
 		return
 	}
 
 	if !found {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Product not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Product not found"}) //nolint:errcheck
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Cache", "HIT") // The loader chain handles the miss automatically
-	json.NewEncoder(w).Encode(product)
+	w.Header().Set("X-Cache", "HIT")       // The loader chain handles the miss automatically
+	_ = json.NewEncoder(w).Encode(product) //nolint:errcheck
 }
 
 // createProductHandler creates a new product
@@ -365,7 +365,7 @@ func (s *Server) createProductHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"}) //nolint:errcheck
 		return
 	}
 
@@ -373,7 +373,7 @@ func (s *Server) createProductHandler(w http.ResponseWriter, r *http.Request) {
 	if product.Name == "" || product.Price <= 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Name and price are required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Name and price are required"}) //nolint:errcheck
 		return
 	}
 
@@ -387,7 +387,7 @@ func (s *Server) createProductHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error saving product to database: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create product"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create product"}) //nolint:errcheck
 		return
 	}
 
@@ -396,7 +396,7 @@ func (s *Server) createProductHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(product)
+	_ = json.NewEncoder(w).Encode(product) //nolint:errcheck
 }
 
 // updateProductHandler updates an existing product
@@ -405,7 +405,7 @@ func (s *Server) updateProductHandler(w http.ResponseWriter, r *http.Request, pr
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"}) //nolint:errcheck
 		return
 	}
 
@@ -413,7 +413,7 @@ func (s *Server) updateProductHandler(w http.ResponseWriter, r *http.Request, pr
 	if product.Name == "" || product.Price <= 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Name and price are required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Name and price are required"}) //nolint:errcheck
 		return
 	}
 
@@ -424,7 +424,7 @@ func (s *Server) updateProductHandler(w http.ResponseWriter, r *http.Request, pr
 		log.Printf("Error updating product in database: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update product"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update product"}) //nolint:errcheck
 		return
 	}
 
@@ -432,7 +432,7 @@ func (s *Server) updateProductHandler(w http.ResponseWriter, r *http.Request, pr
 	s.productCache.Set(productID, &product)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(product)
+	_ = json.NewEncoder(w).Encode(product) //nolint:errcheck
 }
 
 // deleteProductHandler deletes a product
@@ -442,7 +442,7 @@ func (s *Server) deleteProductHandler(w http.ResponseWriter, r *http.Request, pr
 		log.Printf("Error deleting product from database: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete product"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete product"}) //nolint:errcheck
 		return
 	}
 
@@ -475,7 +475,7 @@ func (s *Server) listProductsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error listing products: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to list products"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to list products"}) //nolint:errcheck
 		return
 	}
 
@@ -487,7 +487,7 @@ func (s *Server) listProductsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 // cacheStatsHandler returns cache statistics
@@ -514,7 +514,7 @@ func (s *Server) cacheStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	_ = json.NewEncoder(w).Encode(stats) //nolint:errcheck
 }
 
 // clearCacheHandler clears all caches
@@ -544,7 +544,7 @@ func (s *Server) clearCacheHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 // warmupCacheHandler warms up caches with popular data
@@ -568,7 +568,7 @@ func (s *Server) warmupCacheHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 // metricsHandler returns Prometheus metrics
@@ -576,7 +576,7 @@ func (s *Server) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	// This would typically serve Prometheus metrics
 	// For now, just return a simple message
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("# HOT Cache Metrics\n# This endpoint would serve Prometheus metrics\n"))
+	_, _ = w.Write([]byte("# HOT Cache Metrics\n# This endpoint would serve Prometheus metrics\n")) //nolint:errcheck
 }
 
 // Database simulation functions with proper error handling

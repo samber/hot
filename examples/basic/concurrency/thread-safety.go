@@ -55,7 +55,7 @@ func main() {
 			defer wg.Done()
 			for j := 0; j < itemsPerGoroutine; j++ {
 				key := fmt.Sprintf("goroutine:%d:item:%d", goroutineID, j)
-				cache.Get(key)
+				_, _, _ = cache.Get(key) //nolint:errcheck
 			}
 		}(i)
 	}
@@ -89,7 +89,7 @@ func main() {
 			defer wg.Done()
 			for j := 0; j < 1000; j++ {
 				key := fmt.Sprintf("initial:%d", j%50)
-				rwCache.Get(key)
+				_, _, _ = rwCache.Get(key) //nolint:errcheck
 			}
 		}(i)
 	}
