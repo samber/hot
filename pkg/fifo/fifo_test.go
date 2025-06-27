@@ -384,7 +384,7 @@ func TestFIFOCache_UpdateExistingKey(t *testing.T) {
 	// Update existing key - should not change order
 	cache.Set("b", 10)
 
-	// Add new item - should evict "b" (not "a")
+	// Add new item - should evict "a"
 	cache.Set("d", 4)
 
 	assert.False(t, cache.Has("a"))

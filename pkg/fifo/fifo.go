@@ -42,7 +42,7 @@ func NewFIFOCacheWithEvictionCallback[K comparable, V any](capacity int, onEvict
 type FIFOCache[K comparable, V any] struct {
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	capacity int                 // Maximum number of items the cache can hold (0 = unlimited)
+	capacity int                 // Maximum number of items the cache can hold
 	ll       *list.List          // Doubly-linked list maintaining insertion order (oldest at front)
 	cache    map[K]*list.Element // Map for O(1) key lookups to list elements
 
