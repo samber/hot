@@ -15,6 +15,7 @@
 
 - ⚡ **High Performance**: Optimized for speed with microsecond-precision timestamps
 - 🔄 **Multiple Eviction Policies**: LRU, LFU, ARC, and 2Q algorithms
+- 🔄 **Multiple Eviction Policies**: LRU, LFU, ARC, 2Q, and FIFO algorithms
 - ⏰ **TTL with Jitter**: Prevent cache stampedes with exponential distribution
 - 🔄 **Stale-While-Revalidate**: Serve stale data while refreshing in background
 - ❌ **Missing Key Caching**: Cache negative results to avoid repeated lookups
@@ -163,6 +164,7 @@ hot.LRU
 hot.LFU
 hot.TwoQueue
 hot.ARC
+hot.FIFO
 ```
 
 Revalidation policies:
@@ -307,6 +309,7 @@ Example:
 │              pkg/lru.LRUCache[K, V]                         │
 │              pkg/lfu.LFUCache[K, V]                         │
 │              pkg/arc.ARCCache[K, V]                         │
+│              pkg/fifo.FIFOCache[K, V]                       │
 │              pkg/twoqueue.TwoQueueCache[K, V]               │
 │                   (Eviction policies)                       │
 └─────────────────────────────────────────────────────────────┘
@@ -323,6 +326,7 @@ Packages:
 - `pkg/lfu`
 - `pkg/twoqueue`
 - `pkg/arc`
+- `pkg/fifo`
 
 Example:
 
@@ -414,7 +418,7 @@ cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
 ```go
 import "github.com/samber/hot"
 
-// Available eviction policies: hot.LRU, hot.LFU, hot.TwoQueue, hot.ARC
+// Available eviction policies: hot.LRU, hot.LFU, hot.TwoQueue, hot.ARC, hot.FIFO
 // Capacity: 100k keys/values
 cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
     Build()
