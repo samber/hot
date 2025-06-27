@@ -54,6 +54,7 @@ HOT is optimized for high performance:
 - **LFU**: Better for data with varying access patterns
 - **ARC**: Automatically adapts to access patterns
 - **2Q**: Good for datasets larger than cache capacity
+- **FIFO**: Simple and predictable, evicts oldest items first
 
 ### How do I optimize HOT performance?
 

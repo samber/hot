@@ -6,12 +6,13 @@ This guide covers best practices for using HOT in production environments.
 
 ### Choose the Right Eviction Policy
 
-| Use Case                 | Recommended Policy | Reason                                       |
-| ------------------------ | ------------------ | -------------------------------------------- |
-| General purpose          | LRU                | Good balance of performance and hit rate     |
-| Frequently accessed data | LFU                | Better for data with varying access patterns |
-| Mixed access patterns    | ARC                | Automatically adapts to access patterns      |
-| Large datasets           | 2Q                 | Good for datasets larger than cache capacity |
+| Use Case                 | Recommended Policy | Reason                                        |
+| ------------------------ | ------------------ | --------------------------------------------- |
+| General purpose          | LRU                | Good balance of performance and hit rate      |
+| Frequently accessed data | LFU                | Better for data with varying access patterns  |
+| Mixed access patterns    | ARC                | Automatically adapts to access patterns       |
+| Large datasets           | 2Q                 | Good for datasets larger than cache capacity  |
+| Simple, predictable      | FIFO               | Evicts oldest items first, easy to understand |
 
 ### Set Appropriate TTL Values
 

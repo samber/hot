@@ -25,6 +25,7 @@ HOT is designed for high-performance scenarios with the following characteristic
 - **LFU Performance**: Least Frequently Used algorithm
 - **ARC Performance**: Adaptive Replacement Cache
 - **2Q Performance**: Two Queue algorithm
+- **FIFO Performance**: First In, First Out algorithm
 
 ### 3. Advanced Features
 - **TTL Performance**: Time-to-live overhead
@@ -98,6 +99,9 @@ cache := hot.NewHotCache[string, int](hot.LFU, 1000)
 
 // For mixed access patterns
 cache := hot.NewHotCache[string, int](hot.ARC, 1000)
+
+// For simple, predictable eviction
+cache := hot.NewHotCache[string, int](hot.FIFO, 1000)
 ```
 
 ### 2. Use Batch Operations
@@ -228,6 +232,6 @@ defaults write NSGlobalDomain NSAppSleepDisabled -bool true
 
 For performance-related questions or issues:
 
+- 📖 Documentation: https://github.com/samber/hot
 - 📧 Twitter: https://twitter.com/samuelberthe
-- 💬 Discussions: https://github.com/samber/hot/discussions
-- 🐛 Issues: https://github.com/samber/hot/issues 
+- 🐛 Issues: https://github.com/samber/hot/issues
