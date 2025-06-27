@@ -14,7 +14,6 @@
 ## 🚀 Features
 
 - ⚡ **High Performance**: Optimized for speed with microsecond-precision timestamps
-- 🔄 **Multiple Eviction Policies**: LRU, LFU, ARC, and 2Q algorithms
 - 🔄 **Multiple Eviction Policies**: LRU, LFU, ARC, 2Q, and FIFO algorithms
 - ⏰ **TTL with Jitter**: Prevent cache stampedes with exponential distribution
 - 🔄 **Stale-While-Revalidate**: Serve stale data while refreshing in background
@@ -600,7 +599,7 @@ http.ListenAndServe(":8080", nil)
 
 **Configuration Gauges:**
 - `hot_settings_capacity` - Maximum number of items the cache can hold
-- `hot_settings_algorithm` - Eviction algorithm type (0=lru, 1=lfu, 2=arc, 3=2q)
+- `hot_settings_algorithm` - Eviction algorithm type (0=lru, 1=lfu, 2=arc, 3=2q, 4=fifo)
 - `hot_settings_ttl_seconds` - Time-to-live duration in seconds (if set)
 - `hot_settings_jitter_lambda` - Jitter lambda parameter for TTL randomization (if set)
 - `hot_settings_jitter_upper_bound_seconds` - Jitter upper bound duration in seconds (if set)

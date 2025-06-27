@@ -12,7 +12,7 @@ Welcome to the HOT (Hot Object Tracker) documentation. This guide will help you 
 
 HOT is a high-performance, feature-complete in-memory caching library for Go applications. It provides:
 
-- **Multiple Eviction Policies**: LRU, LFU, ARC, and 2Q algorithms
+- **Multiple Eviction Policies**: LRU, LFU, ARC, 2Q, and FIFO algorithms
 - **Advanced Features**: TTL with jitter, stale-while-revalidate, missing key caching
 - **High Performance**: Microsecond-precision timestamps, zero-allocation operations
 - **Scalability**: Sharded architecture for high concurrency
@@ -21,15 +21,15 @@ HOT is a high-performance, feature-complete in-memory caching library for Go app
 
 ## Quick Comparison
 
-| Feature            | HOT               | Standard Go Maps | Redis | Memcached |
-| ------------------ | ----------------- | ---------------- | ----- | --------- |
-| Eviction Policies  | LRU, LFU, ARC, 2Q | None             | LRU   | LRU       |
-| TTL Support        | ✅                 | ❌                | ✅     | ✅         |
-| Thread Safety      | ✅                 | ❌                | ✅     | ✅         |
-| Prometheus Metrics | ✅                 | ❌                | ✅     | ✅         |
-| Go Generics        | ✅                 | ✅                | ❌     | ❌         |
-| In-Memory          | ✅                 | ✅                | ❌     | ❌         |
-| Distributed        | ❌                 | ❌                | ✅     | ✅         |
+| Feature            | HOT                     | Standard Go Maps | Redis | Memcached |
+| ------------------ | ----------------------- | ---------------- | ----- | --------- |
+| Eviction Policies  | LRU, LFU, ARC, 2Q, FIFO | None             | LRU   | LRU       |
+| TTL Support        | ✅                       | ❌                | ✅     | ✅         |
+| Thread Safety      | ✅                       | ❌                | ✅     | ✅         |
+| Prometheus Metrics | ✅                       | ❌                | ✅     | ✅         |
+| Go Generics        | ✅                       | ✅                | ❌     | ❌         |
+| In-Memory          | ✅                       | ✅                | ❌     | ❌         |
+| Distributed        | ❌                       | ❌                | ✅     | ✅         |
 
 ## Getting Started
 
@@ -53,6 +53,7 @@ value, found, _ := cache.Get("key")
 - **LFU (Least Frequently Used)**: Evicts items with the lowest access frequency
 - **ARC (Adaptive Replacement Cache)**: Automatically adapts between LRU and LFU
 - **2Q (Two Queue)**: Uses two queues to separate frequently and infrequently accessed items
+- **FIFO (First In, First Out)**: Evicts items in the order they were added
 
 ### Cache Modes
 - **Main Cache**: Stores actual data values
