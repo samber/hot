@@ -27,6 +27,7 @@
 - 📝 **Copy-on-Read/Write**: Optional value copying for thread safety
 - 📊 **Metrics Collection**: Built-in statistics and monitoring
 - 💫 **Go Generics**: Type-safe caching with compile-time guarantees
+- 🏡 **Bring your own cache**: Pluggable APIs and highly customizable
 
 ## 📋 Table of Contents
 
