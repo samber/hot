@@ -5,6 +5,7 @@ import (
 
 	"github.com/samber/hot/pkg/arc"
 	"github.com/samber/hot/pkg/base"
+	"github.com/samber/hot/pkg/fifo"
 	"github.com/samber/hot/pkg/lfu"
 	"github.com/samber/hot/pkg/lru"
 	"github.com/samber/hot/pkg/metrics"
@@ -49,6 +50,13 @@ func TestComposeInternalCache(t *testing.T) {
 	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.True(ok)
 
+	// Test FIFO with locking
+	cache = composeInternalCache[string, int](true, FIFO, 42, 0, -1, nil, nil, nil)
+	is.Equal(42, cache.Capacity())
+	is.Equal("fifo", cache.Algorithm())
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
+	is.True(ok)
+
 	// Test invalid capacity (should panic)
 	is.Panics(func() {
 		_ = composeInternalCache[string, int](true, ARC, 0, 0, -1, nil, nil, nil)
@@ -88,6 +96,16 @@ func TestComposeInternalCache(t *testing.T) {
 	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
 	is.False(ok)
 	_, ok = cache.(*arc.ARCCache[string, *item[int]])
+	is.True(ok)
+
+	// Test FIFO without locking
+
+	cache = composeInternalCache[string, int](false, FIFO, 42, 0, -1, nil, nil, nil)
+	is.Equal(42, cache.Capacity())
+	is.Equal("fifo", cache.Algorithm())
+	_, ok = cache.(*safe.SafeInMemoryCache[string, *item[int]])
+	is.False(ok)
+	_, ok = cache.(*fifo.FIFOCache[string, *item[int]])
 	is.True(ok)
 
 	// Test invalid capacity without locking (should panic)

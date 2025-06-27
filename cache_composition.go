@@ -3,6 +3,7 @@ package hot
 import (
 	"github.com/samber/hot/pkg/arc"
 	"github.com/samber/hot/pkg/base"
+	"github.com/samber/hot/pkg/fifo"
 	"github.com/samber/hot/pkg/lfu"
 	"github.com/samber/hot/pkg/lru"
 	"github.com/samber/hot/pkg/metrics"
@@ -43,6 +44,7 @@ import (
 // │              pkg/lru.LRUCache[K, V]                         │
 // │              pkg/lfu.LFUCache[K, V]                         │
 // │              pkg/arc.ARCCache[K, V]                         │
+// │              pkg/fifo.FIFOCache[K, V]                       │
 // │              pkg/twoqueue.TwoQueueCache[K, V]               │
 // │                   (Eviction policies)                       │
 // └─────────────────────────────────────────────────────────────┘
@@ -91,6 +93,8 @@ func composeInternalCache[K comparable, V any](
 		cache = twoqueue.New2QCacheWithEvictionCallback(capacity, onItemEviction)
 	case ARC:
 		cache = arc.NewARCCacheWithEvictionCallback(capacity, onItemEviction)
+	case FIFO:
+		cache = fifo.NewFIFOCacheWithEvictionCallback(capacity, onItemEviction)
 	default:
 		panic("unknown cache algorithm")
 	}
