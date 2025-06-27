@@ -51,10 +51,3 @@ go run ttl.go
    - medium-lived: 5 minutes
    - long-lived: 2 hours
 ```
-
-## Next Steps
-
-Try other examples to explore more advanced features:
-- [Simple LRU](../simple-lru/) - Basic cache operations
-- [Batch Operations](../batch/) - Performance optimization
-- [Concurrency](../concurrency/) - Thread safety 

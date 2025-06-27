@@ -48,10 +48,3 @@ go run simple.go
    - user:5: Eve Brown (eve@example.com)
    - user:6: Frank Miller (frank@example.com)
 ```
-
-## Next Steps
-
-Try other examples to explore more advanced features:
-- [TTL Cache](../ttl/) - Time-based expiration
-- [Batch Operations](../batch/) - Performance optimization
-- [Concurrency](../concurrency/) - Thread safety 
