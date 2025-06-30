@@ -29,7 +29,7 @@ func TestNewHotCache(t *testing.T) {
 
 	// ttl, stale, jitter
 	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, nil)
-	is.EqualValues(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42, 21, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.EqualValues(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests
@@ -72,9 +72,9 @@ func TestHotCache_Set(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 1_100_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+1_000_000, v.staleExpiryMicro, 1_100_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 1_100_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+1_000_000, v.staleExpiryNano, 1_100_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -104,9 +104,9 @@ func TestHotCache_SetMissing(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
@@ -122,9 +122,9 @@ func TestHotCache_SetMissing(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -140,9 +140,9 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 	v, ok := cache.cache.Get("a")
 	is.True(ok)
 	is.Equal(1, v.value)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 10_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 10_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 10_000)
 
 	// simple set with copy on write
 	cache = NewHotCache[string, int](LRU, 10).
@@ -155,9 +155,9 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 	v, ok = cache.cache.Get("a")
 	is.True(ok)
 	is.Equal(2, v.value)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 10_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 10_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 10_000)
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
@@ -172,9 +172,9 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -204,9 +204,9 @@ func TestHotCache_SetMissingWithTTL(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
@@ -222,9 +222,9 @@ func TestHotCache_SetMissingWithTTL(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -272,17 +272,17 @@ func TestHotCache_SetMany(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
 	is.True(v.hasValue)
 	is.Equal(2, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -312,17 +312,17 @@ func TestHotCache_SetMissingMany(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 	v, ok = cache.missingCache.Get("b")
 	is.True(ok)
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
@@ -338,17 +338,17 @@ func TestHotCache_SetMissingMany(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+1_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -364,15 +364,15 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 	v, ok := cache.cache.Get("a")
 	is.True(ok)
 	is.Equal(1, v.value)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 10_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 10_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 10_000)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
 	is.Equal(2, v.value)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 10_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 10_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 10_000)
 
 	// simple set with copy on write
 	cache = NewHotCache[string, int](LRU, 10).
@@ -385,15 +385,15 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 	v, ok = cache.cache.Get("a")
 	is.True(ok)
 	is.Equal(2, v.value)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 10_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 10_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 10_000)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
 	is.Equal(4, v.value)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 10_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 10_000)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 10_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 10_000)
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
@@ -408,17 +408,17 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
 	is.True(v.hasValue)
 	is.Equal(2, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -448,17 +448,17 @@ func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 	v, ok = cache.missingCache.Get("b")
 	is.True(ok)
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	// shared cache
 	cache = NewHotCache[string, int](LRU, 10).
@@ -474,17 +474,17 @@ func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.NotEqual(v.expiryMicro, v.staleExpiryMicro)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryMicro, 110_000)
-	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryMicro, 110_000)
+	is.NotEqual(v.expiryNano, v.staleExpiryNano)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000, v.expiryNano, 110_000)
+	is.InEpsilon(time.Now().UnixNano()+10_000_000+100_000, v.staleExpiryNano, 110_000)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -1311,9 +1311,9 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 100) // value + ttl + no jitter
 	v, ok = cache.cache.Get("a")
@@ -1321,9 +1321,9 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(int64(0), v.expiryMicro)
-	is.NotEqual(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.NotEqual(int64(0), v.expiryNano)
+	is.NotEqual(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache = NewHotCache[string, int](LRU, 10).
 		WithJitter(2, 500*time.Millisecond).
@@ -1335,9 +1335,9 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 100) // value + ttl + jitter
 	v, ok = cache.cache.Get("a")
@@ -1345,9 +1345,9 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(int64(0), v.expiryMicro)
-	is.NotEqual(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.NotEqual(int64(0), v.expiryNano)
+	is.NotEqual(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -1365,9 +1365,9 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 0) // value + no ttl + no jitter
 	v, ok = cache.cache.Get("a")
@@ -1375,9 +1375,9 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 100) // value + ttl + no jitter
 	v, ok = cache.cache.Get("a")
@@ -1385,9 +1385,9 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(int64(0), v.expiryMicro)
-	is.NotEqual(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.NotEqual(int64(0), v.expiryNano)
+	is.NotEqual(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
@@ -1400,9 +1400,9 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 100) // value + ttl + jitter
 	v, ok = cache.cache.Get("a")
@@ -1410,9 +1410,9 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(int64(0), v.expiryMicro)
-	is.NotEqual(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.NotEqual(int64(0), v.expiryNano)
+	is.NotEqual(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -1433,9 +1433,9 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 0) // value + no ttl + no jitter
 	v, ok = cache.missingCache.Get("a")
@@ -1446,9 +1446,9 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 100) // value + ttl + no jitter
 	v, ok = cache.cache.Get("a")
@@ -1456,9 +1456,9 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(int64(0), v.expiryMicro)
-	is.NotEqual(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.NotEqual(int64(0), v.expiryNano)
+	is.NotEqual(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache = NewHotCache[string, int](LRU, 10).
 		WithMissingCache(LRU, 10).
@@ -1471,9 +1471,9 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	cache.setUnsafe("a", true, 1, 100) // value + ttl + jitter
 	v, ok = cache.cache.Get("a")
@@ -1481,9 +1481,9 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.NotEqual(int64(0), v.expiryMicro)
-	is.NotEqual(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.NotEqual(int64(0), v.expiryNano)
+	is.NotEqual(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }
@@ -1529,16 +1529,16 @@ func TestHotCache_getUnsafe(t *testing.T) {
 		WithRevalidation(10 * time.Millisecond).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
-	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Microseconds())
+	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Nanoseconds())
 	v, revalidate, found := cache.getUnsafe("a")
 	is.True(found)
 	is.False(revalidate)
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	v, revalidate, found = cache.getUnsafe("b")
 	is.False(found)
@@ -1571,16 +1571,16 @@ func TestHotCache_getUnsafe(t *testing.T) {
 		WithMissingSharedCache().
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
-	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Microseconds())
+	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Nanoseconds())
 	v, revalidate, found = cache.getUnsafe("a")
 	is.True(found)
 	is.False(revalidate)
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	v, revalidate, found = cache.getUnsafe("b")
 	is.True(found)
@@ -1588,9 +1588,9 @@ func TestHotCache_getUnsafe(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	v, revalidate, found = cache.getUnsafe("c")
 	is.True(found)
@@ -1618,16 +1618,16 @@ func TestHotCache_getUnsafe(t *testing.T) {
 		WithMissingCache(LRU, 10).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
-	cache.setUnsafe("c", false, 0, (2 * time.Millisecond).Microseconds())
+	cache.setUnsafe("c", false, 0, (2 * time.Millisecond).Nanoseconds())
 	v, revalidate, found = cache.getUnsafe("a")
 	is.True(found)
 	is.False(revalidate)
 	is.True(v.hasValue)
 	is.Equal(1, v.value)
 	// is.Equal(uint(8), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	v, revalidate, found = cache.getUnsafe("b")
 	is.True(found)
@@ -1635,9 +1635,9 @@ func TestHotCache_getUnsafe(t *testing.T) {
 	is.False(v.hasValue)
 	is.Equal(0, v.value)
 	// is.Equal(uint(0), v.bytes)
-	is.Equal(int64(0), v.expiryMicro)
-	is.Equal(int64(0), v.staleExpiryMicro)
-	is.Equal(v.expiryMicro, v.staleExpiryMicro)
+	is.Equal(int64(0), v.expiryNano)
+	is.Equal(int64(0), v.staleExpiryNano)
+	is.Equal(v.expiryNano, v.staleExpiryNano)
 
 	v, revalidate, found = cache.getUnsafe("c")
 	is.True(found)
@@ -1671,7 +1671,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 		WithRevalidation(50 * time.Millisecond).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
-	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Microseconds())
+	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Nanoseconds())
 	v, missing, revalidate := cache.getManyUnsafe([]string{"a"})
 	is.Len(v, 1)
 	is.Len(missing, 0)
@@ -1708,7 +1708,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 		WithMissingSharedCache().
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
-	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Microseconds())
+	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Nanoseconds())
 	v, missing, revalidate = cache.getManyUnsafe([]string{"a"})
 	is.Len(v, 1)
 	is.Len(missing, 0)
@@ -1745,7 +1745,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 		WithMissingCache(LRU, 10).
 		Build()
 	cache.setManyUnsafe(map[string]int{"a": 1}, []string{"b"}, 0)
-	cache.setUnsafe("c", false, 0, (2 * time.Millisecond).Microseconds())
+	cache.setUnsafe("c", false, 0, (2 * time.Millisecond).Nanoseconds())
 	v, missing, revalidate = cache.getManyUnsafe([]string{"a"})
 	is.Len(v, 1)
 	is.Len(missing, 0)

@@ -9,12 +9,18 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	_ "unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 //
 // This file aims to compare the performance of different implementations of internal stuff.
 // For example: time.Now() vs syscall.Gettimeofday(), or std linked list vs custom.
 //
+
+//go:linkname nanotime runtime.nanotime
+func nanotime() int64
 
 // go test -benchmem -benchtime=100000000x -bench=Time
 func BenchmarkDevelTime(b *testing.B) {
@@ -24,11 +30,26 @@ func BenchmarkDevelTime(b *testing.B) {
 		}
 	})
 
+	// unix.ClockGettime is slower than time.Now()
+	b.Run("TimeSyscallMonotonicTime", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			var ts unix.Timespec
+			_ = unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts)
+		}
+	})
+
 	// syscal.Gettimeofday is faster than time.Now()
-	b.Run("TimeSyscall", func(b *testing.B) {
+	b.Run("TimeSyscallWallTime", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			var tv syscall.Timeval
 			_ = syscall.Gettimeofday(&tv)
+		}
+	})
+
+	// runtime.nanotime is faster than time.Now()
+	b.Run("TimeRuntimeMonotonicTime", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			_ = nanotime()
 		}
 	})
 }
