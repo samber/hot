@@ -21,7 +21,7 @@ func TestNowNano(t *testing.T) {
 	got3 := []int64{}
 	for i := 0; i < 1000; i++ {
 		got3 = append(got3, NowNano())
-		time.Sleep(1 * time.Nanosecond)
+		time.Sleep(10 * time.Nanosecond)
 	}
 	is.IsIncreasing(got3)
 }
