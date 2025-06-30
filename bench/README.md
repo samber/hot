@@ -6,7 +6,7 @@ This directory contains comprehensive benchmarks for HOT cache performance acros
 
 HOT is designed for high-performance scenarios with the following characteristics:
 
-- **Microsecond-precision timestamps** (2.3x faster than `time.Now()`)
+- **Nanosecond-precision timestamps** (2.5x faster than `time.Now()`)
 - **Zero-allocation operations** where possible
 - **Lock-free operations** when thread safety is disabled
 - **Batch operations** for better throughput

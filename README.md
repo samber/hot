@@ -13,7 +13,7 @@
 
 ## 🚀 Features
 
-- ⚡ **High Performance**: Optimized for speed with microsecond-precision timestamps
+- ⚡ **High Performance**: Optimized for speed with nanosecond-precision timestamps
 - 🔄 **Multiple Eviction Policies**: LRU, LFU, ARC, 2Q, and FIFO algorithms
 - ⏰ **TTL with Jitter**: Prevent cache stampedes with exponential distribution
 - 🔄 **Stale-While-Revalidate**: Serve stale data while refreshing in background
@@ -44,7 +44,7 @@
 
 HOT is optimized for high-performance scenarios:
 
-- **Microsecond-precision timestamps** using syscalls (2.3x faster than `time.Now()`)
+- **Nanosecond-precision timestamps** (2.5x faster than `time.Now()`)
 - **Zero-allocation operations** where possible
 - **Lock-free operations** when thread safety is disabled
 - **Batch operations** for better throughput

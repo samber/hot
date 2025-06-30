@@ -39,10 +39,10 @@ func newHotCache[K comparable, V any](
 		missingSharedCache: missingSharedCache,
 		missingCache:       missingCache,
 
-		// Store int64 microseconds instead of time.Time for better performance
+		// Store int64 nanoseconds instead of time.Time for better performance
 		// (benchmark resulted in 10x speedup)
-		ttlMicro:         ttl.Microseconds(),
-		staleMicro:       stale.Microseconds(),
+		ttlNano:          ttl.Nanoseconds(),
+		staleNano:        stale.Nanoseconds(),
 		jitterLambda:     jitterLambda,
 		jitterUpperBound: jitterUpperBound,
 
@@ -74,10 +74,10 @@ type HotCache[K comparable, V any] struct {
 	missingSharedCache bool
 	missingCache       base.InMemoryCache[K, *item[V]]
 
-	// Store int64 microseconds instead of time.Time for better performance
+	// Store int64 nanoseconds instead of time.Time for better performance
 	// (benchmark resulted in 10x speedup)
-	ttlMicro         int64
-	staleMicro       int64
+	ttlNano          int64
+	staleNano        int64
 	jitterLambda     float64
 	jitterUpperBound time.Duration
 
@@ -101,7 +101,7 @@ func (c *HotCache[K, V]) Set(key K, v V) {
 		v = c.copyOnWrite(v)
 	}
 
-	c.setUnsafe(key, true, v, c.ttlMicro)
+	c.setUnsafe(key, true, v, c.ttlNano)
 }
 
 // SetMissing adds a key to the missing cache to prevent repeated lookups for non-existent keys.
@@ -112,7 +112,7 @@ func (c *HotCache[K, V]) SetMissing(key K) {
 		panic("missing cache is not enabled")
 	}
 
-	c.setUnsafe(key, false, zero[V](), c.ttlMicro)
+	c.setUnsafe(key, false, zero[V](), c.ttlNano)
 }
 
 // SetWithTTL adds a value to the cache with a specific TTL duration.
@@ -122,7 +122,7 @@ func (c *HotCache[K, V]) SetWithTTL(key K, v V, ttl time.Duration) {
 		v = c.copyOnWrite(v)
 	}
 
-	c.setUnsafe(key, true, v, ttl.Microseconds())
+	c.setUnsafe(key, true, v, ttl.Nanoseconds())
 }
 
 // SetMissingWithTTL adds a key to the missing cache with a specific TTL duration.
@@ -133,7 +133,7 @@ func (c *HotCache[K, V]) SetMissingWithTTL(key K, ttl time.Duration) {
 		panic("missing cache is not enabled")
 	}
 
-	c.setUnsafe(key, false, zero[V](), ttl.Microseconds())
+	c.setUnsafe(key, false, zero[V](), ttl.Nanoseconds())
 }
 
 // SetMany adds multiple values to the cache in a single operation.
@@ -147,7 +147,7 @@ func (c *HotCache[K, V]) SetMany(items map[K]V) {
 		items = cOpy
 	}
 
-	c.setManyUnsafe(items, []K{}, c.ttlMicro)
+	c.setManyUnsafe(items, []K{}, c.ttlNano)
 }
 
 // SetMissingMany adds multiple keys to the missing cache in a single operation.
@@ -158,7 +158,7 @@ func (c *HotCache[K, V]) SetMissingMany(missingKeys []K) {
 		panic("missing cache is not enabled")
 	}
 
-	c.setManyUnsafe(map[K]V{}, missingKeys, c.ttlMicro)
+	c.setManyUnsafe(map[K]V{}, missingKeys, c.ttlNano)
 }
 
 // SetManyWithTTL adds multiple values to the cache with a specific TTL duration.
@@ -170,7 +170,7 @@ func (c *HotCache[K, V]) SetManyWithTTL(items map[K]V, ttl time.Duration) {
 		}
 	}
 
-	c.setManyUnsafe(items, []K{}, ttl.Microseconds())
+	c.setManyUnsafe(items, []K{}, ttl.Nanoseconds())
 }
 
 // SetMissingManyWithTTL adds multiple keys to the missing cache with a specific TTL duration.
@@ -181,7 +181,7 @@ func (c *HotCache[K, V]) SetMissingManyWithTTL(missingKeys []K, ttl time.Duratio
 		panic("missing cache is not enabled")
 	}
 
-	c.setManyUnsafe(map[K]V{}, missingKeys, ttl.Microseconds())
+	c.setManyUnsafe(map[K]V{}, missingKeys, ttl.Nanoseconds())
 }
 
 // Has checks if a key exists in the cache and has a valid value.
@@ -502,7 +502,7 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 		panic("missing cache is not enabled")
 	}
 
-	c.setManyUnsafe(items, missing, c.ttlMicro)
+	c.setManyUnsafe(items, missing, c.ttlNano)
 
 	return nil
 }
@@ -522,7 +522,7 @@ func (c *HotCache[K, V]) Janitor() {
 	}
 
 	// Initialize janitor components atomically under lock protection
-	c.ticker = time.NewTicker(time.Duration(c.ttlMicro) * time.Microsecond)
+	c.ticker = time.NewTicker(time.Duration(c.ttlNano) * time.Nanosecond)
 	c.stopOnce = &sync.Once{}
 	c.stopJanitor = make(chan struct{})
 	c.janitorDone = make(chan struct{})
@@ -551,14 +551,14 @@ func (c *HotCache[K, V]) Janitor() {
 
 			case <-c.ticker.C:
 				// Ticker fired, time to clean expired items
-				nowMicro := internal.NowMicro()
+				nowNano := internal.NowNano()
 
 				// Clean expired items from main cache
 				{
 					toDelete := []K{}
 					toDeleteKV := map[K]V{}
 					c.cache.Range(func(k K, v *item[V]) bool {
-						if v.isExpired(nowMicro) {
+						if v.isExpired(nowNano) {
 							toDelete = append(toDelete, k)
 							if c.onEviction != nil {
 								toDeleteKV[k] = v.value
@@ -582,7 +582,7 @@ func (c *HotCache[K, V]) Janitor() {
 					toDelete := []K{}
 					toDeleteKV := map[K]V{}
 					c.missingCache.Range(func(k K, v *item[V]) bool {
-						if v.isExpired(nowMicro) {
+						if v.isExpired(nowNano) {
 							toDelete = append(toDelete, k)
 							if c.onEviction != nil {
 								toDeleteKV[k] = v.value
@@ -641,12 +641,12 @@ func (c *HotCache[K, V]) StopJanitor() {
 
 // setUnsafe is an internal method that sets a key-value pair in the cache without thread safety.
 // It handles both regular values and missing keys, applying TTL jitter and managing separate caches.
-func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64) {
+func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlNano int64) {
 	if !hasValue && c.missingCache == nil && !c.missingSharedCache {
 		return
 	}
 
-	ttlMicro = applyJitter(ttlMicro, c.jitterLambda, c.jitterUpperBound)
+	ttlNano = applyJitter(ttlNano, c.jitterLambda, c.jitterUpperBound)
 
 	// Since we don't know where the previous key is stored, we need to delete preemptively
 	if c.missingCache != nil {
@@ -660,15 +660,15 @@ func (c *HotCache[K, V]) setUnsafe(key K, hasValue bool, value V, ttlMicro int64
 
 	// @TODO: Should be done in a single call to avoid multiple locks
 	if hasValue || c.missingSharedCache {
-		c.cache.Set(key, newItem(value, hasValue, ttlMicro, c.staleMicro))
+		c.cache.Set(key, newItem(value, hasValue, ttlNano, c.staleNano))
 	} else if c.missingCache != nil {
-		c.missingCache.Set(key, newItemNoValue[V](ttlMicro, c.staleMicro))
+		c.missingCache.Set(key, newItemNoValue[V](ttlNano, c.staleNano))
 	}
 }
 
 // setManyUnsafe is an internal method that sets multiple key-value pairs in the cache without thread safety.
 // It handles both regular values and missing keys, applying TTL jitter and managing separate caches.
-func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlMicro int64) {
+func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlNano int64) {
 	if c.missingCache == nil && !c.missingSharedCache {
 		missing = []K{}
 	}
@@ -687,12 +687,12 @@ func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlMicro int6
 
 	values := map[K]*item[V]{}
 	for k, v := range items {
-		values[k] = newItemWithValue(v, ttlMicro, c.staleMicro)
+		values[k] = newItemWithValue(v, ttlNano, c.staleNano)
 	}
 
 	if c.missingSharedCache {
 		for _, k := range missing {
-			values[k] = newItemNoValue[V](ttlMicro, c.staleMicro)
+			values[k] = newItemNoValue[V](ttlNano, c.staleNano)
 		}
 	}
 
@@ -701,7 +701,7 @@ func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlMicro int6
 	if c.missingCache != nil {
 		values = map[K]*item[V]{}
 		for _, k := range missing {
-			values[k] = newItemNoValue[V](ttlMicro, c.staleMicro)
+			values[k] = newItemNoValue[V](ttlNano, c.staleNano)
 		}
 		c.missingCache.SetMany(values)
 	}
@@ -711,12 +711,12 @@ func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlMicro int6
 // It returns the item, whether it needs revalidation, and whether it was found.
 // Returns true if the key was found, even if it has no value (missing key).
 func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, found bool) {
-	nowMicro := internal.NowMicro()
+	nowNano := internal.NowNano()
 
 	// @TODO: Should be done in a single call to avoid multiple locks
 	if item, ok := c.cache.Get(key); ok {
-		if !item.isExpired(nowMicro) {
-			return item, item.shouldRevalidate(nowMicro), true
+		if !item.isExpired(nowNano) {
+			return item, item.shouldRevalidate(nowNano), true
 		}
 
 		ok := c.cache.Delete(key)
@@ -728,8 +728,8 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 	if c.missingCache != nil {
 		// @TODO: Should be done in a single call to avoid multiple locks
 		if item, ok := c.missingCache.Get(key); ok {
-			if !item.isExpired(nowMicro) {
-				return item, item.shouldRevalidate(nowMicro), true
+			if !item.isExpired(nowNano) {
+				return item, item.shouldRevalidate(nowNano), true
 			}
 
 			ok := c.missingCache.Delete(key)
@@ -745,7 +745,7 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 // getManyUnsafe is an internal method that retrieves multiple values from the cache without thread safety.
 // It returns cached items, missing keys, and items that need revalidation.
 func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing []K, revalidate map[K]*item[V]) {
-	nowMicro := internal.NowMicro()
+	nowNano := internal.NowNano()
 
 	cached = make(map[K]*item[V])
 	revalidate = make(map[K]*item[V])
@@ -756,9 +756,9 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 
 	tmp, missing := c.cache.GetMany(keys)
 	for k, v := range tmp {
-		if !v.isExpired(nowMicro) {
+		if !v.isExpired(nowNano) {
 			cached[k] = v
-			if v.shouldRevalidate(nowMicro) {
+			if v.shouldRevalidate(nowNano) {
 				revalidate[k] = v
 			}
 			continue
@@ -787,9 +787,9 @@ func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing
 	if len(missing) > 0 && c.missingCache != nil {
 		tmp, missing = c.missingCache.GetMany(missing)
 		for k, v := range tmp {
-			if !v.isExpired(nowMicro) {
+			if !v.isExpired(nowNano) {
 				cached[k] = v
-				if v.shouldRevalidate(nowMicro) {
+				if v.shouldRevalidate(nowNano) {
 					revalidate[k] = v
 				}
 				continue
@@ -851,7 +851,7 @@ func (c *HotCache[K, V]) loadAndSetMany(keys []K, loaders LoaderChain[K, V]) (ma
 
 		// We keep track of missing keys to avoid calling the loaders again.
 		// Any values in `results` that were not requested in `keys` are cached.
-		c.setManyUnsafe(results, stillMissing, c.ttlMicro)
+		c.setManyUnsafe(results, stillMissing, c.ttlNano)
 
 		return results, nil
 	})
@@ -907,7 +907,7 @@ func (c *HotCache[K, V]) revalidate(items map[K]*item[V], fallbackLoaders Loader
 			}
 		}
 
-		c.setManyUnsafe(valid, missing, c.ttlMicro)
+		c.setManyUnsafe(valid, missing, c.ttlNano)
 	}
 }
 

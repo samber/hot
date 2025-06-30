@@ -21,8 +21,8 @@ func TestNewItem(t *testing.T) {
 	got = newItem[int64](0, false, 2_000, 1_000)
 	is.False(got.hasValue)
 	is.Equal(int64(0), got.value)
-	is.InEpsilon(internal.NowMicro()+2_000, got.expiryMicro, 100)
-	is.InEpsilon(internal.NowMicro()+2_000+1_000, got.staleExpiryMicro, 100)
+	is.InEpsilon(internal.NowNano()+2_000_000, got.expiryNano, 100_000)
+	is.InEpsilon(internal.NowNano()+2_000_000+1_000_000, got.staleExpiryNano, 100_000)
 
 	// has value without ttl
 	is.EqualValues(&item[int64]{true, 42, 0, 0}, newItem[int64](42, true, 0, 0))
@@ -31,8 +31,8 @@ func TestNewItem(t *testing.T) {
 	got = newItem[int64](42, true, 2_000, 1_000)
 	is.True(got.hasValue)
 	is.Equal(int64(42), got.value)
-	is.InEpsilon(internal.NowMicro()+2_000, got.expiryMicro, 100)
-	is.InEpsilon(internal.NowMicro()+2_000+1_000, got.staleExpiryMicro, 100)
+	is.InEpsilon(internal.NowNano()+2_000_000, got.expiryNano, 100_000)
+	is.InEpsilon(internal.NowNano()+2_000_000+1_000_000, got.staleExpiryNano, 100_000)
 
 	// size
 	is.EqualValues(&item[map[string]int]{true, map[string]int{"a": 1, "b": 2}, 0, 0}, newItem(map[string]int{"a": 1, "b": 2}, true, 0, 0))
@@ -47,8 +47,8 @@ func TestNewItemWithValue(t *testing.T) {
 	item := newItemWithValue(int64(42), 2_000, 1_000)
 	is.True(item.hasValue)
 	is.Equal(int64(42), item.value)
-	is.InEpsilon(internal.NowMicro()+2_000, item.expiryMicro, 100)
-	is.InEpsilon(internal.NowMicro()+2_000+1_000, item.staleExpiryMicro, 100)
+	is.InEpsilon(internal.NowNano()+2_000_000, item.expiryNano, 100_000)
+	is.InEpsilon(internal.NowNano()+2_000_000+1_000_000, item.staleExpiryNano, 100_000)
 }
 
 func TestNewItemNoValue(t *testing.T) {
@@ -59,46 +59,46 @@ func TestNewItemNoValue(t *testing.T) {
 	item := newItemNoValue[int](2_000_000, 1_000_000)
 	is.False(item.hasValue)
 	is.Equal(0, item.value)
-	is.InEpsilon(internal.NowMicro()+2_000, item.expiryMicro, 100)
-	is.InEpsilon(internal.NowMicro()+2_000+1_000, item.staleExpiryMicro, 100)
+	is.InEpsilon(internal.NowNano()+2_000_000, item.expiryNano, 100_000)
+	is.InEpsilon(internal.NowNano()+2_000_000+1_000_000, item.staleExpiryNano, 100_000)
 }
 
 func TestItem_isExpired(t *testing.T) {
 	is := assert.New(t)
 
 	got := newItemNoValue[int64](0, 0)
-	is.False(got.isExpired(internal.NowMicro()))
+	is.False(got.isExpired(internal.NowNano()))
 
-	got = newItemNoValue[int64](-1_000, 0)
-	is.True(got.isExpired(internal.NowMicro()))
+	got = newItemNoValue[int64](-1_000_000, 0)
+	is.True(got.isExpired(internal.NowNano()))
 
-	got = newItemNoValue[int64](1_000, 0)
-	is.False(got.isExpired(internal.NowMicro()))
+	got = newItemNoValue[int64](1_000_000, 0)
+	is.False(got.isExpired(internal.NowNano()))
 
-	got = newItemNoValue[int64](-1_000, 800)
-	is.True(got.isExpired(internal.NowMicro()))
+	got = newItemNoValue[int64](-1_000_000, 800_000)
+	is.True(got.isExpired(internal.NowNano()))
 
-	got = newItemNoValue[int64](-1_000, 1_200)
-	is.False(got.isExpired(internal.NowMicro()))
+	got = newItemNoValue[int64](-1_000_000, 1_200_000)
+	is.False(got.isExpired(internal.NowNano()))
 }
 
 func TestItem_shouldRevalidate(t *testing.T) {
 	is := assert.New(t)
 
 	got := newItemNoValue[int64](0, 0)
-	is.False(got.shouldRevalidate(internal.NowMicro()))
+	is.False(got.shouldRevalidate(internal.NowNano()))
 
-	got = newItemNoValue[int64](-1_000, 0)
-	is.False(got.shouldRevalidate(internal.NowMicro()))
+	got = newItemNoValue[int64](-1_000_000, 0)
+	is.False(got.shouldRevalidate(internal.NowNano()))
 
-	got = newItemNoValue[int64](1_000, 0)
-	is.False(got.shouldRevalidate(internal.NowMicro()))
+	got = newItemNoValue[int64](1_000_000, 0)
+	is.False(got.shouldRevalidate(internal.NowNano()))
 
-	got = newItemNoValue[int64](-1_000, 800)
-	is.False(got.shouldRevalidate(internal.NowMicro()))
+	got = newItemNoValue[int64](-1_000_000, 800_000)
+	is.False(got.shouldRevalidate(internal.NowNano()))
 
-	got = newItemNoValue[int64](-1_000, 1_200)
-	is.True(got.shouldRevalidate(internal.NowMicro()))
+	got = newItemNoValue[int64](-1_000_000, 1_200_000)
+	is.True(got.shouldRevalidate(internal.NowNano()))
 }
 
 func TestItemMapsToValues(t *testing.T) {
@@ -140,13 +140,13 @@ func TestApplyJitter(t *testing.T) {
 	is := assert.New(t)
 
 	// no jitter
-	is.Equal(int64(1_000), applyJitter(1_000, 0, 0))
-	is.Equal(int64(1_000), applyJitter(1_000, 0, time.Second))
-	is.Equal(int64(1_000), applyJitter(1_000, 0.5, 0))
+	is.Equal(int64(1_000_000), applyJitter(1_000_000, 0, 0))
+	is.Equal(int64(1_000_000), applyJitter(1_000_000, 0, time.Second))
+	is.Equal(int64(1_000_000), applyJitter(1_000_000, 0.5, 0))
 
 	// with jitter
-	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
-	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
-	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
-	is.InEpsilon(1_000, applyJitter(1_000, 3, 100*time.Millisecond), 100)
+	is.InEpsilon(1_000_000, applyJitter(1_000_000, 3, 100*time.Millisecond), 100_000)
+	is.InEpsilon(1_000_000, applyJitter(1_000_000, 3, 100*time.Millisecond), 100_000)
+	is.InEpsilon(1_000_000, applyJitter(1_000_000, 3, 100*time.Millisecond), 100_000)
+	is.InEpsilon(1_000_000, applyJitter(1_000_000, 3, 100*time.Millisecond), 100_000)
 }

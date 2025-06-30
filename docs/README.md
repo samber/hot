@@ -14,7 +14,7 @@ HOT is a high-performance, feature-complete in-memory caching library for Go app
 
 - **Multiple Eviction Policies**: LRU, LFU, ARC, 2Q, and FIFO algorithms
 - **Advanced Features**: TTL with jitter, stale-while-revalidate, missing key caching
-- **High Performance**: Microsecond-precision timestamps, zero-allocation operations
+- **High Performance**: Nanosecond-precision timestamps, zero-allocation operations
 - **Scalability**: Sharded architecture for high concurrency
 - **Observability**: Built-in Prometheus metrics
 - **Type Safety**: Go generics for compile-time guarantees
