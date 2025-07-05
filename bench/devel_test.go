@@ -68,6 +68,18 @@ func (m *mock) Inc() {
 	// do nothing
 }
 
+type incInterface interface {
+	Inc()
+}
+
+type encapsulated struct {
+	incInterface
+}
+
+func (m *encapsulated) Inc() {
+	m.incInterface.Inc()
+}
+
 // go test -benchmem -benchtime=100000000x -bench=Counter
 func BenchmarkDevelCounter(b *testing.B) {
 	b.Run("Inc", func(b *testing.B) {
@@ -95,6 +107,71 @@ func BenchmarkDevelCounter(b *testing.B) {
 		c := mock{}
 		for n := 0; n < b.N; n++ {
 			c.Inc()
+		}
+	})
+}
+
+// go test -benchmem -benchtime=100000000x -bench=Composition
+func BenchmarkDevelComposition(b *testing.B) {
+	b.Run("Inc", func(b *testing.B) {
+		counter := &counter{0}
+
+		b.ResetTimer()
+		for n := 0; n < b.N; n++ {
+			counter.Inc()
+		}
+	})
+
+	b.Run("EncapsulatedInc1", func(b *testing.B) {
+		counter := &encapsulated{
+			incInterface: &counter{0},
+		}
+
+		b.ResetTimer()
+		for n := 0; n < b.N; n++ {
+			counter.Inc()
+		}
+	})
+
+	b.Run("EncapsulatedInc2", func(b *testing.B) {
+		counter := &encapsulated{
+			incInterface: &encapsulated{
+				incInterface: &counter{0},
+			},
+		}
+
+		b.ResetTimer()
+		for n := 0; n < b.N; n++ {
+			counter.Inc()
+		}
+	})
+
+	b.Run("EncapsulatedInc10", func(b *testing.B) {
+		counter := &encapsulated{
+			incInterface: &encapsulated{
+				incInterface: &encapsulated{
+					incInterface: &encapsulated{
+						incInterface: &encapsulated{
+							incInterface: &encapsulated{
+								incInterface: &encapsulated{
+									incInterface: &encapsulated{
+										incInterface: &encapsulated{
+											incInterface: &encapsulated{
+												incInterface: &counter{0},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		b.ResetTimer()
+		for n := 0; n < b.N; n++ {
+			counter.Inc()
 		}
 	})
 }
