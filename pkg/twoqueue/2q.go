@@ -205,8 +205,15 @@ func (c *TwoQueueCache[K, V]) Values() []V {
 // The iteration stops if the function returns false.
 // The iteration order is not guaranteed.
 func (c *TwoQueueCache[K, V]) Range(f func(K, V) bool) {
-	c.frequent.Range(f)
-	c.recent.Range(f)
+	ok := true
+	c.frequent.Range(func(k K, v V) bool {
+		ok = f(k, v)
+		return ok
+	})
+
+	if ok {
+		c.recent.Range(f)
+	}
 }
 
 // Delete removes a key from all caches (frequent, recent, and ghost).
