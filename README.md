@@ -11,6 +11,8 @@
 
 **HOT** stands for **H**ot **O**bject **T**racker - a feature-complete, blazing-fast caching library for Go applications.
 
+![image](https://github.com/user-attachments/assets/48bc9e5c-c983-4201-b4cb-e4988abbebf5)
+
 ## 🚀 Features
 
 - ⚡ **High Performance**: Optimized for speed with nanosecond-precision timestamps
