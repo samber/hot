@@ -903,11 +903,31 @@ func TestHotCache_Values(t *testing.T) {
 	is.ElementsMatch([]int{1, 2}, cache.Values())
 }
 
+func TestInternalState_All(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewHotCache[string, int](LRU, 10).
+		WithMissingSharedCache().
+		Build()
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.SetMissing("c")
+	cache.SetMissingWithTTL("d", 1*time.Millisecond)
+
+	time.Sleep(50 * time.Millisecond)
+
+	all := cache.All()
+	is.Len(all, 2)
+	is.Equal(1, all["a"])
+	is.Equal(2, all["b"])
+}
+
 func TestHotCache_Range(t *testing.T) {
 	is := assert.New(t)
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
+		WithMissingSharedCache().
 		Build()
 
 	counter1 := int32(0)
@@ -918,6 +938,9 @@ func TestHotCache_Range(t *testing.T) {
 	is.Equal(int32(0), atomic.LoadInt32(&counter1))
 	cache.Set("a", 1)
 	cache.Set("b", 2)
+	cache.SetMissing("c")
+	cache.SetMissingWithTTL("d", 1*time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	cache.Range(func(string, int) bool {
 		atomic.AddInt32(&counter1, 1)
 		return true

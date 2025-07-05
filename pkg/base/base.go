@@ -24,6 +24,9 @@ type InMemoryCache[K comparable, V any] interface {
 	// Values returns all values currently in the cache.
 	Values() []V
 
+	// All returns all key-value pairs in the cache.
+	All() map[K]V
+
 	// Range iterates over all key-value pairs in the cache.
 	// The iteration stops if the function returns false.
 	Range(f func(K, V) bool)

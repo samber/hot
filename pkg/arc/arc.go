@@ -375,16 +375,37 @@ func (c *ARCCache[K, V]) Values() []V {
 	return all
 }
 
+// All returns all key-value pairs in the cache.
+func (c *ARCCache[K, V]) All() map[K]V {
+	all := make(map[K]V)
+	for k, v := range c.t1Map {
+		all[k] = v.Value.(*entry[K, V]).value
+	}
+	for k, v := range c.t2Map {
+		all[k] = v.Value.(*entry[K, V]).value
+	}
+	return all
+}
+
 // Range iterates over all key-value pairs in the cache.
 // The iteration stops if the function returns false.
 func (c *ARCCache[K, V]) Range(f func(K, V) bool) {
+	all := make(map[K]V)
 	for k, v := range c.t1Map {
-		if !f(k, v.Value.(*entry[K, V]).value) {
+		all[k] = v.Value.(*entry[K, V]).value
+	}
+	for k, v := range all {
+		if !f(k, v) {
 			return
 		}
 	}
+
+	all = make(map[K]V)
 	for k, v := range c.t2Map {
-		if !f(k, v.Value.(*entry[K, V]).value) {
+		all[k] = v.Value.(*entry[K, V]).value
+	}
+	for k, v := range all {
+		if !f(k, v) {
 			return
 		}
 	}

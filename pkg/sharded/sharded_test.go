@@ -171,6 +171,23 @@ func TestShardedInMemoryCache_KeysAndValues(t *testing.T) {
 	is.Contains(values, 300)
 }
 
+func TestInternalState_All(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewShardedInMemoryCache[string, int](2, func(shardIndex int) base.InMemoryCache[string, int] {
+		return lru.NewLRUCache[string, int](10)
+	}, func(s string) uint64 {
+		return uint64(len(s))
+	})
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+
+	all := cache.All()
+	is.Len(all, 2)
+	is.Equal(1, all["a"])
+	is.Equal(2, all["b"])
+}
+
 func TestShardedInMemoryCache_Range(t *testing.T) {
 	is := assert.New(t)
 

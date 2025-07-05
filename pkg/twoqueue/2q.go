@@ -201,18 +201,28 @@ func (c *TwoQueueCache[K, V]) Values() []V {
 	return append(v1, v2...)
 }
 
+// All returns all key-value pairs from both frequent and recent caches.
+func (c *TwoQueueCache[K, V]) All() map[K]V {
+	all := make(map[K]V)
+	c.frequent.Range(func(k K, v V) bool {
+		all[k] = v
+		return true
+	})
+	c.recent.Range(func(k K, v V) bool {
+		all[k] = v
+		return true
+	})
+	return all
+}
+
 // Range iterates over all key-value pairs from both frequent and recent caches.
 // The iteration stops if the function returns false.
 // The iteration order is not guaranteed.
 func (c *TwoQueueCache[K, V]) Range(f func(K, V) bool) {
-	ok := true
-	c.frequent.Range(func(k K, v V) bool {
-		ok = f(k, v)
-		return ok
-	})
-
-	if ok {
-		c.recent.Range(f)
+	for k, v := range c.All() {
+		if !f(k, v) {
+			return
+		}
 	}
 }
 
@@ -470,11 +480,21 @@ func (c *FIFOCache[K, V]) Values() []V {
 	return all
 }
 
+// All returns all key-value pairs in the FIFO cache.
+func (c *FIFOCache[K, V]) All() map[K]V {
+	all := make(map[K]V)
+	for k, v := range c.cache {
+		all[k] = v.Value.(*entry[K, V]).value
+	}
+	return all
+}
+
 // Range iterates over all key-value pairs in the FIFO cache.
 // The iteration stops if the function returns false.
 func (c *FIFOCache[K, V]) Range(f func(K, V) bool) {
-	for k, v := range c.cache {
-		if !f(k, v.Value.(*entry[K, V]).value) {
+	all := c.All()
+	for k, v := range all {
+		if !f(k, v) {
 			break
 		}
 	}

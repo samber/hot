@@ -207,6 +207,19 @@ func TestValues(t *testing.T) {
 	is.ElementsMatch([]int{1, 2}, cache.Values())
 }
 
+func TestInternalState_All(t *testing.T) {
+	is := assert.New(t)
+
+	cache := NewLFUCache[string, int](2)
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+
+	all := cache.All()
+	is.Len(all, 2)
+	is.Equal(1, all["a"])
+	is.Equal(2, all["b"])
+}
+
 func TestRange(t *testing.T) {
 	is := assert.New(t)
 

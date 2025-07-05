@@ -139,6 +139,11 @@ func (m *InstrumentedCache[K, V]) Values() []V {
 	return m.cache.Values()
 }
 
+// All returns all key-value pairs in the cache.
+func (m *InstrumentedCache[K, V]) All() map[K]V {
+	return m.cache.All()
+}
+
 // Range iterates over all key-value pairs in the cache.
 func (m *InstrumentedCache[K, V]) Range(f func(K, V) bool) {
 	m.cache.Range(f)

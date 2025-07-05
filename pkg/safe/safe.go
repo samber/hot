@@ -77,13 +77,26 @@ func (c *SafeInMemoryCache[K, V]) Values() []V {
 	return c.InMemoryCache.Values()
 }
 
+// All returns all key-value pairs in the cache.
+func (c *SafeInMemoryCache[K, V]) All() map[K]V {
+	c.RLock()
+	defer c.RUnlock()
+	return c.InMemoryCache.All()
+}
+
 // Range iterates over all key-value pairs in the cache using a shared read lock.
 // The iteration is performed under lock protection to ensure consistency.
 // The iteration stops if the function returns false.
 func (c *SafeInMemoryCache[K, V]) Range(f func(K, V) bool) {
 	c.RLock()
-	c.InMemoryCache.Range(f)
+	all := c.InMemoryCache.All()
 	c.RUnlock()
+
+	for k, v := range all {
+		if !f(k, v) {
+			return
+		}
+	}
 }
 
 // Delete removes a key from the cache using an exclusive write lock.

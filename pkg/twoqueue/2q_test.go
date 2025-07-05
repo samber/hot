@@ -515,6 +515,19 @@ func TestInternalState_KeysAndValues(t *testing.T) {
 	is.Contains(values, 2)
 }
 
+func TestInternalState_All(t *testing.T) {
+	is := assert.New(t)
+
+	cache := New2QCache[string, int](10)
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+
+	all := cache.All()
+	is.Len(all, 2)
+	is.Equal(1, all["a"])
+	is.Equal(2, all["b"])
+}
+
 func TestInternalState_Range(t *testing.T) {
 	is := assert.New(t)
 

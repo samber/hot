@@ -216,6 +216,8 @@ cache.PeekMany(keys []K) -> (found map[K]V, missing []K)
 cache.Keys() -> []K
 // Get all values in cache (order not guaranteed)
 cache.Values() -> []V
+// Get all keys and values in cache (order not guaranteed)
+cache.All() -> map[K]V
 // Iterate over all key-value pairs, return false to stop
 cache.Range(fn func(key K, value V) bool)
 // Get current number of items in cache

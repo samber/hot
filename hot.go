@@ -398,18 +398,45 @@ func (c *HotCache[K, V]) Values() []V {
 	return output
 }
 
+// All returns all key-value pairs in the cache.
+func (c *HotCache[K, V]) All() map[K]V {
+	nowNano := internal.NowNano()
+
+	all := make(map[K]V)
+	// we do not need to check missingCache, since it will be missing anyway
+	c.cache.Range(func(k K, v *item[V]) bool {
+		if v.hasValue && !v.isExpired(nowNano) {
+			// we do not revalidate here, since it is too costly to revalidate all expired items at the same time
+
+			if c.copyOnRead != nil {
+				all[k] = c.copyOnRead(v.value)
+			} else {
+				all[k] = v.value
+			}
+		}
+		return true
+	})
+
+	return all
+}
+
 // Range iterates over all key-value pairs in the cache and calls the provided function for each pair.
 // The iteration stops if the function returns false. Missing values are not included.
 // @TODO: loop over missingCache? Use a different callback?
 func (c *HotCache[K, V]) Range(f func(K, V) bool) {
+	nowNano := internal.NowNano()
+
+	// we do not need to check missingCache, since it will be missing anyway
 	c.cache.Range(func(k K, v *item[V]) bool {
-		if !v.hasValue { // equalivant to testing `missingSharedCache`
-			return true
+		if v.hasValue && !v.isExpired(nowNano) {
+			// we do not revalidate here, since it is too costly to revalidate all expired items at the same time
+			if c.copyOnRead != nil {
+				return f(k, c.copyOnRead(v.value))
+			} else {
+				return f(k, v.value)
+			}
 		}
-		if c.copyOnRead != nil {
-			return f(k, c.copyOnRead(v.value))
-		}
-		return f(k, v.value)
+		return true
 	})
 }
 

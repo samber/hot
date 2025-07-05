@@ -84,6 +84,18 @@ func (c *ShardedInMemoryCache[K, V]) Values() []V {
 	return values
 }
 
+// All returns all key-value pairs from all shards.
+// The order of key-value pairs in the returned map is not guaranteed.
+func (c *ShardedInMemoryCache[K, V]) All() map[K]V {
+	all := make(map[K]V)
+	for i := range c.caches {
+		for k, v := range c.caches[i].All() {
+			all[k] = v
+		}
+	}
+	return all
+}
+
 // Range iterates over all key-value pairs from all shards.
 // The iteration stops if the function returns false.
 // The iteration order is not guaranteed and may not be consistent across calls.

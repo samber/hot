@@ -120,11 +120,21 @@ func (c *LRUCache[K, V]) Values() []V {
 	return all
 }
 
+// All returns all key-value pairs in the cache.
+func (c *LRUCache[K, V]) All() map[K]V {
+	all := make(map[K]V)
+	for k, v := range c.cache {
+		all[k] = v.Value.(*entry[K, V]).value
+	}
+	return all
+}
+
 // Range iterates over all key-value pairs in the cache.
 // The iteration stops if the function returns false.
 func (c *LRUCache[K, V]) Range(f func(K, V) bool) {
-	for k, v := range c.cache {
-		if !f(k, v.Value.(*entry[K, V]).value) {
+	all := c.All()
+	for k, v := range all {
+		if !f(k, v) {
 			break
 		}
 	}

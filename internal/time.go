@@ -1,6 +1,8 @@
 package internal
 
-import _ "unsafe"
+import (
+	_ "unsafe"
+)
 
 //go:linkname nanotime runtime.nanotime
 func nanotime() int64

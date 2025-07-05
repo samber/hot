@@ -55,6 +55,14 @@ func (m *mockCache[K, V]) Values() []V {
 	return values
 }
 
+func (m *mockCache[K, V]) All() map[K]V {
+	all := make(map[K]V)
+	for k, v := range m.data {
+		all[k] = v
+	}
+	return all
+}
+
 func (m *mockCache[K, V]) Range(f func(K, V) bool) {
 	for k, v := range m.data {
 		if !f(k, v) {
@@ -238,6 +246,21 @@ func TestSafeInMemoryCache_KeysAndValues(t *testing.T) {
 	is.Len(values, 2)
 	is.Contains(values, 100)
 	is.Contains(values, 200)
+}
+
+func TestInternalState_All(t *testing.T) {
+	is := assert.New(t)
+
+	mock := newMockCache[string, int]()
+	cache := NewSafeInMemoryCache(mock)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+
+	all := cache.All()
+	is.Len(all, 2)
+	is.Equal(1, all["a"])
+	is.Equal(2, all["b"])
 }
 
 func TestSafeInMemoryCache_Range(t *testing.T) {
