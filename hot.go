@@ -140,7 +140,7 @@ func (c *HotCache[K, V]) SetMissingWithTTL(key K, ttl time.Duration) {
 // If keys already exist, their values are updated. Uses the default TTL configured for the cache.
 func (c *HotCache[K, V]) SetMany(items map[K]V) {
 	if c.copyOnWrite != nil {
-		cOpy := map[K]V{}
+		cOpy := make(map[K]V, len(items))
 		for k, v := range items {
 			cOpy[k] = c.copyOnWrite(v)
 		}
@@ -165,9 +165,11 @@ func (c *HotCache[K, V]) SetMissingMany(missingKeys []K) {
 // If keys already exist, their values are updated.
 func (c *HotCache[K, V]) SetManyWithTTL(items map[K]V, ttl time.Duration) {
 	if c.copyOnWrite != nil {
+		cOpy := make(map[K]V, len(items))
 		for k, v := range items {
-			items[k] = c.copyOnWrite(v)
+			cOpy[k] = c.copyOnWrite(v)
 		}
+		items = cOpy
 	}
 
 	c.setManyUnsafe(items, []K{}, ttl.Nanoseconds())
