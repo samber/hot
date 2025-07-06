@@ -55,7 +55,20 @@ func TestNew2QCacheWithRatio(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	// @TODO
+	is := assert.New(t)
+
+	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
+	cache.Set("a", 1)
+	is.True(cache.recent.Has("a"))
+	is.False(cache.frequent.Has("a"))
+
+	cache.Set("a", 2)
+	is.False(cache.recent.Has("a"))
+	is.True(cache.frequent.Has("a"))
+
+	v, ok := cache.frequent.Get("a")
+	is.True(ok)
+	is.Equal(2, v)
 }
 
 func TestHas(t *testing.T) {
