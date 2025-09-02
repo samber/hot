@@ -1,6 +1,6 @@
 module github.com/samber/hot
 
-go 1.22
+go 1.23.0
 
 require (
 	github.com/DmitriyVTitov/size v1.5.0
@@ -8,7 +8,7 @@ require (
 	github.com/samber/go-singleflightx v0.3.2
 	github.com/stretchr/testify v1.11.0
 	go.uber.org/goleak v1.3.0
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.35.0
 )
 
 require (
