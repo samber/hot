@@ -89,8 +89,8 @@ func TestSet(t *testing.T) {
 	is.Equal(2, len(cache.cache))
 	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
 	is.EqualValues(&entry[string, int]{"d", 4}, cache.cache["d"].Value)
-	is.Equal("d", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("d", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 	is.Equal(6, evicted)
 }
 
@@ -117,48 +117,48 @@ func TestGet(t *testing.T) {
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
 	cache.Set("b", 2)
-	is.Equal("b", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("b", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	val, ok := cache.Get("b")
 	is.True(ok)
 	is.Equal(2, val)
-	is.Equal("a", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("b", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("a", cache.ll.Front().Value.key)
+	is.Equal("b", cache.ll.Back().Value.key)
 
 	val, ok = cache.Get("a")
 	is.True(ok)
 	is.Equal(1, val)
-	is.Equal("b", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("b", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	val, ok = cache.Get("c")
 	is.False(ok)
 	is.Zero(val)
-	is.Equal("b", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("b", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	cache.Set("c", 3)
-	is.Equal("c", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("c", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	val, ok = cache.Get("a")
 	is.True(ok)
 	is.Equal(1, val)
-	is.Equal("c", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("c", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	val, ok = cache.Get("b")
 	is.False(ok)
 	is.Zero(val)
-	is.Equal("c", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("c", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	val, ok = cache.Get("c")
 	is.True(ok)
 	is.Equal(3, val)
-	is.Equal("a", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("c", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("a", cache.ll.Front().Value.key)
+	is.Equal("c", cache.ll.Back().Value.key)
 }
 
 func TestPeak(t *testing.T) {
@@ -171,20 +171,20 @@ func TestPeak(t *testing.T) {
 	val, ok := cache.Peek("a")
 	is.True(ok)
 	is.Equal(1, val)
-	is.Equal("b", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("b", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	val, ok = cache.Peek("b")
 	is.True(ok)
 	is.Equal(2, val)
-	is.Equal("b", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("b", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 
 	val, ok = cache.Peek("c")
 	is.False(ok)
 	is.Zero(val)
-	is.Equal("b", cache.ll.Front().Value.(*entry[string, int]).key)
-	is.Equal("a", cache.ll.Back().Value.(*entry[string, int]).key)
+	is.Equal("b", cache.ll.Front().Value.key)
+	is.Equal("a", cache.ll.Back().Value.key)
 }
 
 func TestKey(t *testing.T) {
@@ -648,7 +648,7 @@ func verifyLFUOrder[K comparable, V any](t *testing.T, cache *LFUCache[K, V]) []
 	var order []K
 	current := cache.ll.Front()
 	for current != nil {
-		entry := current.Value.(*entry[K, V])
+		entry := current.Value
 		order = append(order, entry.key)
 		current = current.Next()
 	}
@@ -684,7 +684,7 @@ func TestInternalState_SingleElement(t *testing.T) {
 	is.NotNil(cache.ll.Back())
 	is.Equal(cache.ll.Front(), cache.ll.Back()) // Same element
 
-	entry := cache.ll.Front().Value.(*entry[string, int])
+	entry := cache.ll.Front().Value
 	is.Equal("a", entry.key)
 	is.Equal(1, entry.value)
 
@@ -714,9 +714,9 @@ func TestInternalState_MultipleElements(t *testing.T) {
 	is.NotNil(cache.cache["c"])
 
 	// Verify element values
-	is.Equal(1, cache.cache["a"].Value.(*entry[string, int]).value)
-	is.Equal(2, cache.cache["b"].Value.(*entry[string, int]).value)
-	is.Equal(3, cache.cache["c"].Value.(*entry[string, int]).value)
+	is.Equal(1, cache.cache["a"].Value.value)
+	is.Equal(2, cache.cache["b"].Value.value)
+	is.Equal(3, cache.cache["c"].Value.value)
 }
 
 func TestInternalState_GetUpdatesFrequency(t *testing.T) {
@@ -810,7 +810,7 @@ func TestInternalState_SetExistingKey(t *testing.T) {
 	is.Equal([]string{"c", "b", "a"}, order)
 
 	// Verify value was updated
-	is.Equal(10, cache.cache["a"].Value.(*entry[string, int]).value)
+	is.Equal(10, cache.cache["a"].Value.value)
 }
 
 func TestInternalState_Eviction(t *testing.T) {
@@ -980,14 +980,14 @@ func TestInternalState_ElementRelationships(t *testing.T) {
 	back := cache.ll.Back()
 
 	// Front should be "c" (most recent)
-	is.Equal("c", front.Value.(*entry[string, int]).key)
+	is.Equal("c", front.Value.key)
 
 	// Back should be "a" (least recent)
-	is.Equal("a", back.Value.(*entry[string, int]).key)
+	is.Equal("a", back.Value.key)
 
 	// Verify Next/Prev relationships
 	middle := front.Next()
-	is.Equal("b", middle.Value.(*entry[string, int]).key)
+	is.Equal("b", middle.Value.key)
 	is.Equal(front, middle.Prev())
 	is.Equal(back, middle.Next())
 

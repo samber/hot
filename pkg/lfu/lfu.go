@@ -1,7 +1,7 @@
 package lfu
 
 import (
-	"container/list"
+	"github.com/samber/hot/internal/container/list"
 
 	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
@@ -54,8 +54,8 @@ func NewLFUCacheWithEvictionSizeAndCallback[K comparable, V any](capacity int, e
 	return &LFUCache[K, V]{
 		capacity:     capacity,
 		evictionSize: evictionSize,
-		ll:           list.New(), // sorted from least to most frequent
-		cache:        make(map[K]*list.Element),
+		ll:           list.New[*entry[K, V]](), // sorted from least to most frequent
+		cache:        make(map[K]*list.Element[*entry[K, V]]),
 
 		onEviction: onEviction,
 	}
@@ -70,8 +70,8 @@ type LFUCache[K comparable, V any] struct {
 	capacity     int // Maximum number of items the cache can hold
 	evictionSize int // Number of items to evict when cache is full
 	// @TODO: build a custom list.List implementation
-	ll    *list.List          // Doubly-linked list maintaining frequency order (least frequent at front)
-	cache map[K]*list.Element // Map for O(1) key lookups to list elements
+	ll    *list.List[*entry[K, V]]          // Doubly-linked list maintaining frequency order (least frequent at front)
+	cache map[K]*list.Element[*entry[K, V]] // Map for O(1) key lookups to list elements
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
@@ -89,7 +89,7 @@ func (c *LFUCache[K, V]) Set(key K, value V) {
 		if e.Next() != nil {
 			c.ll.MoveAfter(e, e.Next())
 		}
-		e.Value.(*entry[K, V]).value = value
+		e.Value.value = value
 		return
 	}
 
@@ -124,7 +124,7 @@ func (c *LFUCache[K, V]) Get(key K) (value V, ok bool) {
 		if e.Next() != nil {
 			c.ll.MoveAfter(e, e.Next())
 		}
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 	return value, false
 }
@@ -134,7 +134,7 @@ func (c *LFUCache[K, V]) Get(key K) (value V, ok bool) {
 // This operation does not affect the eviction order.
 func (c *LFUCache[K, V]) Peek(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 	return value, false
 }
@@ -154,7 +154,7 @@ func (c *LFUCache[K, V]) Keys() []K {
 func (c *LFUCache[K, V]) Values() []V {
 	all := make([]V, 0, c.ll.Len())
 	for _, v := range c.cache {
-		all = append(all, v.Value.(*entry[K, V]).value)
+		all = append(all, v.Value.value)
 	}
 	return all
 }
@@ -163,7 +163,7 @@ func (c *LFUCache[K, V]) Values() []V {
 func (c *LFUCache[K, V]) All() map[K]V {
 	all := make(map[K]V)
 	for k, v := range c.cache {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	return all
 }
@@ -195,8 +195,8 @@ func (c *LFUCache[K, V]) Delete(key K) bool {
 // This operation resets the cache to its initial state.
 // Time complexity: O(1) - just reallocates the data structures.
 func (c *LFUCache[K, V]) Purge() {
-	c.ll = list.New()
-	c.cache = make(map[K]*list.Element)
+	c.ll = list.New[*entry[K, V]]()
+	c.cache = make(map[K]*list.Element[*entry[K, V]])
 }
 
 // SetMany stores multiple key-value pairs in the cache.
@@ -293,7 +293,7 @@ func (c *LFUCache[K, V]) DeleteLeastFrequent() (k K, v V, ok bool) {
 	e := c.ll.Front()
 	if e != nil {
 		c.deleteElement(e)
-		kv := e.Value.(*entry[K, V])
+		kv := e.Value
 		return kv.key, kv.value, true
 	}
 
@@ -304,8 +304,8 @@ func (c *LFUCache[K, V]) DeleteLeastFrequent() (k K, v V, ok bool) {
 // This is an internal helper method that ensures consistency between
 // the list and map data structures.
 // Time complexity: O(1) average case.
-func (c *LFUCache[K, V]) deleteElement(e *list.Element) {
+func (c *LFUCache[K, V]) deleteElement(e *list.Element[*entry[K, V]]) {
 	c.ll.Remove(e)
-	kv := e.Value.(*entry[K, V])
+	kv := e.Value
 	delete(c.cache, kv.key)
 }
