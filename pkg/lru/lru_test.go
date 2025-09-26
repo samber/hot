@@ -282,7 +282,7 @@ func verifyLRUOrder[K comparable, V any](t *testing.T, cache *LRUCache[K, V]) []
 	var order []K
 	current := cache.ll.Front()
 	for current != nil {
-		entry := current.Value.(*entry[K, V])
+		entry := current.Value
 		order = append(order, entry.key)
 		current = current.Next()
 	}
@@ -318,7 +318,7 @@ func TestInternalState_SingleElement(t *testing.T) {
 	is.NotNil(cache.ll.Back())
 	is.Equal(cache.ll.Front(), cache.ll.Back()) // Same element
 
-	entry := cache.ll.Front().Value.(*entry[string, int])
+	entry := cache.ll.Front().Value
 	is.Equal("a", entry.key)
 	is.Equal(1, entry.value)
 
@@ -348,9 +348,9 @@ func TestInternalState_MultipleElements(t *testing.T) {
 	is.NotNil(cache.cache["c"])
 
 	// Verify element values
-	is.Equal(1, cache.cache["a"].Value.(*entry[string, int]).value)
-	is.Equal(2, cache.cache["b"].Value.(*entry[string, int]).value)
-	is.Equal(3, cache.cache["c"].Value.(*entry[string, int]).value)
+	is.Equal(1, cache.cache["a"].Value.value)
+	is.Equal(2, cache.cache["b"].Value.value)
+	is.Equal(3, cache.cache["c"].Value.value)
 }
 
 func TestInternalState_GetUpdatesOrder(t *testing.T) {
@@ -435,7 +435,7 @@ func TestInternalState_SetExistingKey(t *testing.T) {
 	is.Equal([]string{"a", "c", "b"}, order)
 
 	// Verify value was updated
-	is.Equal(10, cache.cache["a"].Value.(*entry[string, int]).value)
+	is.Equal(10, cache.cache["a"].Value.value)
 }
 
 func TestInternalState_Eviction(t *testing.T) {
@@ -569,14 +569,14 @@ func TestInternalState_ElementRelationships(t *testing.T) {
 	back := cache.ll.Back()
 
 	// Front should be "c" (most recent)
-	is.Equal("c", front.Value.(*entry[string, int]).key)
+	is.Equal("c", front.Value.key)
 
 	// Back should be "a" (least recent)
-	is.Equal("a", back.Value.(*entry[string, int]).key)
+	is.Equal("a", back.Value.key)
 
 	// Verify Next/Prev relationships
 	middle := front.Next()
-	is.Equal("b", middle.Value.(*entry[string, int]).key)
+	is.Equal("b", middle.Value.key)
 	is.Equal(front, middle.Prev())
 	is.Equal(back, middle.Next())
 

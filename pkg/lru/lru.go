@@ -1,7 +1,7 @@
 package lru
 
 import (
-	"container/list"
+	"github.com/samber/hot/internal/container/list"
 
 	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
@@ -30,8 +30,8 @@ func NewLRUCacheWithEvictionCallback[K comparable, V any](capacity int, onEvicti
 
 	return &LRUCache[K, V]{
 		capacity: capacity,
-		ll:       list.New(),
-		cache:    make(map[K]*list.Element),
+		ll:       list.New[*entry[K, V]](),
+		cache:    make(map[K]*list.Element[*entry[K, V]]),
 
 		onEviction: onEviction,
 	}
@@ -42,9 +42,9 @@ func NewLRUCacheWithEvictionCallback[K comparable, V any](capacity int, onEvicti
 type LRUCache[K comparable, V any] struct {
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	capacity int                 // Maximum number of items the cache can hold (0 = unlimited)
-	ll       *list.List          // Doubly-linked list maintaining access order (most recent at front)
-	cache    map[K]*list.Element // Map for O(1) key lookups to list elements
+	capacity int                               // Maximum number of items the cache can hold (0 = unlimited)
+	ll       *list.List[*entry[K, V]]          // Doubly-linked list maintaining access order (most recent at front)
+	cache    map[K]*list.Element[*entry[K, V]] // Map for O(1) key lookups to list elements
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
@@ -60,7 +60,7 @@ func (c *LRUCache[K, V]) Set(key K, value V) {
 	if e, ok := c.cache[key]; ok {
 		// Key exists: move to front (most recently used) and update value
 		c.ll.MoveToFront(e)
-		e.Value.(*entry[K, V]).value = value
+		e.Value.value = value
 		return
 	}
 
@@ -88,7 +88,7 @@ func (c *LRUCache[K, V]) Has(key K) bool {
 func (c *LRUCache[K, V]) Get(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
 		c.ll.MoveToFront(e)
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 	return value, false
 }
@@ -97,7 +97,7 @@ func (c *LRUCache[K, V]) Get(key K) (value V, ok bool) {
 // Returns the value and a boolean indicating if the key was found.
 func (c *LRUCache[K, V]) Peek(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 	return value, false
 }
@@ -115,7 +115,7 @@ func (c *LRUCache[K, V]) Keys() []K {
 func (c *LRUCache[K, V]) Values() []V {
 	all := make([]V, 0, c.ll.Len())
 	for _, v := range c.cache {
-		all = append(all, v.Value.(*entry[K, V]).value)
+		all = append(all, v.Value.value)
 	}
 	return all
 }
@@ -124,7 +124,7 @@ func (c *LRUCache[K, V]) Values() []V {
 func (c *LRUCache[K, V]) All() map[K]V {
 	all := make(map[K]V)
 	for k, v := range c.cache {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	return all
 }
@@ -213,8 +213,8 @@ func (c *LRUCache[K, V]) DeleteMany(keys []K) map[K]bool {
 // This operation resets the cache to its initial state.
 // Time complexity: O(1) - just reallocates the data structures.
 func (c *LRUCache[K, V]) Purge() {
-	c.ll = list.New()
-	c.cache = make(map[K]*list.Element)
+	c.ll = list.New[*entry[K, V]]()
+	c.cache = make(map[K]*list.Element[*entry[K, V]])
 }
 
 // Capacity returns the maximum number of items the cache can hold.
@@ -250,7 +250,7 @@ func (c *LRUCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 	e := c.ll.Back()
 	if e != nil {
 		c.deleteElement(e)
-		kv := e.Value.(*entry[K, V])
+		kv := e.Value
 		return kv.key, kv.value, true
 	}
 
@@ -261,8 +261,8 @@ func (c *LRUCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 // This is an internal helper method that ensures consistency between
 // the list and map data structures.
 // Time complexity: O(1) average case.
-func (c *LRUCache[K, V]) deleteElement(e *list.Element) {
+func (c *LRUCache[K, V]) deleteElement(e *list.Element[*entry[K, V]]) {
 	c.ll.Remove(e)
-	kv := e.Value.(*entry[K, V])
+	kv := e.Value
 	delete(c.cache, kv.key)
 }
