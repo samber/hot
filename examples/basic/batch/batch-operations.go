@@ -83,6 +83,7 @@ func main() {
 		{"ARC", hot.ARC},
 		{"2Q", hot.TwoQueue},
 		{"FIFO", hot.FIFO},
+		{"TinyLFU", hot.TinyLFU},
 	}
 
 	for _, p := range policies {
