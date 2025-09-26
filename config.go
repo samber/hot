@@ -17,6 +17,7 @@ const (
 
 	LRU      EvictionAlgorithm = "lru"
 	LFU      EvictionAlgorithm = "lfu"
+	TinyLFU  EvictionAlgorithm = "tinylfu"
 	TwoQueue EvictionAlgorithm = "2q"
 	ARC      EvictionAlgorithm = "arc"
 	FIFO     EvictionAlgorithm = "fifo"
