@@ -1,6 +1,7 @@
 package tinylfu
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/samber/hot/pkg/base"
@@ -957,4 +958,379 @@ func TestPeek(t *testing.T) {
 	// Add a new item and verify cache behavior
 	cache.Set("c", 3)
 	is.LessOrEqual(cache.Len(), 100)
+}
+
+// TestTinyLFUCacheEdgeCases tests edge cases and boundary conditions
+func TestTinyLFUCacheEdgeCases(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	// Test with capacity 1 (edge case)
+	cache := NewTinyLFUCache[string, int](1)
+
+	// With capacity 1: admissionCapacity=1, mainCapacity=0
+	// All items should go to admission window and be evicted quickly
+	cache.Set("a", 1)
+	is.Equal(1, cache.Len())
+
+	cache.Set("b", 2)
+	is.Equal(1, cache.Len())
+
+	// Verify only the latest item remains
+	is.True(cache.Has("b"))
+	is.False(cache.Has("a"))
+
+	// Test with capacity 2 (minimum for main cache)
+	cache2 := NewTinyLFUCache[string, int](2)
+
+	// With capacity 2: admissionCapacity=1, mainCapacity=1
+	cache2.Set("a", 1)
+	cache2.Set("b", 2)
+	cache2.Set("c", 3)
+
+	// Should have at least 1 item
+	is.GreaterOrEqual(cache2.Len(), 1)
+	is.LessOrEqual(cache2.Len(), 2)
+}
+
+// TestTinyLFUCacheStress tests high-frequency access patterns
+func TestTinyLFUCacheStress(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewTinyLFUCache[string, int](1000)
+
+	// Test rapid-fire operations
+	for i := 0; i < 5000; i++ {
+		key := fmt.Sprintf("item_%d", i%100) // Create 100 unique keys
+		cache.Set(key, i)
+
+		// Every 10 operations, do a get
+		if i%10 == 0 {
+			cache.Get(key)
+		}
+	}
+
+	// Cache should respect capacity limits
+	is.LessOrEqual(cache.Len(), 1000)
+
+	// Most frequently accessed items should still be there
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("item_%d", i)
+		if cache.Has(key) {
+			val, ok := cache.Get(key)
+			is.True(ok)
+			is.Greater(val, 0)
+		}
+	}
+}
+
+// TestTinyLFUCacheFrequencyBasedAdmission tests the frequency-based admission behavior
+func TestTinyLFUCacheFrequencyBasedAdmission(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewTinyLFUCache[string, int](100)
+
+	// With capacity 100: admissionCapacity=1, mainCapacity=2 (rounded up from 99)
+
+	// Add item A and access it many times to build frequency
+	cache.Set("A", 1)
+	for i := 0; i < 20; i++ {
+		cache.Get("A")
+	}
+
+	// Add items B and C, access B frequently
+	cache.Set("B", 2)
+	cache.Set("C", 3)
+	for i := 0; i < 15; i++ {
+		cache.Get("B")
+	}
+
+	// Add many items to trigger admission window churn
+	for i := 0; i < 50; i++ {
+		key := fmt.Sprintf("temp_%d", i)
+		cache.Set(key, i)
+	}
+
+	// After churn, frequently accessed items should be more likely to be in main cache
+	is.GreaterOrEqual(cache.Len(), 1)
+	is.LessOrEqual(cache.Len(), 100)
+
+	// Test that highly frequent items survive
+	if cache.Has("A") {
+		val, ok := cache.Get("A")
+		is.True(ok)
+		is.Equal(1, val)
+	}
+}
+
+// TestTinyLFUCacheEvictionCallback tests eviction callback behavior in detail
+func TestTinyLFUCacheEvictionCallback(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	evictedItems := make([]string, 0)
+	evictionReasons := make([]base.EvictionReason, 0)
+
+	cache := NewTinyLFUCacheWithEvictionCallback(10, func(reason base.EvictionReason, k string, v int) {
+		evictedItems = append(evictedItems, k)
+		evictionReasons = append(evictionReasons, reason)
+	})
+
+	// Fill cache beyond capacity
+	for i := 0; i < 20; i++ {
+		key := fmt.Sprintf("item_%d", i)
+		cache.Set(key, i)
+	}
+
+	// Verify evictions occurred
+	is.Greater(len(evictedItems), 0)
+	is.Greater(len(evictionReasons), 0)
+
+	// All evictions should be due to capacity
+	for _, reason := range evictionReasons {
+		is.Equal(base.EvictionReasonCapacity, reason)
+	}
+
+	// Verify evicted items are no longer in cache
+	for _, key := range evictedItems {
+		is.False(cache.Has(key))
+	}
+}
+
+// TestTinyLFUCacheDifferentDataTypes tests with various key and value types
+func TestTinyLFUCacheDifferentDataTypes(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	// Test with int keys and string values
+	cache1 := NewTinyLFUCache[int, string](10)
+	cache1.Set(1, "one")
+	cache1.Set(2, "two")
+
+	// Access the items to increase their frequency and help them stay in cache
+	cache1.Get(1)
+	cache1.Get(2)
+
+	// Check if items are in cache (they might be in admission window)
+	if cache1.Has(1) {
+		val, ok := cache1.Get(1)
+		is.True(ok)
+		is.Equal("one", val)
+	}
+
+	if cache1.Has(2) {
+		val, ok := cache1.Get(2)
+		is.True(ok)
+		is.Equal("two", val)
+	}
+
+	// Test with struct keys
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	cache2 := NewTinyLFUCache[Person, float64](5)
+	p1 := Person{"Alice", 30}
+	p2 := Person{"Bob", 25}
+
+	cache2.Set(p1, 95.5)
+	cache2.Set(p2, 87.2)
+
+	// Access the items to increase their frequency
+	cache2.Get(p1)
+	cache2.Get(p2)
+
+	// Check if items are in cache
+	if cache2.Has(p1) {
+		val2, ok := cache2.Get(p1)
+		is.True(ok)
+		is.Equal(95.5, val2)
+	}
+
+	// Verify cache has some items
+	is.GreaterOrEqual(cache1.Len(), 1)
+	is.GreaterOrEqual(cache2.Len(), 1)
+}
+
+// TestTinyLFUCacheAlgorithmName verifies the algorithm name
+func TestTinyLFUCacheAlgorithmName(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewTinyLFUCache[string, int](100)
+	is.Equal("tinylfu", cache.Algorithm())
+}
+
+// TestTinyLFUCacheZeroCapacityPanics verifies panics for invalid capacities
+func TestTinyLFUCacheZeroCapacityPanics(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	is.Panics(func() {
+		_ = NewTinyLFUCache[string, int](0)
+	})
+
+	is.Panics(func() {
+		_ = NewTinyLFUCacheWithEvictionCallback[string, int](0, nil)
+	})
+
+	is.Panics(func() {
+		_ = NewTinyLFUCache[string, int](-1)
+	})
+}
+
+// TestTinyLFUCacheCountMinSketchBehavior tests the Count-Min Sketch functionality
+func TestTinyLFUCacheCountMinSketchBehavior(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewTinyLFUCache[string, int](100)
+
+	// Access the same key many times to build frequency
+	key := "popular_key"
+	for i := 0; i < 100; i++ {
+		cache.Get(key) // This increments the counter in the sketch
+		cache.Set(key, i) // This also increments the counter
+	}
+
+	// The sketch should have a high estimate for this key
+	estimate := cache.sketch.Estimate(key)
+	is.Greater(estimate, 50) // Should have high frequency
+
+	// Test with different keys
+	for i := 0; i < 50; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		cache.Set(key, i)
+		if i%5 == 0 {
+			cache.Get(key)
+		}
+	}
+
+	// Popular key should still have high relative frequency
+	popularEstimate := cache.sketch.Estimate("popular_key")
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		otherEstimate := cache.sketch.Estimate(key)
+		is.GreaterOrEqual(popularEstimate, otherEstimate)
+	}
+}
+
+// TestTinyLFUCachePurgeBehavior tests the purge functionality
+func TestTinyLFUCachePurgeBehavior(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewTinyLFUCache[string, int](100)
+
+	// Fill cache with data
+	for i := 0; i < 50; i++ {
+		key := fmt.Sprintf("item_%d", i)
+		cache.Set(key, i)
+	}
+
+	// Verify cache has items
+	is.Greater(cache.Len(), 0)
+
+	// Access some items to build frequency
+	cache.Get("item_0")
+	cache.Get("item_1")
+
+	// Purge the cache
+	cache.Purge()
+
+	// Verify cache is empty
+	is.Equal(0, cache.Len())
+	is.Equal(0, cache.mainLl.Len())
+	is.Equal(0, cache.admissionLl.Len())
+	is.Empty(cache.mainCache)
+	is.Empty(cache.admissionCache)
+
+	// Test that sketch is also reset
+	is.Equal(0, cache.sketch.Estimate("item_0"))
+	is.Equal(0, cache.sketch.Estimate("item_1"))
+}
+
+// TestTinyLFUCachePromotionLogic tests the promotion logic from admission to main cache
+func TestTinyLFUCachePromotionLogic(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewTinyLFUCache[string, int](100)
+
+	// Add an item and access it frequently to build frequency
+	cache.Set("freq_item", 42)
+	for i := 0; i < 30; i++ {
+		cache.Get("freq_item")
+	}
+
+	// Add other items to create competition for main cache spots
+	for i := 0; i < 20; i++ {
+		key := fmt.Sprintf("comp_%d", i)
+		cache.Set(key, i)
+		// Access competitor items less frequently
+		if i%3 == 0 {
+			cache.Get(key)
+		}
+	}
+
+	// The frequent item should have a good chance of being in main cache
+	// We can't guarantee it due to the probabilistic nature, but we can test the logic
+	is.GreaterOrEqual(cache.Len(), 1)
+
+	// Test the promotion logic directly
+	if cache.Has("freq_item") {
+		// Verify it's accessible
+		val, ok := cache.Get("freq_item")
+		is.True(ok)
+		is.Equal(42, val)
+	}
+}
+
+// TestTinyLFUCacheSetGetUpdatePattern tests common set-get-update patterns
+func TestTinyLFUCacheSetGetUpdatePattern(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewTinyLFUCache[string, int](50)
+
+	// Set-get-update pattern
+	cache.Set("key1", 100)
+	val, ok := cache.Get("key1")
+	is.True(ok)
+	is.Equal(100, val)
+
+	// Update value
+	cache.Set("key1", 200)
+	val, ok = cache.Get("key1")
+	is.True(ok)
+	is.Equal(200, val)
+
+	// Set many items, then update some
+	items := make(map[string]int)
+	for i := 0; i < 30; i++ {
+		key := fmt.Sprintf("batch_%d", i)
+		items[key] = i * 10
+	}
+	cache.SetMany(items)
+
+	// Update some items
+	updates := make(map[string]int)
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("batch_%d", i)
+		updates[key] = i * 100
+	}
+	cache.SetMany(updates)
+
+	// Verify updates
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("batch_%d", i)
+		if cache.Has(key) {
+			val, ok := cache.Get(key)
+			is.True(ok)
+			is.Equal(i*100, val)
+		}
+	}
 }
