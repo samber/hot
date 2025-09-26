@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewFIFOCache(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](10)
 	assert.NotNil(t, cache)
 	assert.Equal(t, 10, cache.Capacity())
@@ -16,6 +17,7 @@ func TestNewFIFOCache(t *testing.T) {
 }
 
 func TestNewFIFOCacheWithEvictionCallback(t *testing.T) {
+	t.Parallel()
 	var evictedKey string
 	var evictedValue int
 	var evictionReason base.EvictionReason
@@ -41,6 +43,7 @@ func TestNewFIFOCacheWithEvictionCallback(t *testing.T) {
 }
 
 func TestFIFOCache_Set(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	// Test basic set
@@ -68,6 +71,7 @@ func TestFIFOCache_Set(t *testing.T) {
 }
 
 func TestFIFOCache_Get(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	// Test get non-existent key
@@ -94,6 +98,7 @@ func TestFIFOCache_Get(t *testing.T) {
 }
 
 func TestFIFOCache_Peek(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	// Test peek non-existent key
@@ -120,6 +125,7 @@ func TestFIFOCache_Peek(t *testing.T) {
 }
 
 func TestFIFOCache_Has(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	assert.False(t, cache.Has("a"))
@@ -132,6 +138,7 @@ func TestFIFOCache_Has(t *testing.T) {
 }
 
 func TestFIFOCache_Delete(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	// Test delete non-existent key
@@ -155,6 +162,7 @@ func TestFIFOCache_Delete(t *testing.T) {
 }
 
 func TestFIFOCache_Purge(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	cache.Set("a", 1)
@@ -168,35 +176,42 @@ func TestFIFOCache_Purge(t *testing.T) {
 }
 
 func TestFIFOCache_Keys(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
 	cache := NewFIFOCache[string, int](3)
 
-	assert.Empty(t, cache.Keys())
+	is.Empty(cache.Keys())
 
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 
 	keys := cache.Keys()
-	assert.Len(t, keys, 2)
-	assert.Contains(t, keys, "a")
-	assert.Contains(t, keys, "b")
+	is.Len(keys, 2)
+	is.Contains(keys, "a")
+	is.Contains(keys, "b")
 }
 
 func TestFIFOCache_Values(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
 	cache := NewFIFOCache[string, int](3)
 
-	assert.Empty(t, cache.Values())
+	is.Empty(cache.Values())
 
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 
 	values := cache.Values()
-	assert.Len(t, values, 2)
-	assert.Contains(t, values, 1)
-	assert.Contains(t, values, 2)
+	is.Len(values, 2)
+	is.Contains(values, 1)
+	is.Contains(values, 2)
 }
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewFIFOCache[string, int](2)
 	cache.Set("a", 1)
@@ -209,6 +224,9 @@ func TestInternalState_All(t *testing.T) {
 }
 
 func TestFIFOCache_Range(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
 	cache := NewFIFOCache[string, int](3)
 
 	cache.Set("a", 1)
@@ -220,7 +238,7 @@ func TestFIFOCache_Range(t *testing.T) {
 		return true
 	})
 
-	assert.Equal(t, map[string]int{"a": 1, "b": 2}, visited)
+	is.Equal(map[string]int{"a": 1, "b": 2}, visited)
 
 	// Test early termination
 	visited = make(map[string]int)
@@ -229,10 +247,11 @@ func TestFIFOCache_Range(t *testing.T) {
 		return false // Stop after first iteration
 	})
 
-	assert.Len(t, visited, 1)
+	is.Len(visited, 1)
 }
 
 func TestFIFOCache_SetMany(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](5)
 
 	items := map[string]int{
@@ -250,6 +269,7 @@ func TestFIFOCache_SetMany(t *testing.T) {
 }
 
 func TestFIFOCache_HasMany(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	cache.Set("a", 1)
@@ -266,6 +286,7 @@ func TestFIFOCache_HasMany(t *testing.T) {
 }
 
 func TestFIFOCache_GetMany(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	cache.Set("a", 1)
@@ -283,6 +304,7 @@ func TestFIFOCache_GetMany(t *testing.T) {
 }
 
 func TestFIFOCache_PeekMany(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	cache.Set("a", 1)
@@ -300,6 +322,7 @@ func TestFIFOCache_PeekMany(t *testing.T) {
 }
 
 func TestFIFOCache_DeleteMany(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	cache.Set("a", 1)
@@ -320,12 +343,13 @@ func TestFIFOCache_DeleteMany(t *testing.T) {
 }
 
 func TestFIFOCache_DeleteOldest(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	// Test empty cache
 	key, value, ok := cache.DeleteOldest()
 	assert.False(t, ok)
-	assert.Equal(t, "", key)
+	assert.Empty(t, key)
 	assert.Equal(t, 0, value)
 
 	// Test with items
@@ -344,6 +368,7 @@ func TestFIFOCache_DeleteOldest(t *testing.T) {
 }
 
 func TestFIFOCache_SizeBytes(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, string](3)
 
 	assert.Equal(t, int64(0), cache.SizeBytes())
@@ -352,10 +377,11 @@ func TestFIFOCache_SizeBytes(t *testing.T) {
 	cache.Set("b", "world")
 
 	size := cache.SizeBytes()
-	assert.Greater(t, size, int64(0))
+	assert.Positive(t, size)
 }
 
 func TestFIFOCache_FIFOOrder(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	// Add items in order
@@ -387,6 +413,7 @@ func TestFIFOCache_FIFOOrder(t *testing.T) {
 }
 
 func TestFIFOCache_UpdateExistingKey(t *testing.T) {
+	t.Parallel()
 	cache := NewFIFOCache[string, int](3)
 
 	// Add items

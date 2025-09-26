@@ -8,6 +8,7 @@ import (
 
 func TestEvictionCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test that EvictionCallback can be assigned to a variable
 	var callback EvictionCallback[string, int] = func(reason EvictionReason, key string, value int) {
@@ -19,6 +20,7 @@ func TestEvictionCallback(t *testing.T) {
 
 func TestEvictionCallback_Execution(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	var capturedReason EvictionReason
 	var capturedKey string
@@ -44,6 +46,7 @@ func TestEvictionCallback_Execution(t *testing.T) {
 
 func TestEvictionCallback_NilCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test that a nil callback doesn't panic
 	var callback EvictionCallback[string, int] = nil
@@ -52,12 +55,11 @@ func TestEvictionCallback_NilCallback(t *testing.T) {
 	is.Panics(func() {
 		callback(EvictionReasonStale, "key", 42)
 	})
-
-	is.True(true) // If we get here, no panic occurred
 }
 
 func TestEvictionCallback_DifferentTypes(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with different key and value types
 	var stringIntCallback EvictionCallback[string, int]
@@ -80,7 +82,7 @@ func TestEvictionCallback_DifferentTypes(t *testing.T) {
 
 	// Test bool key, float64 value
 	boolFloatCallback = func(reason EvictionReason, key bool, value float64) {
-		is.Equal(true, key)
+		is.True(key)
 		is.Equal(3.14, value)
 	}
 	boolFloatCallback(EvictionReasonStale, true, 3.14)
@@ -88,6 +90,7 @@ func TestEvictionCallback_DifferentTypes(t *testing.T) {
 
 func TestEvictionCallback_Closure(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test that the callback can capture variables from its scope
 	counter := 0
@@ -107,6 +110,7 @@ func TestEvictionCallback_Closure(t *testing.T) {
 
 func TestEvictionCallback_InterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Mock implementation
 	mockCache := &mockCacheWithEviction[string, int]{
@@ -126,7 +130,7 @@ func TestEvictionCallback_InterfaceCompliance(t *testing.T) {
 	mockCache.TriggerEviction(EvictionReasonStale, testKey, testValue)
 }
 
-// Mock implementation for testing
+// Mock implementation for testing.
 type mockCacheWithEviction[K comparable, V any] struct {
 	callback EvictionCallback[K, V]
 }

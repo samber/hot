@@ -9,6 +9,7 @@ import (
 
 func TestNewLRUCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Panics(func() {
 		_ = NewLRUCache[string, int](0)
@@ -22,6 +23,7 @@ func TestNewLRUCache(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := 0
 	cache := NewLRUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -31,33 +33,34 @@ func TestSet(t *testing.T) {
 
 	cache.Set("a", 1)
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Len(cache.cache, 1)
+	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
 	is.Equal(0, evicted)
 
 	cache.Set("b", 2)
 	is.Equal(2, cache.ll.Len())
-	is.Equal(2, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Len(cache.cache, 2)
+	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
 	is.Equal(0, evicted)
 
 	cache.Set("c", 3)
 	is.Equal(2, cache.ll.Len())
-	is.Equal(2, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"c", 3}, cache.cache["c"].Value)
-	is.EqualValues(&entry[string, int]{"c", 3}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Len(cache.cache, 2)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"c", 3}, cache.cache["c"].Value)
+	is.Equal(&entry[string, int]{"c", 3}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
 	is.Equal(1, evicted)
 }
 
 func TestHas(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -75,6 +78,7 @@ func TestHas(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -108,6 +112,7 @@ func TestGet(t *testing.T) {
 
 func TestKey(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -118,6 +123,7 @@ func TestKey(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -128,6 +134,7 @@ func TestValues(t *testing.T) {
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -141,6 +148,7 @@ func TestInternalState_All(t *testing.T) {
 
 func TestRange(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -159,6 +167,7 @@ func TestRange(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -167,28 +176,29 @@ func TestDelete(t *testing.T) {
 	ok := cache.Delete("a")
 	is.True(ok)
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Len(cache.cache, 1)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
 
 	ok = cache.Delete("b")
 	is.True(ok)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 
 	ok = cache.Delete("b")
 	is.False(ok)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 }
 
 func TestDeleteOldest(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
@@ -199,35 +209,36 @@ func TestDeleteOldest(t *testing.T) {
 	is.Equal("a", key)
 	is.Equal(1, value)
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Len(cache.cache, 1)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
 
 	key, value, ok = cache.DeleteOldest()
 	is.True(ok)
 	is.Equal("b", key)
 	is.Equal(2, value)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 
 	key, value, ok = cache.DeleteOldest()
 	is.False(ok)
-	is.Zero(key)
+	is.Empty(key)
 	is.Zero(value)
 	is.False(ok)
-	is.Zero(key)
+	is.Empty(key)
 	is.Zero(value)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 }
 
 func TestLen(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("z", 0)
@@ -245,28 +256,30 @@ func TestLen(t *testing.T) {
 
 func TestPurge(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 
 	is.Equal(2, cache.ll.Len())
-	is.Equal(2, len(cache.cache))
+	is.Len(cache.cache, 2)
 
 	cache.Purge()
 
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 }
 
-// Helper function to verify linked list order
+// Helper function to verify linked list order.
 func verifyLRUOrder[K comparable, V any](t *testing.T, cache *LRUCache[K, V]) []K {
+	t.Helper()
 	is := assert.New(t)
 
 	// Verify list length matches cache map
-	is.Equal(cache.ll.Len(), len(cache.cache))
+	is.Len(cache.cache, cache.ll.Len())
 
 	if cache.ll.Len() == 0 {
 		is.Nil(cache.ll.Front())
@@ -292,12 +305,13 @@ func verifyLRUOrder[K comparable, V any](t *testing.T, cache *LRUCache[K, V]) []
 
 func TestInternalState_InitialState(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 
 	// Verify initial state
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 
@@ -307,13 +321,14 @@ func TestInternalState_InitialState(t *testing.T) {
 
 func TestInternalState_SingleElement(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
 
 	// Verify single element state
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
+	is.Len(cache.cache, 1)
 	is.NotNil(cache.ll.Front())
 	is.NotNil(cache.ll.Back())
 	is.Equal(cache.ll.Front(), cache.ll.Back()) // Same element
@@ -328,6 +343,7 @@ func TestInternalState_SingleElement(t *testing.T) {
 
 func TestInternalState_MultipleElements(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
@@ -336,7 +352,7 @@ func TestInternalState_MultipleElements(t *testing.T) {
 
 	// Verify multiple elements state
 	is.Equal(3, cache.ll.Len())
-	is.Equal(3, len(cache.cache))
+	is.Len(cache.cache, 3)
 
 	// Order should be: c (most recent) -> b -> a (least recent)
 	order := verifyLRUOrder(t, cache)
@@ -355,6 +371,7 @@ func TestInternalState_MultipleElements(t *testing.T) {
 
 func TestInternalState_GetUpdatesOrder(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
@@ -386,6 +403,7 @@ func TestInternalState_GetUpdatesOrder(t *testing.T) {
 
 func TestInternalState_PeekDoesNotUpdateOrder(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
@@ -417,6 +435,7 @@ func TestInternalState_PeekDoesNotUpdateOrder(t *testing.T) {
 
 func TestInternalState_SetExistingKey(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
@@ -440,6 +459,7 @@ func TestInternalState_SetExistingKey(t *testing.T) {
 
 func TestInternalState_Eviction(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewLRUCacheWithEvictionCallback(3, func(reason base.EvictionReason, k string, v int) {
@@ -469,6 +489,7 @@ func TestInternalState_Eviction(t *testing.T) {
 
 func TestInternalState_Delete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
@@ -509,6 +530,7 @@ func TestInternalState_Delete(t *testing.T) {
 
 func TestInternalState_DeleteOldest(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
@@ -551,13 +573,14 @@ func TestInternalState_DeleteOldest(t *testing.T) {
 
 	// Try to delete from empty cache
 	key, value, ok = cache.DeleteOldest()
-	is.Zero(key)
+	is.Empty(key)
 	is.Zero(value)
 	is.False(ok)
 }
 
 func TestInternalState_ElementRelationships(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](5)
 	cache.Set("a", 1)
@@ -587,6 +610,7 @@ func TestInternalState_ElementRelationships(t *testing.T) {
 }
 
 func TestInternalState_ComplexOperations(t *testing.T) {
+	t.Parallel()
 	cache := NewLRUCache[string, int](4)
 
 	// Add elements
@@ -636,6 +660,7 @@ func TestInternalState_ComplexOperations(t *testing.T) {
 
 func TestSetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](3)
 
@@ -679,6 +704,7 @@ func TestSetMany(t *testing.T) {
 
 func TestHasMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](3)
 	cache.Set("a", 1)
@@ -689,7 +715,7 @@ func TestHasMany(t *testing.T) {
 	keys := []string{"a", "b", "c"}
 	results := cache.HasMany(keys)
 
-	is.Equal(3, len(results))
+	is.Len(results, 3)
 	is.True(results["a"])
 	is.True(results["b"])
 	is.True(results["c"])
@@ -698,7 +724,7 @@ func TestHasMany(t *testing.T) {
 	keys2 := []string{"a", "d", "b", "e"}
 	results2 := cache.HasMany(keys2)
 
-	is.Equal(4, len(results2))
+	is.Len(results2, 4)
 	is.True(results2["a"])
 	is.False(results2["d"])
 	is.True(results2["b"])
@@ -706,13 +732,13 @@ func TestHasMany(t *testing.T) {
 
 	// Test checking empty slice
 	results3 := cache.HasMany([]string{})
-	is.Equal(0, len(results3))
+	is.Empty(results3)
 
 	// Test checking non-existing keys
 	keys4 := []string{"x", "y", "z"}
 	results4 := cache.HasMany(keys4)
 
-	is.Equal(3, len(results4))
+	is.Len(results4, 3)
 	is.False(results4["x"])
 	is.False(results4["y"])
 	is.False(results4["z"])
@@ -720,6 +746,7 @@ func TestHasMany(t *testing.T) {
 
 func TestGetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](3)
 	cache.Set("a", 1)
@@ -730,8 +757,8 @@ func TestGetMany(t *testing.T) {
 	keys := []string{"a", "b", "c"}
 	values, missing := cache.GetMany(keys)
 
-	is.Equal(3, len(values))
-	is.Equal(0, len(missing))
+	is.Len(values, 3)
+	is.Empty(missing)
 	is.Equal(1, values["a"])
 	is.Equal(2, values["b"])
 	is.Equal(3, values["c"])
@@ -740,8 +767,8 @@ func TestGetMany(t *testing.T) {
 	keys2 := []string{"a", "d", "b", "e"}
 	values2, missing2 := cache.GetMany(keys2)
 
-	is.Equal(2, len(values2))
-	is.Equal(2, len(missing2))
+	is.Len(values2, 2)
+	is.Len(missing2, 2)
 	is.Equal(1, values2["a"])
 	is.Equal(2, values2["b"])
 	is.Contains(missing2, "d")
@@ -749,15 +776,15 @@ func TestGetMany(t *testing.T) {
 
 	// Test getting empty slice
 	values3, missing3 := cache.GetMany([]string{})
-	is.Equal(0, len(values3))
-	is.Equal(0, len(missing3))
+	is.Empty(values3)
+	is.Empty(missing3)
 
 	// Test getting only non-existing keys
 	keys4 := []string{"x", "y", "z"}
 	values4, missing4 := cache.GetMany(keys4)
 
-	is.Equal(0, len(values4))
-	is.Equal(3, len(missing4))
+	is.Empty(values4)
+	is.Len(missing4, 3)
 	is.Contains(missing4, "x")
 	is.Contains(missing4, "y")
 	is.Contains(missing4, "z")
@@ -765,6 +792,7 @@ func TestGetMany(t *testing.T) {
 
 func TestPeekMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](3)
 	cache.Set("a", 1)
@@ -775,8 +803,8 @@ func TestPeekMany(t *testing.T) {
 	keys := []string{"a", "b", "c"}
 	values, missing := cache.PeekMany(keys)
 
-	is.Equal(3, len(values))
-	is.Equal(0, len(missing))
+	is.Len(values, 3)
+	is.Empty(missing)
 	is.Equal(1, values["a"])
 	is.Equal(2, values["b"])
 	is.Equal(3, values["c"])
@@ -785,8 +813,8 @@ func TestPeekMany(t *testing.T) {
 	keys2 := []string{"a", "d", "b", "e"}
 	values2, missing2 := cache.PeekMany(keys2)
 
-	is.Equal(2, len(values2))
-	is.Equal(2, len(missing2))
+	is.Len(values2, 2)
+	is.Len(missing2, 2)
 	is.Equal(1, values2["a"])
 	is.Equal(2, values2["b"])
 	is.Contains(missing2, "d")
@@ -794,15 +822,15 @@ func TestPeekMany(t *testing.T) {
 
 	// Test peeking empty slice
 	values3, missing3 := cache.PeekMany([]string{})
-	is.Equal(0, len(values3))
-	is.Equal(0, len(missing3))
+	is.Empty(values3)
+	is.Empty(missing3)
 
 	// Test peeking only non-existing keys
 	keys4 := []string{"x", "y", "z"}
 	values4, missing4 := cache.PeekMany(keys4)
 
-	is.Equal(0, len(values4))
-	is.Equal(3, len(missing4))
+	is.Empty(values4)
+	is.Len(missing4, 3)
 	is.Contains(missing4, "x")
 	is.Contains(missing4, "y")
 	is.Contains(missing4, "z")
@@ -814,7 +842,7 @@ func TestPeekMany(t *testing.T) {
 	// Peek "b" and "c" - they should still be in original order
 	peekKeys := []string{"b", "c"}
 	peekValues, _ := cache.PeekMany(peekKeys)
-	is.Equal(2, len(peekValues))
+	is.Len(peekValues, 2)
 	is.Equal(2, peekValues["b"])
 	is.Equal(3, peekValues["c"])
 
@@ -830,6 +858,7 @@ func TestPeekMany(t *testing.T) {
 
 func TestDeleteMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](3)
 	cache.Set("a", 1)
@@ -840,7 +869,7 @@ func TestDeleteMany(t *testing.T) {
 	keys := []string{"a", "b"}
 	results := cache.DeleteMany(keys)
 
-	is.Equal(2, len(results))
+	is.Len(results, 2)
 	is.True(results["a"])
 	is.True(results["b"])
 	is.False(cache.Has("a"))
@@ -853,7 +882,7 @@ func TestDeleteMany(t *testing.T) {
 	keys2 := []string{"c", "e", "d", "f"}
 	results2 := cache.DeleteMany(keys2)
 
-	is.Equal(4, len(results2))
+	is.Len(results2, 4)
 	is.True(results2["c"])
 	is.False(results2["e"])
 	is.True(results2["d"])
@@ -865,7 +894,7 @@ func TestDeleteMany(t *testing.T) {
 	// Test deleting empty slice
 	cache.Set("x", 10)
 	results3 := cache.DeleteMany([]string{})
-	is.Equal(0, len(results3))
+	is.Empty(results3)
 	is.True(cache.Has("x"))
 	is.Equal(1, cache.Len())
 
@@ -873,7 +902,7 @@ func TestDeleteMany(t *testing.T) {
 	keys4 := []string{"y", "z"}
 	results4 := cache.DeleteMany(keys4)
 
-	is.Equal(2, len(results4))
+	is.Len(results4, 2)
 	is.False(results4["y"])
 	is.False(results4["z"])
 	is.True(cache.Has("x")) // Should still exist
@@ -882,6 +911,7 @@ func TestDeleteMany(t *testing.T) {
 
 func TestPeek(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLRUCache[string, int](2)
 	cache.Set("a", 1)

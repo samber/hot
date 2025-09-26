@@ -64,7 +64,7 @@ func NewLFUCacheWithEvictionSizeAndCallback[K comparable, V any](capacity int, e
 // LFUCache is a Least Frequently Used cache implementation.
 // It is not safe for concurrent access and should be wrapped with a thread-safe layer if needed.
 // Items are ordered by their access frequency, with least frequently used items at the front.
-type LFUCache[K comparable, V any] struct {
+type LFUCache[K comparable, V any] struct { //nolint:revive
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
 	capacity     int                               // Maximum number of items the cache can hold
@@ -75,7 +75,7 @@ type LFUCache[K comparable, V any] struct {
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
 
-// Ensure LFUCache implements InMemoryCache interface
+// Ensure LFUCache implements InMemoryCache interface.
 var _ base.InMemoryCache[string, int] = (*LFUCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache.

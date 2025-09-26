@@ -22,7 +22,7 @@ import (
 //go:linkname nanotime runtime.nanotime
 func nanotime() int64
 
-// go test -benchmem -benchtime=100000000x -bench=Time
+// go test -benchmem -benchtime=100000000x -bench=Time.
 func BenchmarkDevelTime(b *testing.B) {
 	b.Run("TimeGo", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
@@ -80,7 +80,7 @@ func (m *encapsulated) Inc() {
 	m.incInterface.Inc()
 }
 
-// go test -benchmem -benchtime=100000000x -bench=Counter
+// go test -benchmem -benchtime=100000000x -bench=Counter.
 func BenchmarkDevelCounter(b *testing.B) {
 	b.Run("Inc", func(b *testing.B) {
 		counter := uint64(0)
@@ -111,7 +111,7 @@ func BenchmarkDevelCounter(b *testing.B) {
 	})
 }
 
-// go test -benchmem -benchtime=100000000x -bench=Composition
+// go test -benchmem -benchtime=100000000x -bench=Composition.
 func BenchmarkDevelComposition(b *testing.B) {
 	b.Run("Inc", func(b *testing.B) {
 		counter := &counter{0}
@@ -176,7 +176,7 @@ func BenchmarkDevelComposition(b *testing.B) {
 	})
 }
 
-// go test -benchmem -benchtime=100000000x -bench=Rand
+// go test -benchmem -benchtime=100000000x -bench=Rand.
 func BenchmarkDevelRand(b *testing.B) {
 	b.Run("MathRandV1Float", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
@@ -222,7 +222,7 @@ func BenchmarkDevelRand(b *testing.B) {
 }
 
 // GOMAXPROCS=1 go test -benchmem -benchtime=100000000x -bench=Rand
-// GOMAXPROCS=4 go test -benchmem -benchtime=100000000x -bench=Rand
+// GOMAXPROCS=4 go test -benchmem -benchtime=100000000x -bench=Rand.
 func BenchmarkDevelRandParallel(b *testing.B) {
 	b.Run("MathRandV1Float", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {

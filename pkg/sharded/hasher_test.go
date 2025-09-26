@@ -8,6 +8,7 @@ import (
 
 func TestHasher(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := Hasher[int](func(i int) uint64 {
 		return uint64(i * 2)

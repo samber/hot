@@ -11,6 +11,7 @@ import (
 
 func TestLoaders_run(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	counter := int32(0)
 
@@ -28,9 +29,9 @@ func TestLoaders_run(t *testing.T) {
 
 	results, missing, err := loaders.run([]int{1, 2, 3, 4})
 
-	is.EqualValues(map[int]int{1: 1, 2: 42, 3: 3}, results)
-	is.EqualValues([]int{4}, missing)
-	is.Nil(err)
+	is.Equal(map[int]int{1: 1, 2: 42, 3: 3}, results)
+	is.Equal([]int{4}, missing)
+	is.NoError(err)
 	is.EqualValues(2, atomic.LoadInt32(&counter))
 
 	// with error
@@ -51,14 +52,15 @@ func TestLoaders_run(t *testing.T) {
 
 	results, missing, err = loaders.run([]int{1, 2, 3, 4})
 
-	is.EqualValues(map[int]int{}, results)
-	is.EqualValues([]int{}, missing)
+	is.Equal(map[int]int{}, results)
+	is.Equal([]int{}, missing)
 	is.ErrorIs(assert.AnError, err)
 	is.EqualValues(5, atomic.LoadInt32(&counter))
 }
 
 func TestLoaders_runEmptyKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -67,13 +69,14 @@ func TestLoaders_runEmptyKeys(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]int{})
-	is.EqualValues(map[int]int{}, results)
-	is.EqualValues([]int{}, missing)
-	is.Nil(err)
+	is.Equal(map[int]int{}, results)
+	is.Equal([]int{}, missing)
+	is.NoError(err)
 }
 
 func TestLoaders_runNilKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -82,25 +85,27 @@ func TestLoaders_runNilKeys(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run(nil)
-	is.EqualValues(map[int]int{}, results)
-	is.EqualValues([]int{}, missing)
-	is.Nil(err)
+	is.Equal(map[int]int{}, results)
+	is.Equal([]int{}, missing)
+	is.NoError(err)
 }
 
 func TestLoaders_runEmptyChain(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{}
 
 	results, missing, err := loaders.run([]int{1, 2, 3})
-	is.EqualValues(map[int]int{}, results)
+	is.Equal(map[int]int{}, results)
 	sort.Ints(missing)
-	is.EqualValues([]int{1, 2, 3}, missing)
-	is.Nil(err)
+	is.Equal([]int{1, 2, 3}, missing)
+	is.NoError(err)
 }
 
 func TestLoaders_runSingleLoader(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -109,13 +114,14 @@ func TestLoaders_runSingleLoader(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]int{1, 2, 3})
-	is.EqualValues(map[int]int{1: 10, 2: 20}, results)
-	is.EqualValues([]int{3}, missing)
-	is.Nil(err)
+	is.Equal(map[int]int{1: 10, 2: 20}, results)
+	is.Equal([]int{3}, missing)
+	is.NoError(err)
 }
 
 func TestLoaders_runAllKeysFound(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -124,13 +130,14 @@ func TestLoaders_runAllKeysFound(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]int{1, 2, 3})
-	is.EqualValues(map[int]int{1: 10, 2: 20, 3: 30}, results)
-	is.EqualValues([]int{}, missing)
-	is.Nil(err)
+	is.Equal(map[int]int{1: 10, 2: 20, 3: 30}, results)
+	is.Equal([]int{}, missing)
+	is.NoError(err)
 }
 
 func TestLoaders_runErrorOnFirstLoader(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -142,14 +149,15 @@ func TestLoaders_runErrorOnFirstLoader(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]int{1, 2, 3})
-	is.EqualValues(map[int]int{}, results)
-	is.EqualValues([]int{}, missing)
+	is.Equal(map[int]int{}, results)
+	is.Equal([]int{}, missing)
 	is.Error(err)
 	is.Contains(err.Error(), "first loader error")
 }
 
 func TestLoaders_runErrorOnSecondLoader(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -161,14 +169,15 @@ func TestLoaders_runErrorOnSecondLoader(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]int{1, 2, 3})
-	is.EqualValues(map[int]int{}, results)
-	is.EqualValues([]int{}, missing)
+	is.Equal(map[int]int{}, results)
+	is.Equal([]int{}, missing)
 	is.Error(err)
 	is.Contains(err.Error(), "second loader error")
 }
 
 func TestLoaders_runOverwriteValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -180,13 +189,14 @@ func TestLoaders_runOverwriteValues(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]int{1, 2, 3})
-	is.EqualValues(map[int]int{1: 100, 2: 20, 3: 30}, results) // Key 1 is overwritten
-	is.EqualValues([]int{}, missing)
-	is.Nil(err)
+	is.Equal(map[int]int{1: 100, 2: 20, 3: 30}, results) // Key 1 is overwritten
+	is.Equal([]int{}, missing)
+	is.NoError(err)
 }
 
 func TestLoaders_runPartialResults(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[int, int]{
 		func(keys []int) (map[int]int, error) {
@@ -201,13 +211,14 @@ func TestLoaders_runPartialResults(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]int{1, 2, 3, 4})
-	is.EqualValues(map[int]int{1: 10, 2: 20, 3: 30}, results)
-	is.EqualValues([]int{4}, missing)
-	is.Nil(err)
+	is.Equal(map[int]int{1: 10, 2: 20, 3: 30}, results)
+	is.Equal([]int{4}, missing)
+	is.NoError(err)
 }
 
 func TestLoaders_runWithStringKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loaders := LoaderChain[string, int]{
 		func(keys []string) (map[string]int, error) {
@@ -219,7 +230,7 @@ func TestLoaders_runWithStringKeys(t *testing.T) {
 	}
 
 	results, missing, err := loaders.run([]string{"a", "b", "c", "d"})
-	is.EqualValues(map[string]int{"a": 1, "b": 2, "c": 3}, results)
-	is.EqualValues([]string{"d"}, missing)
-	is.Nil(err)
+	is.Equal(map[string]int{"a": 1, "b": 2, "c": 3}, results)
+	is.Equal([]string{"d"}, missing)
+	is.NoError(err)
 }

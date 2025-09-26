@@ -87,7 +87,7 @@ type ARCCache[K comparable, V any] struct {
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
 
-// Ensure ARCCache implements InMemoryCache interface
+// Ensure ARCCache implements InMemoryCache interface.
 var _ base.InMemoryCache[string, int] = (*ARCCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache.
@@ -133,6 +133,8 @@ func (c *ARCCache[K, V]) Set(key K, value V) {
 
 // handleGhostHit handles the case when we hit a ghost entry in B1 or B2.
 // This is the core of the ARC algorithm's adaptive behavior.
+//
+//nolint:nestif
 func (c *ARCCache[K, V]) handleGhostHit(key K, value V, fromB1 bool) {
 	// Remove from ghost list
 	if fromB1 {
@@ -184,6 +186,8 @@ func (c *ARCCache[K, V]) handleGhostHit(key K, value V, fromB1 bool) {
 }
 
 // handleMiss handles the case when we have a complete miss (item not in cache or ghost lists).
+//
+//nolint:nestif
 func (c *ARCCache[K, V]) handleMiss(key K, value V) {
 	cSize := c.capacity
 	t1b1 := c.t1.Len() + c.b1.Len()
@@ -193,15 +197,13 @@ func (c *ARCCache[K, V]) handleMiss(key K, value V) {
 		if c.t1.Len() == cSize {
 			// Remove LRU from T1 and move to B1
 			c.evictFromT1()
-		} else {
+		} else if c.b1.Len() > 0 {
 			// Remove LRU from B1
-			if c.b1.Len() > 0 {
-				old := c.b1.Back()
-				if old != nil {
-					oldEntry := old.Value
-					c.b1.Remove(old)
-					delete(c.b1Map, oldEntry.key)
-				}
+			old := c.b1.Back()
+			if old != nil {
+				oldEntry := old.Value
+				c.b1.Remove(old)
+				delete(c.b1Map, oldEntry.key)
 			}
 		}
 	} else if t1b1 < cSize {
@@ -562,21 +564,6 @@ func (c *ARCCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 	}
 
 	return k, v, false
-}
-
-// Helper functions for min/max operations
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // trimGhostLists trims the ghost lists if they exceed capacity.

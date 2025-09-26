@@ -10,6 +10,7 @@ import (
 
 func TestNoOpCollector_InterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Verify NoOpCollector implements Collector interface
 	var _ Collector = (*NoOpCollector)(nil)
@@ -20,6 +21,7 @@ func TestNoOpCollector_InterfaceCompliance(t *testing.T) {
 
 func TestNoOpCollector_AllMethods(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := &NoOpCollector{}
 
@@ -112,6 +114,7 @@ func TestNoOpCollector_AllMethods(t *testing.T) {
 
 func TestNoOpCollector_ConcurrentAccess(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := &NoOpCollector{}
 
@@ -168,11 +171,12 @@ func TestNoOpCollector_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 
 	// NoOpCollector should complete all operations without any issues
-	is.True(true, "All concurrent operations completed successfully")
+	is.True(true, "All concurrent operations completed successfully") //nolint:testifylint
 }
 
 func TestNoOpCollector_EdgeCases(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := &NoOpCollector{}
 

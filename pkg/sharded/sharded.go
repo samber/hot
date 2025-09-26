@@ -35,7 +35,7 @@ type ShardedInMemoryCache[K comparable, V any] struct {
 	caches []base.InMemoryCache[K, V] // Array of cache shards
 }
 
-// Ensure ShardedInMemoryCache implements InMemoryCache interface
+// Ensure ShardedInMemoryCache implements InMemoryCache interface.
 var _ base.InMemoryCache[string, int] = (*ShardedInMemoryCache[string, int])(nil)
 
 // Set stores a key-value pair in the appropriate shard based on the key's hash.

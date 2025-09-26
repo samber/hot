@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// MockCollector is a test implementation of Collector that tracks method calls
+// MockCollector is a test implementation of Collector that tracks method calls.
 type MockCollector struct {
 	mu sync.Mutex
 
@@ -103,6 +103,7 @@ func (m *MockCollector) UpdateLength(length int64) {
 
 func TestInstrumentedCache_BasicOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -132,8 +133,8 @@ func TestInstrumentedCache_BasicOperations(t *testing.T) {
 	metricsCache.SetMany(items)
 
 	values, missing := metricsCache.GetMany([]string{"key3", "key4", "key6"})
-	is.Equal(2, len(values))
-	is.Equal(1, len(missing))
+	is.Len(values, 2)
+	is.Len(missing, 1)
 	is.Equal(300, values["key3"])
 	is.Equal(400, values["key4"])
 	is.Equal("key6", missing[0])
@@ -156,17 +157,17 @@ func TestInstrumentedCache_BasicOperations(t *testing.T) {
 
 	// Test PeekMany
 	peekValues, peekMissing := metricsCache.PeekMany([]string{"key1", "key3", "key6"})
-	is.Equal(2, len(peekValues))
-	is.Equal(1, len(peekMissing))
+	is.Len(peekValues, 2)
+	is.Len(peekMissing, 1)
 	is.Equal(100, peekValues["key1"])
 	is.Equal(300, peekValues["key3"])
 
 	// Test Keys and Values
 	keys := metricsCache.Keys()
-	is.Equal(4, len(keys)) // key1, key3, key4, key5 (key1 might be evicted due to capacity)
+	is.Len(keys, 4) // key1, key3, key4, key5 (key1 might be evicted due to capacity)
 
 	valuesList := metricsCache.Values()
-	is.Equal(4, len(valuesList))
+	is.Len(valuesList, 4)
 
 	// Test Delete
 	deleted := metricsCache.Delete("key1")
@@ -193,6 +194,7 @@ func TestInstrumentedCache_BasicOperations(t *testing.T) {
 
 func TestInstrumentedCache_MetricsTracking(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](5)
@@ -236,6 +238,7 @@ func TestInstrumentedCache_MetricsTracking(t *testing.T) {
 
 func TestInstrumentedCache_NoOpMetrics(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -259,6 +262,7 @@ func TestInstrumentedCache_NoOpMetrics(t *testing.T) {
 
 func TestInstrumentedCache_EdgeCases(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](3)
@@ -274,15 +278,15 @@ func TestInstrumentedCache_EdgeCases(t *testing.T) {
 	is.False(found)
 
 	values, missing := metricsCache.GetMany([]string{})
-	is.Equal(0, len(values))
-	is.Equal(0, len(missing))
+	is.Empty(values)
+	is.Empty(missing)
 
 	hasResults := metricsCache.HasMany([]string{})
-	is.Equal(0, len(hasResults))
+	is.Empty(hasResults)
 
 	peekValues, peekMissing := metricsCache.PeekMany([]string{})
-	is.Equal(0, len(peekValues))
-	is.Equal(0, len(peekMissing))
+	is.Empty(peekValues)
+	is.Empty(peekMissing)
 
 	// Test operations on empty cache
 	is.Equal(0, metricsCache.Len())
@@ -299,14 +303,14 @@ func TestInstrumentedCache_EdgeCases(t *testing.T) {
 
 	// Test Keys and Values on empty cache
 	keys := metricsCache.Keys()
-	is.Equal(0, len(keys))
+	is.Empty(keys)
 
 	valuesList := metricsCache.Values()
-	is.Equal(0, len(valuesList))
+	is.Empty(valuesList)
 
 	// Test DeleteMany with empty slice
 	deletedMap := metricsCache.DeleteMany([]string{})
-	is.Equal(0, len(deletedMap))
+	is.Empty(deletedMap)
 
 	// Test SetMany with empty map
 	metricsCache.SetMany(map[string]int{})
@@ -315,6 +319,7 @@ func TestInstrumentedCache_EdgeCases(t *testing.T) {
 
 func TestInstrumentedCache_CapacityAndEviction(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache with small capacity
 	underlyingCache := lru.NewLRUCache[string, int](2)
@@ -353,6 +358,7 @@ func TestInstrumentedCache_CapacityAndEviction(t *testing.T) {
 
 func TestInstrumentedCache_UpdateSizeBytes(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -377,6 +383,7 @@ func TestInstrumentedCache_UpdateSizeBytes(t *testing.T) {
 
 func TestInstrumentedCache_WithPrometheusCollector(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](5)
@@ -405,6 +412,7 @@ func TestInstrumentedCache_WithPrometheusCollector(t *testing.T) {
 
 func TestInstrumentedCache_WithNoOpCollector(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](5)
@@ -431,6 +439,7 @@ func TestInstrumentedCache_WithNoOpCollector(t *testing.T) {
 
 func TestInstrumentedCache_ConcurrentAccess(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache with thread-safe wrapper
 	underlyingCache := safe.NewSafeInMemoryCache(lru.NewLRUCache[string, int](100))
@@ -474,11 +483,12 @@ func TestInstrumentedCache_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 
 	// Verify the cache still works correctly
-	is.Greater(metricsCache.Len(), 0)
+	is.Positive(metricsCache.Len())
 }
 
 func TestInstrumentedCache_EvictionMetrics(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache with small capacity to trigger evictions
 	underlyingCache := lru.NewLRUCache[string, int](2)
@@ -508,6 +518,7 @@ func TestInstrumentedCache_EvictionMetrics(t *testing.T) {
 
 func TestInstrumentedCache_BulkOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -529,8 +540,8 @@ func TestInstrumentedCache_BulkOperations(t *testing.T) {
 
 	// Test GetMany
 	values, missing := metricsCache.GetMany([]string{"key1", "key2", "key5", "key6"})
-	is.Equal(2, len(values))
-	is.Equal(2, len(missing))
+	is.Len(values, 2)
+	is.Len(missing, 2)
 	is.Equal(100, values["key1"])
 	is.Equal(200, values["key2"])
 	is.Contains(missing, "key5")
@@ -545,8 +556,8 @@ func TestInstrumentedCache_BulkOperations(t *testing.T) {
 
 	// Test PeekMany
 	peekValues, peekMissing := metricsCache.PeekMany([]string{"key1", "key2", "key5"})
-	is.Equal(2, len(peekValues))
-	is.Equal(1, len(peekMissing))
+	is.Len(peekValues, 2)
+	is.Len(peekMissing, 1)
 	is.Equal(100, peekValues["key1"])
 	is.Equal(200, peekValues["key2"])
 
@@ -559,6 +570,7 @@ func TestInstrumentedCache_BulkOperations(t *testing.T) {
 
 func TestInstrumentedCache_RangeOperation(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -581,7 +593,7 @@ func TestInstrumentedCache_RangeOperation(t *testing.T) {
 		return true // continue iteration
 	})
 
-	is.Equal(3, len(visited))
+	is.Len(visited, 3)
 	is.Equal(100, visited["key1"])
 	is.Equal(200, visited["key2"])
 	is.Equal(300, visited["key3"])
@@ -593,11 +605,12 @@ func TestInstrumentedCache_RangeOperation(t *testing.T) {
 		return false // stop iteration after first item
 	})
 
-	is.Equal(1, len(visited))
+	is.Len(visited, 1)
 }
 
 func TestInstrumentedCache_Performance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache with larger capacity for performance test
 	underlyingCache := lru.NewLRUCache[string, int](10000)
@@ -642,6 +655,7 @@ func TestInstrumentedCache_Performance(t *testing.T) {
 
 func TestInstrumentedCache_ShardLabeling(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -664,8 +678,10 @@ func TestInstrumentedCache_ShardLabeling(t *testing.T) {
 	is.Equal(1, metricsCache.Len())
 }
 
+//nolint:tparallel,paralleltest
 func TestInstrumentedCache_AllAlgorithms(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	algorithms := []string{"lru", "lfu", "arc", "2q"}
 
@@ -694,6 +710,7 @@ func TestInstrumentedCache_AllAlgorithms(t *testing.T) {
 
 func TestInstrumentedCache_WithTTL(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -717,6 +734,7 @@ func TestInstrumentedCache_WithTTL(t *testing.T) {
 
 func TestInstrumentedCache_WithAllSettings(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create underlying cache
 	underlyingCache := lru.NewLRUCache[string, int](10)
@@ -744,6 +762,8 @@ func TestInstrumentedCache_WithAllSettings(t *testing.T) {
 }
 
 func TestInstrumentedCache_LengthMetric(t *testing.T) {
+	t.Parallel()
+
 	// Create a mock collector to track length updates
 	var lastLength int64
 	mockCollector := &MockCollector{

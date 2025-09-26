@@ -4,6 +4,6 @@ type CacheMode string
 
 const (
 	CacheModeMain CacheMode = "main"
-	// CacheModeShared  CacheMode = "shared"
+	// CacheModeShared  CacheMode = "shared".
 	CacheModeMissing CacheMode = "missing"
 )

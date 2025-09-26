@@ -10,6 +10,7 @@ import (
 
 func TestAssertValue(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.NotPanics(func() {
 		assertValue(true, "error")
@@ -21,6 +22,7 @@ func TestAssertValue(t *testing.T) {
 
 func TestHotCacheConfig(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// loader1 := func(keys []string) (map[string]int, []string, error) { return map[string]int{}, []string{}, nil }
 	// loader2 := func(keys []string) (map[string]int, []string, error) { return map[string]int{}, []string{}, nil }
@@ -29,7 +31,7 @@ func TestHotCacheConfig(t *testing.T) {
 	// twice := func(v int) { return v*2 }
 
 	opts := NewHotCache[string, int](LRU, 42)
-	is.EqualValues(HotCacheConfig[string, int]{
+	is.Equal(HotCacheConfig[string, int]{
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: "", missingCacheCapacity: 0,
 		ttl: 0, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
@@ -38,7 +40,7 @@ func TestHotCacheConfig(t *testing.T) {
 	}, opts)
 
 	opts = opts.WithMissingSharedCache()
-	is.EqualValues(HotCacheConfig[string, int]{
+	is.Equal(HotCacheConfig[string, int]{
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: true, missingCacheAlgo: "", missingCacheCapacity: 0,
 		ttl: 0, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
@@ -47,7 +49,7 @@ func TestHotCacheConfig(t *testing.T) {
 	}, opts)
 
 	opts = NewHotCache[string, int](LRU, 42).WithMissingCache(LFU, 21)
-	is.EqualValues(HotCacheConfig[string, int]{
+	is.Equal(HotCacheConfig[string, int]{
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 0, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
@@ -59,7 +61,7 @@ func TestHotCacheConfig(t *testing.T) {
 		opts = opts.WithTTL(-42 * time.Second)
 	})
 	opts = opts.WithTTL(42 * time.Second)
-	is.EqualValues(HotCacheConfig[string, int]{
+	is.Equal(HotCacheConfig[string, int]{
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
@@ -78,7 +80,7 @@ func TestHotCacheConfig(t *testing.T) {
 	})
 
 	opts = opts.WithJitter(2, time.Second)
-	is.EqualValues(HotCacheConfig[string, int]{
+	is.Equal(HotCacheConfig[string, int]{
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 2, jitterUpperBound: time.Second, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
@@ -90,7 +92,7 @@ func TestHotCacheConfig(t *testing.T) {
 	// is.EqualValues(HotCacheConfig[string, int]{LRU, 42, false, LFU, 21, 42 * time.Second, 0, 2, time.Second, 0, nil,false, false, warmUp, nil, nil,DropOnError,nil, nil, nil}, opts)
 
 	opts = opts.WithoutLocking()
-	is.EqualValues(HotCacheConfig[string, int]{
+	is.Equal(HotCacheConfig[string, int]{
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 2, jitterUpperBound: time.Second, shards: 0, shardingFn: nil,
 		lockingDisabled: true, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
@@ -99,7 +101,7 @@ func TestHotCacheConfig(t *testing.T) {
 	}, opts)
 
 	opts = opts.WithJanitor()
-	is.EqualValues(HotCacheConfig[string, int]{
+	is.Equal(HotCacheConfig[string, int]{
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 2, jitterUpperBound: time.Second, shards: 0, shardingFn: nil,
 		lockingDisabled: true, janitorEnabled: true, prometheusMetricsEnabled: false, cacheName: "",
@@ -122,6 +124,7 @@ func TestHotCacheConfig(t *testing.T) {
 
 func TestWithRevalidationErrorPolicy(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	opts := NewHotCache[string, int](LRU, 42)
 
@@ -136,6 +139,7 @@ func TestWithRevalidationErrorPolicy(t *testing.T) {
 
 func TestWithSharding(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	opts := NewHotCache[string, int](LRU, 42)
 
@@ -153,6 +157,7 @@ func TestWithSharding(t *testing.T) {
 
 func TestWithWarmUpWithTimeout(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	opts := NewHotCache[string, int](LRU, 42)
 
@@ -180,6 +185,7 @@ func TestWithWarmUpWithTimeout(t *testing.T) {
 
 func TestWithEvictionCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	opts := NewHotCache[string, int](LRU, 42)
 
@@ -208,6 +214,7 @@ func TestWithEvictionCallback(t *testing.T) {
 
 func TestWithPrometheusMetrics(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	opts := NewHotCache[string, int](LRU, 42)
 
@@ -224,6 +231,7 @@ func TestWithPrometheusMetrics(t *testing.T) {
 
 func TestBuildWithPrometheusMetrics(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	opts := NewHotCache[string, int](LRU, 42).WithPrometheusMetrics("test-cache")
 	cache := opts.Build()
@@ -236,6 +244,7 @@ func TestBuildWithPrometheusMetrics(t *testing.T) {
 
 func TestBuildWithSharding(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hashFn := func(key string) uint64 { return uint64(len(key)) }
 	opts := NewHotCache[string, int](LRU, 42).WithSharding(4, hashFn)
@@ -245,6 +254,7 @@ func TestBuildWithSharding(t *testing.T) {
 
 func TestBuildWithMissingCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	opts := NewHotCache[string, int](LRU, 42).WithMissingCache(LFU, 21)
 	cache := opts.Build()
@@ -253,6 +263,7 @@ func TestBuildWithMissingCache(t *testing.T) {
 
 func TestBuildWithJanitorAndLockingConflict(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// This should panic because janitor and without locking cannot be used together
 	is.Panics(func() {
@@ -263,6 +274,7 @@ func TestBuildWithJanitorAndLockingConflict(t *testing.T) {
 
 func TestBuildWithWarmUp(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	warmUpFn := func() (map[string]int, []string, error) {
 		return map[string]int{"key1": 1, "key2": 2}, []string{"missing1"}, nil
@@ -282,6 +294,7 @@ func TestBuildWithWarmUp(t *testing.T) {
 
 func TestBuildWithRevalidation(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loader := func(keys []string) (map[string]int, error) {
 		return map[string]int{"key1": 1}, nil
@@ -294,6 +307,7 @@ func TestBuildWithRevalidation(t *testing.T) {
 
 func TestBuildWithLoaders(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	loader := func(keys []string) (map[string]int, error) {
 		return map[string]int{"key1": 1}, nil
@@ -306,6 +320,7 @@ func TestBuildWithLoaders(t *testing.T) {
 
 func TestBuildWithCopyFunctions(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	copyFn := func(v int) int { return v * 2 }
 
@@ -318,6 +333,7 @@ func TestBuildWithCopyFunctions(t *testing.T) {
 
 func TestBuildWithEvictionCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evictionCallback := func(reason base.EvictionReason, key string, value int) {}
 

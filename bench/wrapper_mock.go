@@ -10,7 +10,7 @@ func newWrappedCache[K comparable, V any](cache base.InMemoryCache[K, V]) base.I
 	}
 }
 
-// wrappedCache is a simple wrapper to base.InMemoryCache to test cost during benchmark
+// wrappedCache is a simple wrapper to base.InMemoryCache to test cost during benchmark.
 type wrappedCache[K comparable, V any] struct {
 	base.InMemoryCache[K, V]
 }

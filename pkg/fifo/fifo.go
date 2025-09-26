@@ -1,7 +1,7 @@
 package fifo
 
 import (
-	"container/list"
+	"github.com/samber/hot/internal/container/list"
 
 	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
@@ -30,8 +30,8 @@ func NewFIFOCacheWithEvictionCallback[K comparable, V any](capacity int, onEvict
 
 	return &FIFOCache[K, V]{
 		capacity: capacity,
-		ll:       list.New(),
-		cache:    make(map[K]*list.Element),
+		ll:       list.New[*entry[K, V]](),
+		cache:    make(map[K]*list.Element[*entry[K, V]]),
 
 		onEviction: onEviction,
 	}
@@ -39,17 +39,17 @@ func NewFIFOCacheWithEvictionCallback[K comparable, V any](capacity int, onEvict
 
 // FIFOCache is a First In, First Out cache implementation.
 // It is not safe for concurrent access and should be wrapped with a thread-safe layer if needed.
-type FIFOCache[K comparable, V any] struct {
+type FIFOCache[K comparable, V any] struct { //nolint:revive
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	capacity int                 // Maximum number of items the cache can hold
-	ll       *list.List          // Doubly-linked list maintaining insertion order (oldest at front)
-	cache    map[K]*list.Element // Map for O(1) key lookups to list elements
+	capacity int                               // Maximum number of items the cache can hold
+	ll       *list.List[*entry[K, V]]          // Doubly-linked list maintaining insertion order (oldest at front)
+	cache    map[K]*list.Element[*entry[K, V]] // Map for O(1) key lookups to list elements
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
 
-// Ensure FIFOCache implements InMemoryCache interface
+// Ensure FIFOCache implements InMemoryCache interface.
 var _ base.InMemoryCache[string, int] = (*FIFOCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache.
@@ -59,7 +59,7 @@ var _ base.InMemoryCache[string, int] = (*FIFOCache[string, int])(nil)
 func (c *FIFOCache[K, V]) Set(key K, value V) {
 	if e, ok := c.cache[key]; ok {
 		// Key exists: update value but keep position (FIFO order is preserved)
-		e.Value.(*entry[K, V]).value = value
+		e.Value.value = value
 		return
 	}
 
@@ -86,7 +86,7 @@ func (c *FIFOCache[K, V]) Has(key K) bool {
 // Returns the value and a boolean indicating if the key was found.
 func (c *FIFOCache[K, V]) Get(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 	return value, false
 }
@@ -95,7 +95,7 @@ func (c *FIFOCache[K, V]) Get(key K) (value V, ok bool) {
 // Returns the value and a boolean indicating if the key was found.
 func (c *FIFOCache[K, V]) Peek(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 	return value, false
 }
@@ -113,7 +113,7 @@ func (c *FIFOCache[K, V]) Keys() []K {
 func (c *FIFOCache[K, V]) Values() []V {
 	all := make([]V, 0, c.ll.Len())
 	for _, v := range c.cache {
-		all = append(all, v.Value.(*entry[K, V]).value)
+		all = append(all, v.Value.value)
 	}
 	return all
 }
@@ -122,7 +122,7 @@ func (c *FIFOCache[K, V]) Values() []V {
 func (c *FIFOCache[K, V]) All() map[K]V {
 	all := make(map[K]V)
 	for k, v := range c.cache {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	return all
 }
@@ -234,7 +234,7 @@ func (c *FIFOCache[K, V]) Len() int {
 func (c *FIFOCache[K, V]) SizeBytes() int64 {
 	var total int64
 	for _, v := range c.cache {
-		total += int64(size.Of(v.Value.(*entry[K, V]).value))
+		total += int64(size.Of(v.Value.value))
 	}
 	return total
 }
@@ -248,11 +248,11 @@ func (c *FIFOCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 
 	e := c.ll.Front()
 	c.deleteElement(e)
-	return e.Value.(*entry[K, V]).key, e.Value.(*entry[K, V]).value, true
+	return e.Value.key, e.Value.value, true
 }
 
 // deleteElement removes an element from both the list and the map.
-func (c *FIFOCache[K, V]) deleteElement(e *list.Element) {
+func (c *FIFOCache[K, V]) deleteElement(e *list.Element[*entry[K, V]]) {
 	c.ll.Remove(e)
-	delete(c.cache, e.Value.(*entry[K, V]).key)
+	delete(c.cache, e.Value.key)
 }

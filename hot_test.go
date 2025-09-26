@@ -13,6 +13,7 @@ import (
 
 func TestNewHotCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	lru := composeInternalCache[int, int](false, LRU, 42, 0, -1, nil, nil, nil)
 	safeLru := composeInternalCache[int, int](true, LRU, 42, 0, -1, nil, nil, nil)
@@ -29,7 +30,7 @@ func TestNewHotCache(t *testing.T) {
 
 	// ttl, stale, jitter
 	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, nil)
-	is.EqualValues(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.Equal(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
 
 	// @TODO: test locks
 	// @TODO: more tests
@@ -37,6 +38,7 @@ func TestNewHotCache(t *testing.T) {
 
 func TestHotCache_Set(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple set
 	cache := NewHotCache[string, int](LRU, 10).
@@ -45,7 +47,7 @@ func TestHotCache_Set(t *testing.T) {
 	is.Equal(1, cache.cache.Len())
 	v, ok := cache.cache.Get("a")
 	is.True(ok)
-	is.EqualValues(&item[int]{true, 1, 0, 0}, v)
+	is.Equal(&item[int]{true, 1, 0, 0}, v)
 
 	// simple set with copy on write
 	cache = NewHotCache[string, int](LRU, 10).
@@ -57,7 +59,7 @@ func TestHotCache_Set(t *testing.T) {
 	is.Equal(1, cache.cache.Len())
 	v, ok = cache.cache.Get("a")
 	is.True(ok)
-	is.EqualValues(&item[int]{true, 2, 0, 0}, v)
+	is.Equal(&item[int]{true, 2, 0, 0}, v)
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
@@ -81,6 +83,7 @@ func TestHotCache_Set(t *testing.T) {
 
 func TestHotCache_SetMissing(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// no missing cache
 	cache := NewHotCache[string, int](LRU, 10).
@@ -131,6 +134,7 @@ func TestHotCache_SetMissing(t *testing.T) {
 
 func TestHotCache_SetWithTTL(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple set
 	cache := NewHotCache[string, int](LRU, 10).
@@ -181,6 +185,7 @@ func TestHotCache_SetWithTTL(t *testing.T) {
 
 func TestHotCache_SetMissingWithTTL(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// no missing cache
 	cache := NewHotCache[string, int](LRU, 10).
@@ -231,6 +236,7 @@ func TestHotCache_SetMissingWithTTL(t *testing.T) {
 
 func TestHotCache_SetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple set
 	cache := NewHotCache[string, int](LRU, 10).
@@ -239,10 +245,10 @@ func TestHotCache_SetMany(t *testing.T) {
 	is.Equal(2, cache.cache.Len())
 	v, ok := cache.cache.Get("a")
 	is.True(ok)
-	is.EqualValues(&item[int]{true, 1, 0, 0}, v)
+	is.Equal(&item[int]{true, 1, 0, 0}, v)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
-	is.EqualValues(&item[int]{true, 2, 0, 0}, v)
+	is.Equal(&item[int]{true, 2, 0, 0}, v)
 
 	// simple set with copy on write
 	cache = NewHotCache[string, int](LRU, 10).
@@ -254,10 +260,10 @@ func TestHotCache_SetMany(t *testing.T) {
 	is.Equal(2, cache.cache.Len())
 	v, ok = cache.cache.Get("a")
 	is.True(ok)
-	is.EqualValues(&item[int]{true, 2, 0, 0}, v)
+	is.Equal(&item[int]{true, 2, 0, 0}, v)
 	v, ok = cache.cache.Get("b")
 	is.True(ok)
-	is.EqualValues(&item[int]{true, 4, 0, 0}, v)
+	is.Equal(&item[int]{true, 4, 0, 0}, v)
 
 	// simple set with default ttl + stale + jitter
 	cache = NewHotCache[string, int](LRU, 10).
@@ -289,6 +295,7 @@ func TestHotCache_SetMany(t *testing.T) {
 
 func TestHotCache_SetMissingMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// no missing cache
 	cache := NewHotCache[string, int](LRU, 10).
@@ -355,6 +362,7 @@ func TestHotCache_SetMissingMany(t *testing.T) {
 
 func TestHotCache_SetManyWithTTL(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple set
 	cache := NewHotCache[string, int](LRU, 10).
@@ -425,6 +433,7 @@ func TestHotCache_SetManyWithTTL(t *testing.T) {
 
 func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// no missing cache
 	cache := NewHotCache[string, int](LRU, 10).
@@ -491,6 +500,7 @@ func TestHotCache_SetMissingManyWithTTL(t *testing.T) {
 
 func TestHotCache_Has(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
@@ -522,6 +532,7 @@ func TestHotCache_Has(t *testing.T) {
 
 func TestHotCache_HasMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
@@ -555,18 +566,19 @@ func TestHotCache_HasMany(t *testing.T) {
 
 func TestHotCache_Get(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	v, ok, err := cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 	cache.Set("a", 42)
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(42, v)
 
 	// with shared missing
@@ -575,17 +587,17 @@ func TestHotCache_Get(t *testing.T) {
 		Build()
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 	cache.Set("a", 42)
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(42, v)
 	cache.SetMissing("a")
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 
 	// with dedicated missing
@@ -594,17 +606,17 @@ func TestHotCache_Get(t *testing.T) {
 		Build()
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 	cache.Set("a", 42)
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(42, v)
 	cache.SetMissing("a")
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 
 	// with copy on read
@@ -615,12 +627,12 @@ func TestHotCache_Get(t *testing.T) {
 		Build()
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 	cache.Set("a", 42)
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(84, v)
 
 	// with loader
@@ -632,7 +644,7 @@ func TestHotCache_Get(t *testing.T) {
 		Build()
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(42, v)
 
 	// with failed loader
@@ -644,7 +656,7 @@ func TestHotCache_Get(t *testing.T) {
 		Build()
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Error(assert.AnError, err)
+	is.ErrorIs(assert.AnError, err)
 	is.Equal(0, v)
 
 	// with loader not found
@@ -656,7 +668,7 @@ func TestHotCache_Get(t *testing.T) {
 		Build()
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 
 	// with loader chain
@@ -682,7 +694,7 @@ func TestHotCache_Get(t *testing.T) {
 		Build()
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(42, v)
 	is.Equal(3, loaded)
 }
@@ -698,6 +710,7 @@ func TestHotCache_Get(t *testing.T) {
 
 func TestHotCache_Peek(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	counter := int32(0)
 
@@ -763,6 +776,7 @@ func TestHotCache_Peek(t *testing.T) {
 
 func TestHotCache_PeekMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	counter := int32(0)
 
@@ -777,13 +791,13 @@ func TestHotCache_PeekMany(t *testing.T) {
 		}).
 		Build()
 	v, missing := cache.PeekMany([]string{"a", "b", "c"})
-	is.EqualValues(map[string]int{}, v)
-	is.EqualValues([]string{"a", "b", "c"}, missing)
+	is.Equal(map[string]int{}, v)
+	is.Equal([]string{"a", "b", "c"}, missing)
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 	v, missing = cache.PeekMany([]string{"a", "b", "c"})
-	is.EqualValues(map[string]int{"a": 2, "b": 4}, v)
-	is.EqualValues([]string{"c"}, missing)
+	is.Equal(map[string]int{"a": 2, "b": 4}, v)
+	is.Equal([]string{"c"}, missing)
 	is.Equal(int32(0), atomic.LoadInt32(&counter))
 
 	// shared missing
@@ -798,13 +812,13 @@ func TestHotCache_PeekMany(t *testing.T) {
 		WithMissingSharedCache().
 		Build()
 	v, missing = cache.PeekMany([]string{"a", "b", "c"})
-	is.EqualValues(map[string]int{}, v)
-	is.EqualValues([]string{"a", "b", "c"}, missing)
+	is.Equal(map[string]int{}, v)
+	is.Equal([]string{"a", "b", "c"}, missing)
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 	v, missing = cache.PeekMany([]string{"a", "b", "c"})
-	is.EqualValues(map[string]int{"a": 2, "b": 4}, v)
-	is.EqualValues([]string{"c"}, missing)
+	is.Equal(map[string]int{"a": 2, "b": 4}, v)
+	is.Equal([]string{"c"}, missing)
 	is.Equal(int32(0), atomic.LoadInt32(&counter))
 
 	// dedicated missing
@@ -819,18 +833,19 @@ func TestHotCache_PeekMany(t *testing.T) {
 		WithMissingCache(LRU, 10).
 		Build()
 	v, missing = cache.PeekMany([]string{"a", "b", "c"})
-	is.EqualValues(map[string]int{}, v)
-	is.EqualValues([]string{"a", "b", "c"}, missing)
+	is.Equal(map[string]int{}, v)
+	is.Equal([]string{"a", "b", "c"}, missing)
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 	v, missing = cache.PeekMany([]string{"a", "b", "c"})
-	is.EqualValues(map[string]int{"a": 2, "b": 4}, v)
-	is.EqualValues([]string{"c"}, missing)
+	is.Equal(map[string]int{"a": 2, "b": 4}, v)
+	is.Equal([]string{"c"}, missing)
 	is.Equal(int32(0), atomic.LoadInt32(&counter))
 }
 
 func TestHotCache_Keys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
@@ -868,6 +883,7 @@ func TestHotCache_Keys(t *testing.T) {
 
 func TestHotCache_Values(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
@@ -905,6 +921,7 @@ func TestHotCache_Values(t *testing.T) {
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
@@ -924,6 +941,7 @@ func TestInternalState_All(t *testing.T) {
 
 func TestHotCache_Range(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1001,11 +1019,11 @@ func TestHotCache_Range(t *testing.T) {
 		return false
 	})
 	is.Equal(int32(3), atomic.LoadInt32(&counter3))
-
 }
 
 func TestHotCache_Delete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1045,14 +1063,15 @@ func TestHotCache_Delete(t *testing.T) {
 
 func TestHotCache_DeleteMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	cache.Set("a", 1)
 	is.Equal(1, cache.Len())
-	is.EqualValues(map[string]bool{"a": true, "b": false}, cache.DeleteMany([]string{"a", "b"}))
-	is.EqualValues(map[string]bool{"a": false, "b": false}, cache.DeleteMany([]string{"a", "b"}))
+	is.Equal(map[string]bool{"a": true, "b": false}, cache.DeleteMany([]string{"a", "b"}))
+	is.Equal(map[string]bool{"a": false, "b": false}, cache.DeleteMany([]string{"a", "b"}))
 	is.Equal(0, cache.Len())
 
 	// shared missing
@@ -1062,8 +1081,8 @@ func TestHotCache_DeleteMany(t *testing.T) {
 	cache.Set("a", 1)
 	cache.SetMissing("b")
 	is.Equal(2, cache.Len())
-	is.EqualValues(map[string]bool{"a": true, "b": true, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
-	is.EqualValues(map[string]bool{"a": false, "b": false, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
+	is.Equal(map[string]bool{"a": true, "b": true, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
+	is.Equal(map[string]bool{"a": false, "b": false, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
 	is.Equal(0, cache.Len())
 
 	// dedicated missing
@@ -1073,13 +1092,14 @@ func TestHotCache_DeleteMany(t *testing.T) {
 	cache.Set("a", 1)
 	cache.SetMissing("b")
 	is.Equal(2, cache.Len())
-	is.EqualValues(map[string]bool{"a": true, "b": true, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
-	is.EqualValues(map[string]bool{"a": false, "b": false, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
+	is.Equal(map[string]bool{"a": true, "b": true, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
+	is.Equal(map[string]bool{"a": false, "b": false, "c": false}, cache.DeleteMany([]string{"a", "b", "c"}))
 	is.Equal(0, cache.Len())
 }
 
 func TestHotCache_Purge(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1112,6 +1132,7 @@ func TestHotCache_Purge(t *testing.T) {
 
 func TestHotCache_Capacity(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1139,13 +1160,14 @@ func TestHotCache_Capacity(t *testing.T) {
 
 func TestHotCache_Algorithm(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
 		Build()
 	a, b := cache.Algorithm()
 	is.Equal("lru", a)
-	is.Equal("", b)
+	is.Empty(b)
 
 	// shared missing
 	cache = NewHotCache[string, int](LRU, 10).
@@ -1153,7 +1175,7 @@ func TestHotCache_Algorithm(t *testing.T) {
 		Build()
 	a, b = cache.Algorithm()
 	is.Equal("lru", a)
-	is.Equal("", b)
+	is.Empty(b)
 
 	// dedicated missing
 	cache = NewHotCache[string, int](LRU, 10).
@@ -1166,6 +1188,7 @@ func TestHotCache_Algorithm(t *testing.T) {
 
 func TestHotCache_Len(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// normal
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1203,6 +1226,7 @@ func TestHotCache_Len(t *testing.T) {
 
 func TestHotCache_WarmUp(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Panics(func() {
 		_ = NewHotCache[string, int](LRU, 10).
@@ -1227,7 +1251,7 @@ func TestHotCache_WarmUp(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	v, ok, err := cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(2, v)
 
 	// with shared missing
@@ -1275,6 +1299,7 @@ func TestHotCache_WarmUp(t *testing.T) {
 
 func TestHotCache_Janitor(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1319,6 +1344,7 @@ func TestHotCache_Janitor(t *testing.T) {
 
 func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewHotCache[string, int](LRU, 10).
 		Build()
@@ -1377,6 +1403,7 @@ func TestHotCache_setUnsafe_noMissingCache(t *testing.T) {
 
 func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewHotCache[string, int](LRU, 10).
 		WithMissingSharedCache().
@@ -1442,6 +1469,7 @@ func TestHotCache_setUnsafe_sharedMissingCache(t *testing.T) {
 
 func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewHotCache[string, int](LRU, 10).
 		WithMissingCache(LRU, 10).
@@ -1513,6 +1541,7 @@ func TestHotCache_setUnsafe_dedicatedMissingCache(t *testing.T) {
 
 func TestHotCache_setManyUnsafe(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1544,8 +1573,8 @@ func TestHotCache_setManyUnsafe(t *testing.T) {
 }
 
 func TestHotCache_getUnsafe(t *testing.T) {
-	t.Parallel()
 	is := assert.New(t)
+	t.Parallel()
 
 	// simple
 	cache := NewHotCache[string, int](LRU, 10).
@@ -1697,32 +1726,32 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Nanoseconds())
 	v, missing, revalidate := cache.getManyUnsafe([]string{"a"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 
 	v, missing, revalidate = cache.getManyUnsafe([]string{"b"})
-	is.Len(v, 0)
+	is.Empty(v)
 	is.Len(missing, 1)
-	is.Len(revalidate, 0)
+	is.Empty(revalidate)
 
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 	is.Equal(2, cache.cache.Len())
 
 	time.Sleep(20 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
+	is.Empty(missing)
 	is.Len(revalidate, 1)
 	is.Equal(2, cache.cache.Len())
 
 	time.Sleep(70 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
-	is.Len(v, 0)
+	is.Empty(v)
 	is.Len(missing, 1)
-	is.Len(revalidate, 0)
+	is.Empty(revalidate)
 	is.Equal(1, cache.cache.Len())
 
 	// shared missing cache
@@ -1734,32 +1763,32 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	cache.setUnsafe("c", true, 3, (2 * time.Millisecond).Nanoseconds())
 	v, missing, revalidate = cache.getManyUnsafe([]string{"a"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 
 	v, missing, revalidate = cache.getManyUnsafe([]string{"b"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 	is.Equal(3, cache.cache.Len())
 
 	time.Sleep(20 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
+	is.Empty(missing)
 	is.Len(revalidate, 1)
 	is.Equal(3, cache.cache.Len())
 
 	time.Sleep(70 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
-	is.Len(v, 0)
+	is.Empty(v)
 	is.Len(missing, 1)
-	is.Len(revalidate, 0)
+	is.Empty(revalidate)
 	is.Equal(2, cache.cache.Len())
 
 	// dedicated missing cache
@@ -1771,32 +1800,32 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 	cache.setUnsafe("c", false, 0, (2 * time.Millisecond).Nanoseconds())
 	v, missing, revalidate = cache.getManyUnsafe([]string{"a"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 
 	v, missing, revalidate = cache.getManyUnsafe([]string{"b"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
-	is.Len(revalidate, 0)
+	is.Empty(missing)
+	is.Empty(revalidate)
 	is.Equal(2, cache.missingCache.Len())
 
 	time.Sleep(20 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
 	is.Len(v, 1)
-	is.Len(missing, 0)
+	is.Empty(missing)
 	is.Len(revalidate, 1)
 	is.Equal(2, cache.missingCache.Len())
 
 	time.Sleep(70 * time.Millisecond)
 	v, missing, revalidate = cache.getManyUnsafe([]string{"c"})
-	is.Len(v, 0)
+	is.Empty(v)
 	is.Len(missing, 1)
-	is.Len(revalidate, 0)
+	is.Empty(revalidate)
 	is.Equal(1, cache.missingCache.Len())
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
@@ -1804,6 +1833,7 @@ func TestHotCache_getManyUnsafe(t *testing.T) {
 
 func TestHotCache_loadAndSetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	counter1 := int32(0)
 	counter2 := int32(0)
@@ -1821,7 +1851,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 		[]string{"a", "b"},
 		LoaderChain[string, int]{},
 	)
-	is.Nil(err)
+	is.NoError(err)
 	is.NotNil(v)
 	is.False(v["a"].hasValue)
 	is.False(v["b"].hasValue)
@@ -1843,9 +1873,9 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 			},
 		},
 	)
-	is.Nil(err)
+	is.NoError(err)
 	is.NotNil(v)
-	is.Len(v, 0)
+	is.Empty(v)
 
 	cache.Purge()
 	v, err = cache.loadAndSetMany(
@@ -1864,7 +1894,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 	)
 	is.EqualError(err, assert.AnError.Error())
 	is.NotNil(v)
-	is.Len(v, 0)
+	is.Empty(v)
 	is.Equal(int32(1), atomic.LoadInt32(&counter1))
 
 	cache.Purge()
@@ -1883,7 +1913,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 			},
 		},
 	)
-	is.Nil(err)
+	is.NoError(err)
 	is.Len(v, 2)
 	is.True(v["a"].hasValue)
 	is.False(v["b"].hasValue)
@@ -1913,7 +1943,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 			},
 		},
 	)
-	is.Nil(err)
+	is.NoError(err)
 	is.Len(v, 2)
 	is.True(v["a"].hasValue)
 	is.False(v["b"].hasValue)
@@ -1943,7 +1973,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 			},
 		},
 	)
-	is.Nil(err)
+	is.NoError(err)
 	is.Len(v, 2)
 	is.True(v["a"].hasValue)
 	is.False(v["b"].hasValue)
@@ -1957,6 +1987,7 @@ func TestHotCache_loadAndSetMany(t *testing.T) {
 
 func TestHotCache_revalidate(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	counter1 := int32(0)
 	counter2 := int32(0)
@@ -1983,7 +2014,7 @@ func TestHotCache_revalidate(t *testing.T) {
 
 	v, ok, err := cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(2, v)
 	is.Equal(int32(1), atomic.LoadInt32(&counter1)) // revalidated async
 
@@ -1992,7 +2023,7 @@ func TestHotCache_revalidate(t *testing.T) {
 
 	v, ok, err = cache.Get("a")
 	is.False(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(0, v)
 	is.Equal(int32(2), atomic.LoadInt32(&counter1))
 
@@ -2021,7 +2052,7 @@ func TestHotCache_revalidate(t *testing.T) {
 
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(2, v)
 	is.Equal(int32(1), atomic.LoadInt32(&counter2)) // revalidated async
 
@@ -2030,7 +2061,7 @@ func TestHotCache_revalidate(t *testing.T) {
 
 	v, ok, err = cache.Get("a")
 	is.True(ok)
-	is.Nil(err)
+	is.NoError(err)
 	is.Equal(2, v)
 	is.Equal(int32(3), atomic.LoadInt32(&counter2))
 

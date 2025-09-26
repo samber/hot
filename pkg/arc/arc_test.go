@@ -10,6 +10,7 @@ import (
 
 func TestNewARCCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Panics(func() {
 		_ = NewARCCache[string, int](0)
@@ -30,6 +31,7 @@ func TestNewARCCache(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := 0
 	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -41,15 +43,15 @@ func TestSet(t *testing.T) {
 	cache.Set("a", 1)
 	is.Equal(1, cache.t1.Len())
 	is.Equal(0, cache.t2.Len())
-	is.Equal(1, len(cache.t1Map))
-	is.Equal(0, len(cache.t2Map))
+	is.Len(cache.t1Map, 1)
+	is.Empty(cache.t2Map)
 	is.Equal(0, evicted)
 
 	cache.Set("b", 2)
 	is.Equal(2, cache.t1.Len())
 	is.Equal(0, cache.t2.Len())
-	is.Equal(2, len(cache.t1Map))
-	is.Equal(0, len(cache.t2Map))
+	is.Len(cache.t1Map, 2)
+	is.Empty(cache.t2Map)
 	is.Equal(0, evicted)
 
 	// Test eviction when capacity is reached
@@ -57,8 +59,8 @@ func TestSet(t *testing.T) {
 	cache.Set("c", 3)
 	is.Equal(2, cache.t1.Len())
 	is.Equal(0, cache.t2.Len())
-	is.Equal(2, len(cache.t1Map))
-	is.Equal(0, len(cache.t2Map))
+	is.Len(cache.t1Map, 2)
+	is.Empty(cache.t2Map)
 	is.Equal(1, evicted) // "a" was evicted to B1
 	is.Equal(1, cache.b1.Len())
 	is.NotNil(cache.b1Map["a"])
@@ -66,6 +68,7 @@ func TestSet(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -95,6 +98,7 @@ func TestGet(t *testing.T) {
 
 func TestGetPromotesFromT1ToT2(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -124,6 +128,7 @@ func TestGetPromotesFromT1ToT2(t *testing.T) {
 
 func TestSetExistingKey(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -151,6 +156,7 @@ func TestSetExistingKey(t *testing.T) {
 
 func TestGhostHitInB1(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](2)
 	cache.Set("a", 1)
@@ -173,11 +179,12 @@ func TestGhostHitInB1(t *testing.T) {
 	is.NotNil(cache.t2Map["a"])
 
 	// Check that p increased (favoring T2)
-	is.Greater(cache.p, 0)
+	is.Positive(cache.p)
 }
 
 func TestGhostHitInB2(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](2)
 	cache.Set("a", 1)
@@ -207,6 +214,7 @@ func TestGhostHitInB2(t *testing.T) {
 
 func TestHas(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -225,6 +233,7 @@ func TestHas(t *testing.T) {
 
 func TestPeek(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -253,6 +262,7 @@ func TestPeek(t *testing.T) {
 
 func TestKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -269,6 +279,7 @@ func TestKeys(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -285,6 +296,7 @@ func TestValues(t *testing.T) {
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -298,6 +310,7 @@ func TestInternalState_All(t *testing.T) {
 
 func TestRange(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -327,6 +340,7 @@ func TestRange(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -358,6 +372,7 @@ func TestDelete(t *testing.T) {
 
 func TestDeleteFromGhostLists(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](2)
 	cache.Set("a", 1)
@@ -383,6 +398,7 @@ func TestDeleteFromGhostLists(t *testing.T) {
 
 func TestSetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	items := map[string]int{
@@ -400,6 +416,7 @@ func TestSetMany(t *testing.T) {
 
 func TestHasMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -415,6 +432,7 @@ func TestHasMany(t *testing.T) {
 
 func TestGetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -430,6 +448,7 @@ func TestGetMany(t *testing.T) {
 
 func TestPeekMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -445,6 +464,7 @@ func TestPeekMany(t *testing.T) {
 
 func TestDeleteMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -463,6 +483,7 @@ func TestDeleteMany(t *testing.T) {
 
 func TestPurge(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -479,6 +500,7 @@ func TestPurge(t *testing.T) {
 
 func TestCapacity(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](42)
 	is.Equal(42, cache.Capacity())
@@ -486,6 +508,7 @@ func TestCapacity(t *testing.T) {
 
 func TestAlgorithm(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	is.Equal("arc", cache.Algorithm())
@@ -493,6 +516,7 @@ func TestAlgorithm(t *testing.T) {
 
 func TestLen(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	is.Equal(0, cache.Len())
@@ -510,6 +534,7 @@ func TestLen(t *testing.T) {
 
 func TestDeleteOldest(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -528,13 +553,14 @@ func TestDeleteOldest(t *testing.T) {
 	is.Equal(0, cache.Len())
 
 	key, value, ok = cache.DeleteOldest()
-	is.Zero(key)
+	is.Empty(key)
 	is.Zero(value)
 	is.False(ok)
 }
 
 func TestEvictionCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -547,11 +573,12 @@ func TestEvictionCallback(t *testing.T) {
 	cache.Set("c", 3) // Should evict "a"
 
 	is.Equal(1, evicted["a"])
-	is.Equal(1, len(evicted))
+	is.Len(evicted, 1)
 }
 
 func TestEvictionCallbackWithSetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -572,6 +599,7 @@ func TestEvictionCallbackWithSetMany(t *testing.T) {
 
 func TestEvictionCallbackWithDeleteMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -589,7 +617,7 @@ func TestEvictionCallbackWithDeleteMany(t *testing.T) {
 		cache.t1.Len(), cache.t2.Len(), cache.b1.Len(), cache.b2.Len(), len(evicted))
 
 	// After first eviction
-	is.Equal(1, len(evicted))
+	is.Len(evicted, 1)
 	is.Equal(1, evicted["a"])
 	is.Equal(1, cache.b1.Len())
 	is.NotNil(cache.b1Map["a"])
@@ -610,6 +638,7 @@ func TestEvictionCallbackWithDeleteMany(t *testing.T) {
 
 func TestAdaptiveParameterP(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](4)
 	is.Equal(0, cache.p) // Starts at 0 (pure LRU)
@@ -639,6 +668,7 @@ func TestAdaptiveParameterP(t *testing.T) {
 
 func TestComplexARCBehavior(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 
@@ -669,6 +699,7 @@ func TestComplexARCBehavior(t *testing.T) {
 
 func TestInterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](10)
 	var _ base.InMemoryCache[string, int] = cache
@@ -685,6 +716,7 @@ func TestInterfaceCompliance(t *testing.T) {
 
 func TestCanonicalARCBehavior(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](2)
 
@@ -722,11 +754,12 @@ func TestCanonicalARCBehavior(t *testing.T) {
 	is.Equal(1, cache.t2.Len())
 	is.Equal(1, cache.b1.Len()) // B1 not empty - another item evicted from T1
 	is.Equal(0, cache.b2.Len())
-	is.Greater(cache.p, 0) // p should increase
+	is.Positive(cache.p) // p should increase
 }
 
 func TestGhostHitBehavior(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](2)
 
@@ -753,11 +786,12 @@ func TestGhostHitBehavior(t *testing.T) {
 	is.Equal(1, cache.t2.Len())
 	is.Equal(1, cache.b1.Len())
 	is.Equal(0, cache.b2.Len())
-	is.Greater(cache.p, 0) // p should increase
+	is.Positive(cache.p) // p should increase
 }
 
 func TestEvictFromT2(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](2)
 
@@ -782,6 +816,7 @@ func TestEvictFromT2(t *testing.T) {
 
 func TestEvictFromT2WithCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := 0
 	cache := NewARCCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -799,11 +834,12 @@ func TestEvictFromT2WithCallback(t *testing.T) {
 	cache.Set("c", 3)
 
 	// Verify callback was called
-	is.Greater(evicted, 0)
+	is.Positive(evicted)
 }
 
 func TestTrimGhostLists(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](2)
 
@@ -824,6 +860,7 @@ func TestTrimGhostLists(t *testing.T) {
 }
 
 func TestHandleMissEdgeCases(t *testing.T) {
+	t.Parallel()
 	// Test case where t1b1 == capacity and t1.Len() == capacity
 	cache := NewARCCache[string, int](2)
 	cache.Set("a", 1)
@@ -851,6 +888,7 @@ func TestHandleMissEdgeCases(t *testing.T) {
 
 func TestHandleMissWithLargeGhostLists(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 
@@ -869,10 +907,11 @@ func TestHandleMissWithLargeGhostLists(t *testing.T) {
 	cache.Set("final2", 2000)
 
 	// Verify cache is still functional (ARC may temporarily exceed capacity)
-	is.Greater(cache.Len(), 0)
+	is.Positive(cache.Len())
 }
 
 func TestHandleGhostHitEdgeCases(t *testing.T) {
+	t.Parallel()
 	// Test ghost hit with empty B1
 	cache := NewARCCache[string, int](2)
 	cache.Set("a", 1)
@@ -900,6 +939,7 @@ func TestHandleGhostHitEdgeCases(t *testing.T) {
 }
 
 func TestHandleGhostHitWithLargeLists(t *testing.T) {
+	t.Parallel()
 	cache := NewARCCache[string, int](3)
 
 	// Create a scenario with large ghost lists
@@ -926,12 +966,13 @@ func TestHandleGhostHitWithLargeLists(t *testing.T) {
 
 func TestDeleteOldestEdgeCases(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test DeleteOldest with empty cache
 	cache := NewARCCache[string, int](2)
 	k, v, ok := cache.DeleteOldest()
 	is.False(ok)
-	is.Zero(k)
+	is.Empty(k)
 	is.Zero(v)
 
 	// Test DeleteOldest with only T2 items
@@ -949,6 +990,7 @@ func TestDeleteOldestEdgeCases(t *testing.T) {
 
 func TestDeleteOldestWithMixedLists(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 
@@ -974,6 +1016,7 @@ func TestDeleteOldestWithMixedLists(t *testing.T) {
 
 func TestRangeEarlyReturn(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -996,6 +1039,7 @@ func TestRangeEarlyReturn(t *testing.T) {
 
 func TestRangeWithPromotedItems(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](3)
 	cache.Set("a", 1)
@@ -1011,13 +1055,14 @@ func TestRangeWithPromotedItems(t *testing.T) {
 		return true
 	})
 
-	is.Equal(2, len(items))
+	is.Len(items, 2)
 	is.Equal(1, items["a"])
 	is.Equal(2, items["b"])
 }
 
 func TestMinFunction(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test min function with different values
 	is.Equal(1, min(1, 2))
@@ -1029,6 +1074,7 @@ func TestMinFunction(t *testing.T) {
 
 func TestMaxFunction(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test max function with different values
 	is.Equal(2, max(1, 2))
@@ -1040,6 +1086,7 @@ func TestMaxFunction(t *testing.T) {
 
 func TestComplexARCScenarios(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test complex ARC behavior with many operations
 	cache := NewARCCache[string, int](4)
@@ -1067,13 +1114,14 @@ func TestComplexARCScenarios(t *testing.T) {
 	cache.Set("key6", 4000) // Should trigger eviction from T2
 
 	// Verify cache state (ARC may temporarily exceed capacity)
-	is.Greater(cache.Len(), 0)
+	is.Positive(cache.Len())
 	is.GreaterOrEqual(cache.p, 0)
 	is.LessOrEqual(cache.p, cache.capacity)
 }
 
 func TestARCWithZeroCapacity(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test that zero capacity panics
 	is.Panics(func() {
@@ -1087,6 +1135,7 @@ func TestARCWithZeroCapacity(t *testing.T) {
 
 func TestARCWithNegativeCapacity(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test that negative capacity panics
 	is.Panics(func() {
@@ -1100,6 +1149,7 @@ func TestARCWithNegativeCapacity(t *testing.T) {
 
 func TestARCWithNilEvictionCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCacheWithEvictionCallback[string, int](2, nil)
 
@@ -1113,6 +1163,7 @@ func TestARCWithNilEvictionCallback(t *testing.T) {
 
 func TestARCConcurrentAccess(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](100)
 
@@ -1125,11 +1176,12 @@ func TestARCConcurrentAccess(t *testing.T) {
 	}
 
 	// Verify cache is still functional (ARC may temporarily exceed capacity)
-	is.Greater(cache.Len(), 0)
+	is.Positive(cache.Len())
 }
 
 func TestARCWithDifferentTypes(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with different key/value types
 	cache := NewARCCache[int, string](3)
@@ -1158,6 +1210,7 @@ func TestARCWithDifferentTypes(t *testing.T) {
 
 func TestARCWithLargeCapacity(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with large capacity
 	cache := NewARCCache[string, int](10000)
@@ -1179,6 +1232,7 @@ func TestARCWithLargeCapacity(t *testing.T) {
 
 func TestARCWithManyGhostEntries(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewARCCache[string, int](5)
 

@@ -10,6 +10,7 @@ import (
 
 func TestNewShardedInMemoryCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewShardedInMemoryCache(
 		42,
@@ -35,6 +36,7 @@ func TestNewShardedInMemoryCache(t *testing.T) {
 
 func TestShardedInMemoryCache_BasicOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Create a simple hasher that distributes keys evenly
 	hasher := func(s string) uint64 {
@@ -85,6 +87,7 @@ func TestShardedInMemoryCache_BasicOperations(t *testing.T) {
 
 func TestShardedInMemoryCache_BatchOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -141,6 +144,7 @@ func TestShardedInMemoryCache_BatchOperations(t *testing.T) {
 
 func TestShardedInMemoryCache_KeysAndValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -173,6 +177,7 @@ func TestShardedInMemoryCache_KeysAndValues(t *testing.T) {
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewShardedInMemoryCache[string, int](2, func(shardIndex int) base.InMemoryCache[string, int] {
 		return lru.NewLRUCache[string, int](10)
@@ -190,6 +195,7 @@ func TestInternalState_All(t *testing.T) {
 
 func TestShardedInMemoryCache_Range(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -221,6 +227,7 @@ func TestShardedInMemoryCache_Range(t *testing.T) {
 
 func TestShardedInMemoryCache_Purge(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -248,6 +255,7 @@ func TestShardedInMemoryCache_Purge(t *testing.T) {
 
 func TestShardedInMemoryCache_EmptyOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -267,25 +275,26 @@ func TestShardedInMemoryCache_EmptyOperations(t *testing.T) {
 
 	// Test empty HasMany
 	hasResults := cache.HasMany([]string{})
-	is.Len(hasResults, 0)
+	is.Empty(hasResults)
 
 	// Test empty GetMany
 	found, missing := cache.GetMany([]string{})
-	is.Len(found, 0)
-	is.Len(missing, 0)
+	is.Empty(found)
+	is.Empty(missing)
 
 	// Test empty PeekMany
 	found, missing = cache.PeekMany([]string{})
-	is.Len(found, 0)
-	is.Len(missing, 0)
+	is.Empty(found)
+	is.Empty(missing)
 
 	// Test empty DeleteMany
 	deleteResults := cache.DeleteMany([]string{})
-	is.Len(deleteResults, 0)
+	is.Empty(deleteResults)
 }
 
 func TestShardedInMemoryCache_CapacityAndAlgorithm(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -308,6 +317,7 @@ func TestShardedInMemoryCache_CapacityAndAlgorithm(t *testing.T) {
 
 func TestShardedInMemoryCache_Len(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -347,6 +357,7 @@ func TestShardedInMemoryCache_Len(t *testing.T) {
 
 func TestShardedInMemoryCache_InterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -361,7 +372,7 @@ func TestShardedInMemoryCache_InterfaceCompliance(t *testing.T) {
 	)
 
 	// Test that we can assign it to the interface type
-	var cacheInterface = cache
+	cacheInterface := cache
 
 	// Test operations through the interface
 	cacheInterface.Set("test", 42)
@@ -372,6 +383,7 @@ func TestShardedInMemoryCache_InterfaceCompliance(t *testing.T) {
 
 func TestShardedInMemoryCache_SingleShard(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))
@@ -399,6 +411,7 @@ func TestShardedInMemoryCache_SingleShard(t *testing.T) {
 
 func TestShardedInMemoryCache_ManyShards(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hasher := func(s string) uint64 {
 		return uint64(len(s))

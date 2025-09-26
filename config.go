@@ -13,6 +13,8 @@ import (
 type EvictionAlgorithm string
 
 const (
+	// Evictions algorithms.
+
 	LRU      EvictionAlgorithm = "lru"
 	LFU      EvictionAlgorithm = "lfu"
 	TwoQueue EvictionAlgorithm = "2q"

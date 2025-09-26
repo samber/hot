@@ -50,7 +50,7 @@ func main() {
 	fmt.Println("🔄 Testing individual Get operations...")
 	start = time.Now()
 	for i := 0; i < 100; i++ {
-		_, _, _ = cache.Get(fmt.Sprintf("batch:%d", i)) //nolint:errcheck
+		_, _, _ = cache.Get(fmt.Sprintf("batch:%d", i))
 	}
 	individualGetDuration := time.Since(start)
 	fmt.Printf("⏱️ Individual Get: 100 operations in %v\n", individualGetDuration)
@@ -99,9 +99,9 @@ func main() {
 		cache.SetMany(batch)
 		duration := time.Since(start)
 
-		current, max := cache.Capacity()
+		current, mAx := cache.Capacity()
 		fmt.Printf("✅ %s: %d/%d items in %v\n",
-			p.name, current, max, duration)
+			p.name, current, mAx, duration)
 	}
 
 	// Example 4: Batch operations with different data types

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockCache implements base.InMemoryCache for testing
+// mockCache implements base.InMemoryCache for testing.
 type mockCache[K comparable, V any] struct {
 	data map[K]V
 }
@@ -149,6 +149,7 @@ func (m *mockCache[K, V]) SizeBytes() int64 {
 
 func TestNewSafeInMemoryCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	safeCache := NewSafeInMemoryCache(mock)
@@ -159,6 +160,7 @@ func TestNewSafeInMemoryCache(t *testing.T) {
 
 func TestSafeInMemoryCache_BasicOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -188,6 +190,7 @@ func TestSafeInMemoryCache_BasicOperations(t *testing.T) {
 
 func TestSafeInMemoryCache_BatchOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -230,6 +233,7 @@ func TestSafeInMemoryCache_BatchOperations(t *testing.T) {
 
 func TestSafeInMemoryCache_KeysAndValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -250,6 +254,7 @@ func TestSafeInMemoryCache_KeysAndValues(t *testing.T) {
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -265,6 +270,7 @@ func TestInternalState_All(t *testing.T) {
 
 func TestSafeInMemoryCache_Range(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -285,6 +291,7 @@ func TestSafeInMemoryCache_Range(t *testing.T) {
 
 func TestSafeInMemoryCache_Purge(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -303,6 +310,7 @@ func TestSafeInMemoryCache_Purge(t *testing.T) {
 
 func TestSafeInMemoryCache_EmptyOperations(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -313,25 +321,26 @@ func TestSafeInMemoryCache_EmptyOperations(t *testing.T) {
 
 	// Test empty HasMany
 	hasResults := cache.HasMany([]string{})
-	is.Len(hasResults, 0)
+	is.Empty(hasResults)
 
 	// Test empty GetMany
 	found, missing := cache.GetMany([]string{})
-	is.Len(found, 0)
-	is.Len(missing, 0)
+	is.Empty(found)
+	is.Empty(missing)
 
 	// Test empty PeekMany
 	found, missing = cache.PeekMany([]string{})
-	is.Len(found, 0)
-	is.Len(missing, 0)
+	is.Empty(found)
+	is.Empty(missing)
 
 	// Test empty DeleteMany
 	deleteResults := cache.DeleteMany([]string{})
-	is.Len(deleteResults, 0)
+	is.Empty(deleteResults)
 }
 
 func TestSafeInMemoryCache_ConcurrentAccess(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[int, int]()
 	cache := NewSafeInMemoryCache(mock)
@@ -377,6 +386,7 @@ func TestSafeInMemoryCache_ConcurrentAccess(t *testing.T) {
 
 func TestSafeInMemoryCache_WithRealLRU(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	lruCache := lru.NewLRUCache[string, int](100)
 	safeCache := NewSafeInMemoryCache(lruCache)
@@ -394,6 +404,7 @@ func TestSafeInMemoryCache_WithRealLRU(t *testing.T) {
 
 func TestSafeInMemoryCache_InterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := newMockCache[string, int]()
 	safeCache := NewSafeInMemoryCache(mock)
