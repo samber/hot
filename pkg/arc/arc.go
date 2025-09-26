@@ -1,7 +1,7 @@
 package arc
 
 import (
-	"container/list"
+	"github.com/samber/hot/internal/container/list"
 
 	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
@@ -33,19 +33,19 @@ func NewARCCacheWithEvictionCallback[K comparable, V any](capacity int, onEvicti
 		p:        0, // Initial adaptive parameter (starts at 0, meaning pure LRU)
 
 		// T1: Recently accessed items (LRU list)
-		t1: list.New(),
+		t1: list.New[*entry[K, V]](),
 		// T2: Frequently accessed items (LRU list)
-		t2: list.New(),
+		t2: list.New[*entry[K, V]](),
 		// B1: Ghost entries for T1 (recently evicted from T1)
-		b1: list.New(),
+		b1: list.New[*entry[K, V]](),
 		// B2: Ghost entries for T2 (recently evicted from T2)
-		b2: list.New(),
+		b2: list.New[*entry[K, V]](),
 
 		// Maps for O(1) lookups
-		t1Map: make(map[K]*list.Element),
-		t2Map: make(map[K]*list.Element),
-		b1Map: make(map[K]*list.Element),
-		b2Map: make(map[K]*list.Element),
+		t1Map: make(map[K]*list.Element[*entry[K, V]]),
+		t2Map: make(map[K]*list.Element[*entry[K, V]]),
+		b1Map: make(map[K]*list.Element[*entry[K, V]]),
+		b2Map: make(map[K]*list.Element[*entry[K, V]]),
 
 		onEviction: onEviction,
 	}
@@ -71,18 +71,18 @@ type ARCCache[K comparable, V any] struct {
 	p        int // Adaptive parameter that balances T1 and T2 sizes
 
 	// Main cache lists (T1 and T2)
-	t1 *list.List // Recently accessed items (LRU)
-	t2 *list.List // Frequently accessed items (LRU)
+	t1 *list.List[*entry[K, V]] // Recently accessed items (LRU)
+	t2 *list.List[*entry[K, V]] // Frequently accessed items (LRU)
 
 	// Ghost lists (B1 and B2) - store only keys, not values
-	b1 *list.List // Ghost entries for T1
-	b2 *list.List // Ghost entries for T2
+	b1 *list.List[*entry[K, V]] // Ghost entries for T1
+	b2 *list.List[*entry[K, V]] // Ghost entries for T2
 
 	// Maps for O(1) lookups to list elements
-	t1Map map[K]*list.Element // Maps keys to T1 list elements
-	t2Map map[K]*list.Element // Maps keys to T2 list elements
-	b1Map map[K]*list.Element // Maps keys to B1 list elements (ghost entries)
-	b2Map map[K]*list.Element // Maps keys to B2 list elements (ghost entries)
+	t1Map map[K]*list.Element[*entry[K, V]] // Maps keys to T1 list elements
+	t2Map map[K]*list.Element[*entry[K, V]] // Maps keys to T2 list elements
+	b1Map map[K]*list.Element[*entry[K, V]] // Maps keys to B1 list elements (ghost entries)
+	b2Map map[K]*list.Element[*entry[K, V]] // Maps keys to B2 list elements (ghost entries)
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
@@ -100,7 +100,7 @@ func (c *ARCCache[K, V]) Set(key K, value V) {
 		// Move from T1 to T2 (promotion)
 		c.t1.Remove(e)
 		delete(c.t1Map, key)
-		entry := e.Value.(*entry[K, V])
+		entry := e.Value
 		entry.value = value
 		e = c.t2.PushFront(entry)
 		c.t2Map[key] = e
@@ -111,7 +111,7 @@ func (c *ARCCache[K, V]) Set(key K, value V) {
 	if e, ok := c.t2Map[key]; ok {
 		// Move to front of T2
 		c.t2.MoveToFront(e)
-		e.Value.(*entry[K, V]).value = value
+		e.Value.value = value
 		return
 	}
 
@@ -198,7 +198,7 @@ func (c *ARCCache[K, V]) handleMiss(key K, value V) {
 			if c.b1.Len() > 0 {
 				old := c.b1.Back()
 				if old != nil {
-					oldEntry := old.Value.(*entry[K, V])
+					oldEntry := old.Value
 					c.b1.Remove(old)
 					delete(c.b1Map, oldEntry.key)
 				}
@@ -212,7 +212,7 @@ func (c *ARCCache[K, V]) handleMiss(key K, value V) {
 				if c.b2.Len() > 0 {
 					old := c.b2.Back()
 					if old != nil {
-						oldEntry := old.Value.(*entry[K, V])
+						oldEntry := old.Value
 						c.b2.Remove(old)
 						delete(c.b2Map, oldEntry.key)
 					}
@@ -243,7 +243,7 @@ func (c *ARCCache[K, V]) evictFromT1() {
 	// Remove from end of T1 (LRU)
 	e := c.t1.Back()
 	c.t1.Remove(e)
-	entryValue := e.Value.(*entry[K, V])
+	entryValue := e.Value
 	delete(c.t1Map, entryValue.key)
 
 	// Add to B1 as ghost entry (key only)
@@ -255,7 +255,7 @@ func (c *ARCCache[K, V]) evictFromT1() {
 	if c.b1.Len() > c.capacity {
 		old := c.b1.Back()
 		if old != nil {
-			oldEntry := old.Value.(*entry[K, V])
+			oldEntry := old.Value
 			c.b1.Remove(old)
 			delete(c.b1Map, oldEntry.key)
 		}
@@ -277,7 +277,7 @@ func (c *ARCCache[K, V]) evictFromT2() {
 	// Remove from end of T2 (LRU)
 	e := c.t2.Back()
 	c.t2.Remove(e)
-	entryValue := e.Value.(*entry[K, V])
+	entryValue := e.Value
 	delete(c.t2Map, entryValue.key)
 
 	// Add to B2 as ghost entry (key only)
@@ -289,7 +289,7 @@ func (c *ARCCache[K, V]) evictFromT2() {
 	if c.b2.Len() > c.capacity {
 		old := c.b2.Back()
 		if old != nil {
-			oldEntry := old.Value.(*entry[K, V])
+			oldEntry := old.Value
 			c.b2.Remove(old)
 			delete(c.b2Map, oldEntry.key)
 		}
@@ -319,7 +319,7 @@ func (c *ARCCache[K, V]) Get(key K) (value V, ok bool) {
 		// Move from T1 to T2 (promotion)
 		c.t1.Remove(e)
 		delete(c.t1Map, key)
-		entry := e.Value.(*entry[K, V])
+		entry := e.Value
 		e = c.t2.PushFront(entry)
 		c.t2Map[key] = e
 		return entry.value, true
@@ -329,7 +329,7 @@ func (c *ARCCache[K, V]) Get(key K) (value V, ok bool) {
 	if e, hit := c.t2Map[key]; hit {
 		// Move to front of T2
 		c.t2.MoveToFront(e)
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 
 	return value, false
@@ -340,12 +340,12 @@ func (c *ARCCache[K, V]) Get(key K) (value V, ok bool) {
 func (c *ARCCache[K, V]) Peek(key K) (value V, ok bool) {
 	// Check T1
 	if e, hit := c.t1Map[key]; hit {
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 
 	// Check T2
 	if e, hit := c.t2Map[key]; hit {
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 
 	return value, false
@@ -367,10 +367,10 @@ func (c *ARCCache[K, V]) Keys() []K {
 func (c *ARCCache[K, V]) Values() []V {
 	all := make([]V, 0, c.t1.Len()+c.t2.Len())
 	for _, v := range c.t1Map {
-		all = append(all, v.Value.(*entry[K, V]).value)
+		all = append(all, v.Value.value)
 	}
 	for _, v := range c.t2Map {
-		all = append(all, v.Value.(*entry[K, V]).value)
+		all = append(all, v.Value.value)
 	}
 	return all
 }
@@ -379,10 +379,10 @@ func (c *ARCCache[K, V]) Values() []V {
 func (c *ARCCache[K, V]) All() map[K]V {
 	all := make(map[K]V)
 	for k, v := range c.t1Map {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	for k, v := range c.t2Map {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	return all
 }
@@ -392,7 +392,7 @@ func (c *ARCCache[K, V]) All() map[K]V {
 func (c *ARCCache[K, V]) Range(f func(K, V) bool) {
 	all := make(map[K]V)
 	for k, v := range c.t1Map {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	for k, v := range all {
 		if !f(k, v) {
@@ -402,7 +402,7 @@ func (c *ARCCache[K, V]) Range(f func(K, V) bool) {
 
 	all = make(map[K]V)
 	for k, v := range c.t2Map {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	for k, v := range all {
 		if !f(k, v) {
@@ -510,10 +510,10 @@ func (c *ARCCache[K, V]) Purge() {
 	c.t2.Init()
 	c.b1.Init()
 	c.b2.Init()
-	c.t1Map = make(map[K]*list.Element)
-	c.t2Map = make(map[K]*list.Element)
-	c.b1Map = make(map[K]*list.Element)
-	c.b2Map = make(map[K]*list.Element)
+	c.t1Map = make(map[K]*list.Element[*entry[K, V]])
+	c.t2Map = make(map[K]*list.Element[*entry[K, V]])
+	c.b1Map = make(map[K]*list.Element[*entry[K, V]])
+	c.b2Map = make(map[K]*list.Element[*entry[K, V]])
 	c.p = 0
 }
 
@@ -547,7 +547,7 @@ func (c *ARCCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 	if c.t1.Len() > 0 {
 		e := c.t1.Back()
 		c.t1.Remove(e)
-		entry := e.Value.(*entry[K, V])
+		entry := e.Value
 		delete(c.t1Map, entry.key)
 		return entry.key, entry.value, true
 	}
@@ -556,7 +556,7 @@ func (c *ARCCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 	if c.t2.Len() > 0 {
 		e := c.t2.Back()
 		c.t2.Remove(e)
-		entry := e.Value.(*entry[K, V])
+		entry := e.Value
 		delete(c.t2Map, entry.key)
 		return entry.key, entry.value, true
 	}
@@ -584,7 +584,7 @@ func (c *ARCCache[K, V]) trimGhostLists() {
 	for c.b1.Len() > c.capacity {
 		old := c.b1.Back()
 		if old != nil {
-			oldEntry := old.Value.(*entry[K, V])
+			oldEntry := old.Value
 			c.b1.Remove(old)
 			delete(c.b1Map, oldEntry.key)
 		}
@@ -592,7 +592,7 @@ func (c *ARCCache[K, V]) trimGhostLists() {
 	for c.b2.Len() > c.capacity {
 		old := c.b2.Back()
 		if old != nil {
-			oldEntry := old.Value.(*entry[K, V])
+			oldEntry := old.Value
 			c.b2.Remove(old)
 			delete(c.b2Map, oldEntry.key)
 		}

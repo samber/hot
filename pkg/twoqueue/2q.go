@@ -1,7 +1,7 @@
 package twoqueue
 
 import (
-	"container/list"
+	"github.com/samber/hot/internal/container/list"
 
 	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
@@ -374,16 +374,16 @@ func (c *TwoQueueCache[K, V]) ensureGhostSpace() {
 // This is used for the recent and ghost components of the 2Q algorithm.
 type FIFOCache[K comparable, V any] struct {
 	capacity int
-	ll       *list.List
-	cache    map[K]*list.Element
+	ll       *list.List[*entry[K, V]]
+	cache    map[K]*list.Element[*entry[K, V]]
 }
 
 // newFIFOCache creates a new FIFO cache with the specified capacity.
 func newFIFOCache[K comparable, V any](capacity int) *FIFOCache[K, V] {
 	return &FIFOCache[K, V]{
 		capacity: capacity,
-		ll:       list.New(),
-		cache:    make(map[K]*list.Element),
+		ll:       list.New[*entry[K, V]](),
+		cache:    make(map[K]*list.Element[*entry[K, V]]),
 	}
 }
 
@@ -399,7 +399,7 @@ type entry[K comparable, V any] struct {
 func (c *FIFOCache[K, V]) Set(key K, value V) {
 	if e, ok := c.cache[key]; ok {
 		// Key exists: update value but don't change position
-		e.Value.(*entry[K, V]).value = value
+		e.Value.value = value
 		return
 	}
 
@@ -423,7 +423,7 @@ func (c *FIFOCache[K, V]) Has(key K) bool {
 // This operation does not change the position of the item in the FIFO order.
 func (c *FIFOCache[K, V]) Get(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
-		return e.Value.(*entry[K, V]).value, true
+		return e.Value.value, true
 	}
 	return value, false
 }
@@ -449,16 +449,16 @@ func (c *FIFOCache[K, V]) DeleteOldest() (k K, v V, ok bool) {
 	e := c.ll.Front()
 	if e != nil {
 		c.deleteElement(e)
-		kv := e.Value.(*entry[K, V])
+		kv := e.Value
 		return kv.key, kv.value, true
 	}
 	return k, v, false
 }
 
 // deleteElement removes an element from both the list and the map.
-func (c *FIFOCache[K, V]) deleteElement(e *list.Element) {
+func (c *FIFOCache[K, V]) deleteElement(e *list.Element[*entry[K, V]]) {
 	c.ll.Remove(e)
-	kv := e.Value.(*entry[K, V])
+	kv := e.Value
 	delete(c.cache, kv.key)
 }
 
@@ -475,7 +475,7 @@ func (c *FIFOCache[K, V]) Keys() []K {
 func (c *FIFOCache[K, V]) Values() []V {
 	all := make([]V, 0, c.ll.Len())
 	for _, v := range c.cache {
-		all = append(all, v.Value.(*entry[K, V]).value)
+		all = append(all, v.Value.value)
 	}
 	return all
 }
@@ -484,7 +484,7 @@ func (c *FIFOCache[K, V]) Values() []V {
 func (c *FIFOCache[K, V]) All() map[K]V {
 	all := make(map[K]V)
 	for k, v := range c.cache {
-		all[k] = v.Value.(*entry[K, V]).value
+		all[k] = v.Value.value
 	}
 	return all
 }
@@ -502,8 +502,8 @@ func (c *FIFOCache[K, V]) Range(f func(K, V) bool) {
 
 // Purge removes all keys and values from the FIFO cache.
 func (c *FIFOCache[K, V]) Purge() {
-	c.ll = list.New()
-	c.cache = make(map[K]*list.Element)
+	c.ll = list.New[*entry[K, V]]()
+	c.cache = make(map[K]*list.Element[*entry[K, V]])
 }
 
 // Len returns the current number of items in the FIFO cache.
