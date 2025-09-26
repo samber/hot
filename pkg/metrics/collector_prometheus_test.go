@@ -12,6 +12,7 @@ import (
 
 func TestNewPrometheusCollector(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test basic constructor with minimal parameters
 	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
@@ -53,6 +54,7 @@ func TestNewPrometheusCollector(t *testing.T) {
 
 func TestNewPrometheusCollector_AlgorithmValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test all algorithm values - just verify the constructor doesn't panic
 	testCases := []struct {
@@ -74,6 +76,7 @@ func TestNewPrometheusCollector_AlgorithmValues(t *testing.T) {
 
 func TestPrometheusCollector_InsertionCounters(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := NewPrometheusCollector("test", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
 
@@ -98,6 +101,7 @@ func TestPrometheusCollector_InsertionCounters(t *testing.T) {
 
 func TestPrometheusCollector_EvictionCounters(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := NewPrometheusCollector("test", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
 
@@ -135,6 +139,7 @@ func TestPrometheusCollector_EvictionCounters(t *testing.T) {
 
 func TestPrometheusCollector_HitMissCounters(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := NewPrometheusCollector("test", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
 
@@ -176,6 +181,7 @@ func TestPrometheusCollector_HitMissCounters(t *testing.T) {
 
 func TestPrometheusCollector_ConcurrentAccess(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := NewPrometheusCollector("test", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
 
@@ -241,6 +247,7 @@ func TestPrometheusCollector_ConcurrentAccess(t *testing.T) {
 
 func TestPrometheusCollector_InterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Verify PrometheusCollector implements Collector interface
 	var _ Collector = (*PrometheusCollector)(nil)
@@ -268,6 +275,7 @@ func TestPrometheusCollector_InterfaceCompliance(t *testing.T) {
 
 func TestPrometheusCollector_EdgeCases(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with empty labels
 	collector := NewPrometheusCollector("test", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
@@ -305,6 +313,7 @@ func TestPrometheusCollector_EdgeCases(t *testing.T) {
 
 func TestPrometheusCollector_EvictionReasonsInitialization(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := NewPrometheusCollector("test", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
 
@@ -318,11 +327,12 @@ func TestPrometheusCollector_EvictionReasonsInitialization(t *testing.T) {
 
 	// Verify the map has the expected size
 	expectedSize := len(base.EvictionReasons)
-	is.Equal(expectedSize, len(collector.evictionCount), "Should have %d eviction counters", expectedSize)
+	is.Len(collector.evictionCount, expectedSize, "Should have %d eviction counters", expectedSize)
 }
 
 func TestPrometheusCollector_MetricDescriptors(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 100, "lru", nil, nil, nil, nil, nil)
 
@@ -349,6 +359,7 @@ func TestPrometheusCollector_MetricDescriptors(t *testing.T) {
 
 func TestPrometheusCollector_SettingsGauges(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with all optional settings
 	ttl := 30 * time.Second

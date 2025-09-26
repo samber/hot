@@ -7,7 +7,7 @@ import (
 	"github.com/samber/hot"
 )
 
-// Session represents a user session with expiration
+// Session represents a user session with expiration.
 type Session struct {
 	UserID    string    `json:"user_id"`
 	Token     string    `json:"token"`
@@ -15,7 +15,7 @@ type Session struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-// Config represents application configuration
+// Config represents application configuration.
 type Config struct {
 	Key   string      `json:"key"`
 	Value interface{} `json:"value"`
@@ -97,14 +97,14 @@ func main() {
 		fmt.Printf("✅ Stored temporary data: %s = %d\n", key, i)
 	}
 
-	current, max := janitorCache.Capacity()
-	fmt.Printf("📊 Initial cache: %d/%d items\n", current, max)
+	current, mAx := janitorCache.Capacity()
+	fmt.Printf("📊 Initial cache: %d/%d items\n", current, mAx)
 
 	fmt.Println("⏳ Waiting 15 seconds for cleanup...")
 	time.Sleep(15 * time.Second)
 
-	current, max = janitorCache.Capacity()
-	fmt.Printf("📊 Final cache: %d/%d items (expired items cleaned up)\n", current, max)
+	current, mAx = janitorCache.Capacity()
+	fmt.Printf("📊 Final cache: %d/%d items (expired items cleaned up)\n", current, mAx)
 
 	fmt.Println("\n🎉 Example completed!")
 }

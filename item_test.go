@@ -10,12 +10,13 @@ import (
 
 func TestNewItem(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// no value without ttl
 	got := newItem[int64](0, false, 0, 0)
-	is.EqualValues(&item[int64]{false, 0, 0, 0}, got)
+	is.Equal(&item[int64]{false, 0, 0, 0}, got)
 	got = newItem[int64](42, false, 0, 0)
-	is.EqualValues(&item[int64]{false, 0, 0, 0}, got)
+	is.Equal(&item[int64]{false, 0, 0, 0}, got)
 
 	// no value with ttl
 	got = newItem[int64](0, false, 2_000, 1_000)
@@ -25,7 +26,7 @@ func TestNewItem(t *testing.T) {
 	is.InEpsilon(internal.NowNano()+2_000_000+1_000_000, got.staleExpiryNano, 100_000)
 
 	// has value without ttl
-	is.EqualValues(&item[int64]{true, 42, 0, 0}, newItem[int64](42, true, 0, 0))
+	is.Equal(&item[int64]{true, 42, 0, 0}, newItem[int64](42, true, 0, 0))
 
 	// has value with ttl
 	got = newItem[int64](42, true, 2_000, 1_000)
@@ -35,12 +36,13 @@ func TestNewItem(t *testing.T) {
 	is.InEpsilon(internal.NowNano()+2_000_000+1_000_000, got.staleExpiryNano, 100_000)
 
 	// size
-	is.EqualValues(&item[map[string]int]{true, map[string]int{"a": 1, "b": 2}, 0, 0}, newItem(map[string]int{"a": 1, "b": 2}, true, 0, 0))
-	is.EqualValues(&item[*item[int64]]{true, &item[int64]{false, 0, 0, 0}, 0, 0}, newItem(newItem[int64](42, false, 0, 0), true, 0, 0))
+	is.Equal(&item[map[string]int]{true, map[string]int{"a": 1, "b": 2}, 0, 0}, newItem(map[string]int{"a": 1, "b": 2}, true, 0, 0))
+	is.Equal(&item[*item[int64]]{true, &item[int64]{false, 0, 0, 0}, 0, 0}, newItem(newItem[int64](42, false, 0, 0), true, 0, 0))
 }
 
 func TestNewItemWithValue(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Equal(&item[int64]{true, int64(42), 0, 0}, newItemWithValue(int64(42), 0, 0))
 
@@ -53,6 +55,7 @@ func TestNewItemWithValue(t *testing.T) {
 
 func TestNewItemNoValue(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Equal(&item[int64]{false, 0, 0, 0}, newItemNoValue[int64](0, 0))
 
@@ -65,6 +68,7 @@ func TestNewItemNoValue(t *testing.T) {
 
 func TestItem_isExpired(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	got := newItemNoValue[int64](0, 0)
 	is.False(got.isExpired(internal.NowNano()))
@@ -84,6 +88,7 @@ func TestItem_isExpired(t *testing.T) {
 
 func TestItem_shouldRevalidate(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	got := newItemNoValue[int64](0, 0)
 	is.False(got.shouldRevalidate(internal.NowNano()))
@@ -103,6 +108,7 @@ func TestItem_shouldRevalidate(t *testing.T) {
 
 func TestItemMapsToValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	twice := func(i int) int { return i * 2 }
 	itemNo := newItem(0, false, 0, 0)
@@ -111,33 +117,34 @@ func TestItemMapsToValues(t *testing.T) {
 
 	// no map
 	gotFound, gotMissing := itemMapsToValues[string, int](nil)
-	is.EqualValues(map[string]int{}, gotFound)
-	is.EqualValues([]string{}, gotMissing)
+	is.Equal(map[string]int{}, gotFound)
+	is.Equal([]string{}, gotMissing)
 
 	// no map
 	gotFound, gotMissing = itemMapsToValues[string, int](twice)
-	is.EqualValues(map[string]int{}, gotFound)
-	is.EqualValues([]string{}, gotMissing)
+	is.Equal(map[string]int{}, gotFound)
+	is.Equal([]string{}, gotMissing)
 
 	// has map
 	gotFound, gotMissing = itemMapsToValues[string, int](nil, map[string]*item[int]{"a": itemA, "b": itemB, "c": itemNo})
-	is.EqualValues(map[string]int{"a": 42, "b": 21}, gotFound)
-	is.EqualValues([]string{"c"}, gotMissing)
+	is.Equal(map[string]int{"a": 42, "b": 21}, gotFound)
+	is.Equal([]string{"c"}, gotMissing)
 	gotFound, gotMissing = itemMapsToValues[string, int](nil, map[string]*item[int]{"a": itemA}, map[string]*item[int]{"b": itemB, "c": itemNo, "a": itemNo})
-	is.EqualValues(map[string]int{"a": 42, "b": 21}, gotFound)
-	is.EqualValues([]string{"c"}, gotMissing)
+	is.Equal(map[string]int{"a": 42, "b": 21}, gotFound)
+	is.Equal([]string{"c"}, gotMissing)
 
 	// has map
 	gotFound, gotMissing = itemMapsToValues[string, int](twice, map[string]*item[int]{"a": itemA, "b": itemB, "c": itemNo})
-	is.EqualValues(map[string]int{"a": 84, "b": 42}, gotFound)
-	is.EqualValues([]string{"c"}, gotMissing)
+	is.Equal(map[string]int{"a": 84, "b": 42}, gotFound)
+	is.Equal([]string{"c"}, gotMissing)
 	gotFound, gotMissing = itemMapsToValues[string, int](twice, map[string]*item[int]{"a": itemA}, map[string]*item[int]{"b": itemB, "c": itemNo, "a": itemNo})
-	is.EqualValues(map[string]int{"a": 84, "b": 42}, gotFound)
-	is.EqualValues([]string{"c"}, gotMissing)
+	is.Equal(map[string]int{"a": 84, "b": 42}, gotFound)
+	is.Equal([]string{"c"}, gotMissing)
 }
 
 func TestApplyJitter(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// no jitter
 	is.Equal(int64(1_000_000), applyJitter(1_000_000, 0, 0))

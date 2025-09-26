@@ -42,13 +42,13 @@ func main() {
 	// Generate some hits and misses
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("key:%d", i%60) // Some will hit, some will miss
-		_, _, _ = cache.Get(key)           //nolint:errcheck
+		_, _, _ = cache.Get(key)
 	}
 
 	// Show cache statistics
-	current, max := cache.Capacity()
+	current, mAx := cache.Capacity()
 	fmt.Printf("📊 Cache statistics: %d/%d items (%.1f%% utilization)\n",
-		current, max, float64(current)/float64(max)*100)
+		current, mAx, float64(current)/float64(mAx)*100)
 
 	fmt.Println("\n🎉 Example completed!")
 	fmt.Println("💡 Check http://localhost:8080/metrics to see Prometheus metrics")

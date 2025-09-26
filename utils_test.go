@@ -9,6 +9,7 @@ import (
 
 func TestEmptyableToPtr(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with zero values
 	is.Nil(emptyableToPtr(0))
@@ -28,7 +29,7 @@ func TestEmptyableToPtr(t *testing.T) {
 
 	boolPtr := emptyableToPtr(true)
 	is.NotNil(boolPtr)
-	is.Equal(true, *boolPtr)
+	is.True(*boolPtr)
 
 	floatPtr := emptyableToPtr(3.14)
 	is.NotNil(floatPtr)

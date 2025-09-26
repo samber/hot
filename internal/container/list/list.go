@@ -108,7 +108,7 @@ func (l *List[T]) insertValue(v T, at *Element[T]) *Element[T] {
 	return l.insert(&Element[T]{Value: v}, at)
 }
 
-// remove removes e from its list, decrements l.len
+// remove removes e from its list, decrements l.len.
 func (l *List[T]) remove(e *Element[T]) {
 	e.prev.next = e.next
 	e.next.prev = e.prev

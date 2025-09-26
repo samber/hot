@@ -12,10 +12,9 @@ type rwMutex interface {
 
 // mutexMock is a no-op implementation of rwMutex used when locking is disabled.
 // It provides zero-cost mutex operations for single-threaded usage.
-type mutexMock struct {
-}
+type mutexMock struct{}
 
-// Ensure mutexMock implements rwMutex interface
+// Ensure mutexMock implements rwMutex interface.
 var _ rwMutex = (*mutexMock)(nil)
 
 // Lock is a no-op operation for the mock mutex.

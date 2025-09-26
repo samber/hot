@@ -9,6 +9,7 @@ import (
 
 func TestNowNano(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	got1 := NowNano()
 	is.InEpsilon(time.Now().UnixNano(), got1, float64(time.Nanosecond))

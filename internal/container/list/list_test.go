@@ -9,15 +9,17 @@ package list
 
 import "testing"
 
-func checkListLen[T any](t *testing.T, l *List[T], len int) bool {
-	if n := l.Len(); n != len {
-		t.Errorf("l.Len() = %d, want %d", n, len)
+func checkListLen[T any](t *testing.T, l *List[T], length int) bool {
+	t.Helper()
+	if n := l.Len(); n != length {
+		t.Errorf("l.Len() = %d, want %d", n, length)
 		return false
 	}
 	return true
 }
 
 func checkListPointers[T any](t *testing.T, l *List[T], es []*Element[T]) {
+	t.Helper()
 	root := &l.root
 
 	if !checkListLen(t, l, len(es)) {
@@ -64,6 +66,8 @@ func checkListPointers[T any](t *testing.T, l *List[T], es []*Element[T]) {
 }
 
 func TestList(t *testing.T) {
+	t.Parallel()
+
 	l := New[string]()
 	checkListPointers(t, l, []*Element[string]{})
 
@@ -137,6 +141,7 @@ func TestList(t *testing.T) {
 }
 
 func checkList[T comparable](t *testing.T, l *List[T], es []T) {
+	t.Helper()
 	if !checkListLen(t, l, len(es)) {
 		return
 	}
@@ -152,6 +157,8 @@ func checkList[T comparable](t *testing.T, l *List[T], es []T) {
 }
 
 func TestExtending(t *testing.T) {
+	t.Parallel()
+
 	l1 := New[int]()
 	l2 := New[int]()
 
@@ -197,6 +204,8 @@ func TestExtending(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
+
 	l := New[int]()
 	e1 := l.PushBack(1)
 	e2 := l.PushBack(2)
@@ -209,6 +218,8 @@ func TestRemove(t *testing.T) {
 }
 
 func TestIssue4103(t *testing.T) {
+	t.Parallel()
+
 	l1 := New[int]()
 	l1.PushBack(1)
 	l1.PushBack(2)
@@ -230,6 +241,8 @@ func TestIssue4103(t *testing.T) {
 }
 
 func TestIssue6349(t *testing.T) {
+	t.Parallel()
+
 	l := New[int]()
 	l.PushBack(1)
 	l.PushBack(2)
@@ -248,6 +261,8 @@ func TestIssue6349(t *testing.T) {
 }
 
 func TestMove(t *testing.T) {
+	t.Parallel()
+
 	l := New[int]()
 	e1 := l.PushBack(1)
 	e2 := l.PushBack(2)
@@ -280,27 +295,31 @@ func TestMove(t *testing.T) {
 	checkListPointers(t, l, []*Element[int]{e1, e3, e2, e4})
 }
 
-// Test PushFront, PushBack, PushFrontList, PushBackList with uninitialized List
+// Test PushFront, PushBack, PushFrontList, PushBackList with uninitialized List.
 func TestZeroList(t *testing.T) {
-	var l1 = new(List[int])
+	t.Parallel()
+
+	l1 := new(List[int])
 	l1.PushFront(1)
 	checkList(t, l1, []int{1})
 
-	var l2 = new(List[int])
+	l2 := new(List[int])
 	l2.PushBack(1)
 	checkList(t, l2, []int{1})
 
-	var l3 = new(List[int])
+	l3 := new(List[int])
 	l3.PushFrontList(l1)
 	checkList(t, l3, []int{1})
 
-	var l4 = new(List[int])
+	l4 := new(List[int])
 	l4.PushBackList(l2)
 	checkList(t, l4, []int{1})
 }
 
 // Test that a list l is not modified when calling InsertBefore with a mark that is not an element of l.
 func TestInsertBeforeUnknownMark(t *testing.T) {
+	t.Parallel()
+
 	var l List[int]
 	l.PushBack(1)
 	l.PushBack(2)
@@ -311,6 +330,8 @@ func TestInsertBeforeUnknownMark(t *testing.T) {
 
 // Test that a list l is not modified when calling InsertAfter with a mark that is not an element of l.
 func TestInsertAfterUnknownMark(t *testing.T) {
+	t.Parallel()
+
 	var l List[int]
 	l.PushBack(1)
 	l.PushBack(2)
@@ -321,6 +342,8 @@ func TestInsertAfterUnknownMark(t *testing.T) {
 
 // Test that a list l is not modified when calling MoveAfter or MoveBefore with a mark that is not an element of l.
 func TestMoveUnknownMark(t *testing.T) {
+	t.Parallel()
+
 	var l1 List[int]
 	e1 := l1.PushBack(1)
 

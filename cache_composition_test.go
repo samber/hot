@@ -21,6 +21,7 @@ func mockCollectorBuilder(shard int) metrics.Collector {
 
 func TestComposeInternalCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test LRU with locking
 	cache := composeInternalCache[string, int](true, LRU, 42, 0, -1, nil, nil, nil)
@@ -116,6 +117,7 @@ func TestComposeInternalCache(t *testing.T) {
 
 func TestComposeInternalCacheWithSharding(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hashFn := func(key string) uint64 { return uint64(len(key)) }
 	shards := uint64(4)
@@ -143,6 +145,7 @@ func TestComposeInternalCacheWithSharding(t *testing.T) {
 
 func TestComposeInternalCacheWithEvictionCallback(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evictionCallback := func(reason base.EvictionReason, key string, value int) {
 		// Callback implementation for testing
@@ -164,6 +167,7 @@ func TestComposeInternalCacheWithEvictionCallback(t *testing.T) {
 
 func TestComposeInternalCacheWithMetrics(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with metrics collector
 	cache := composeInternalCache[string, int](false, LRU, 42, 0, 0, nil, nil, mockCollectorBuilder)
@@ -185,6 +189,7 @@ func TestComposeInternalCacheWithMetrics(t *testing.T) {
 
 func TestComposeInternalCacheWithShardingAndMetrics(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	hashFn := func(key string) uint64 { return uint64(len(key)) }
 	shards := uint64(4)
@@ -207,6 +212,7 @@ func TestComposeInternalCacheWithShardingAndMetrics(t *testing.T) {
 
 func TestComposeInternalCacheUnknownAlgorithm(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test unknown algorithm (should panic)
 	is.Panics(func() {
@@ -216,6 +222,7 @@ func TestComposeInternalCacheUnknownAlgorithm(t *testing.T) {
 
 func TestComposeInternalCacheEdgeCases(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test with negative capacity (should panic)
 	is.Panics(func() {

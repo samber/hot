@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"fmt"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -51,7 +51,7 @@ func NewPrometheusCollector(name string, shard int, mode base.CacheMode, capacit
 		"mode": string(mode),
 	}
 	if shard >= 0 {
-		labels["shard"] = fmt.Sprintf("%d", shard)
+		labels["shard"] = strconv.Itoa(shard)
 	}
 
 	collector := &PrometheusCollector{

@@ -8,6 +8,7 @@ import (
 
 func TestMutexMock(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	// Test that mutexMock implements rwMutex interface
 	var _ rwMutex = (*mutexMock)(nil)
@@ -60,6 +61,7 @@ func TestMutexMock(t *testing.T) {
 
 func TestMutexMockConcurrency(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	mock := mutexMock{}
 
@@ -86,5 +88,5 @@ func TestMutexMockConcurrency(t *testing.T) {
 	}
 
 	// If we get here without panicking, the test passes
-	is.True(true)
+	is.True(true) //nolint:testifylint
 }

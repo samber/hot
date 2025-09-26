@@ -7,7 +7,7 @@ import (
 	"github.com/samber/hot"
 )
 
-// User represents a simple user entity
+// User represents a simple user entity.
 type User struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
@@ -56,9 +56,9 @@ func main() {
 	fmt.Printf("✅ Stored %d users in batch\n", len(batch))
 
 	// Cache statistics
-	current, max := cache.Capacity()
+	current, mAx := cache.Capacity()
 	fmt.Printf("📊 Cache: %d/%d items (%.1f%%)\n",
-		current, max, float64(current)/float64(max)*100)
+		current, mAx, float64(current)/float64(mAx)*100)
 
 	fmt.Println("\n🎉 Example completed!")
 }

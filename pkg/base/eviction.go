@@ -12,6 +12,7 @@ package base
 // to avoid blocking cache operations. For expensive operations, consider using a goroutine.
 type EvictionCallback[K comparable, V any] func(EvictionReason, K, V)
 
+// EvictionReason is a type that represents the reason for eviction.
 type EvictionReason string
 
 const (
@@ -21,6 +22,7 @@ const (
 	EvictionReasonStale    EvictionReason = "stale"
 )
 
+// EvictionReasons is a list of all eviction reasons.
 var EvictionReasons = []EvictionReason{
 	EvictionReasonCapacity,
 	EvictionReasonTTL,

@@ -10,13 +10,32 @@ var _ Collector = (*NoOpCollector)(nil)
 // This provides better performance than conditional checks when metrics are disabled.
 type NoOpCollector struct{}
 
-func (n *NoOpCollector) IncInsertion()                                        {}
-func (n *NoOpCollector) AddInsertions(count int64)                            {}
-func (n *NoOpCollector) IncEviction(reason base.EvictionReason)               {}
+// IncInsertion does nothing.
+func (n *NoOpCollector) IncInsertion() {}
+
+// AddInsertions does nothing.
+func (n *NoOpCollector) AddInsertions(count int64) {}
+
+// IncEviction does nothing.
+func (n *NoOpCollector) IncEviction(reason base.EvictionReason) {}
+
+// AddEvictions does nothing.
 func (n *NoOpCollector) AddEvictions(reason base.EvictionReason, count int64) {}
-func (n *NoOpCollector) IncHit()                                              {}
-func (n *NoOpCollector) AddHits(count int64)                                  {}
-func (n *NoOpCollector) IncMiss()                                             {}
-func (n *NoOpCollector) AddMisses(count int64)                                {}
-func (n *NoOpCollector) UpdateSizeBytes(sizeBytes int64)                      {}
-func (n *NoOpCollector) UpdateLength(length int64)                            {}
+
+// IncHit does nothing.
+func (n *NoOpCollector) IncHit() {}
+
+// AddHits does nothing.
+func (n *NoOpCollector) AddHits(count int64) {}
+
+// IncMiss does nothing.
+func (n *NoOpCollector) IncMiss() {}
+
+// AddMisses does nothing.
+func (n *NoOpCollector) AddMisses(count int64) {}
+
+// UpdateSizeBytes does nothing.
+func (n *NoOpCollector) UpdateSizeBytes(sizeBytes int64) {}
+
+// UpdateLength does nothing.
+func (n *NoOpCollector) UpdateLength(length int64) {}

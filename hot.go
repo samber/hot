@@ -434,9 +434,8 @@ func (c *HotCache[K, V]) Range(f func(K, V) bool) {
 			// we do not revalidate here, since it is too costly to revalidate all expired items at the same time
 			if c.copyOnRead != nil {
 				return f(k, c.copyOnRead(v.value))
-			} else {
-				return f(k, v.value)
 			}
+			return f(k, v.value)
 		}
 		return true
 	})
@@ -539,6 +538,8 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 // Janitor starts a background goroutine that periodically removes expired items from the cache.
 // The janitor runs until StopJanitor() is called or the cache is garbage collected.
 // This method is safe to call multiple times, but only the first call will start the janitor.
+//
+//nolint:gocyclo,nestif
 func (c *HotCache[K, V]) Janitor() {
 	// Acquire write lock to protect janitor state initialization
 	// This prevents race conditions if multiple goroutines call Janitor() simultaneously
@@ -739,6 +740,8 @@ func (c *HotCache[K, V]) setManyUnsafe(items map[K]V, missing []K, ttlNano int64
 // getUnsafe is an internal method that retrieves a value from the cache without thread safety.
 // It returns the item, whether it needs revalidation, and whether it was found.
 // Returns true if the key was found, even if it has no value (missing key).
+//
+//nolint:nestif
 func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, found bool) {
 	nowNano := internal.NowNano()
 
@@ -773,6 +776,8 @@ func (c *HotCache[K, V]) getUnsafe(key K) (value *item[V], revalidate bool, foun
 
 // getManyUnsafe is an internal method that retrieves multiple values from the cache without thread safety.
 // It returns cached items, missing keys, and items that need revalidation.
+//
+//nolint:nestif,gocyclo
 func (c *HotCache[K, V]) getManyUnsafe(keys []K) (cached map[K]*item[V], missing []K, revalidate map[K]*item[V]) {
 	nowNano := internal.NowNano()
 

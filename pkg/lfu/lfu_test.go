@@ -9,6 +9,7 @@ import (
 
 func TestNewLFUCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Panics(func() {
 		_ = NewLFUCache[string, int](0)
@@ -35,6 +36,7 @@ func TestNewLFUCache(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := 0
 	cache := NewLFUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -44,37 +46,37 @@ func TestSet(t *testing.T) {
 
 	cache.Set("a", 1)
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Len(cache.cache, 1)
+	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
 	is.Equal(0, evicted)
 
 	cache.Set("b", 2)
 	is.Equal(2, cache.ll.Len())
-	is.Equal(2, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Len(cache.cache, 2)
+	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
 	is.Equal(0, evicted)
 
 	cache.Set("b", 2)
 	is.Equal(2, cache.ll.Len())
-	is.Equal(2, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Len(cache.cache, 2)
+	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
 	is.Equal(0, evicted)
 
 	cache.Set("c", 3)
 	is.Equal(2, cache.ll.Len())
-	is.Equal(2, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"c", 3}, cache.cache["c"].Value)
-	is.EqualValues(&entry[string, int]{"c", 3}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Len(cache.cache, 2)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"c", 3}, cache.cache["c"].Value)
+	is.Equal(&entry[string, int]{"c", 3}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
 	is.Equal(1, evicted)
 
 	cache = NewLFUCacheWithEvictionSizeAndCallback(3, 2, func(reason base.EvictionReason, k string, v int) {
@@ -86,9 +88,9 @@ func TestSet(t *testing.T) {
 	cache.Set("c", 3)
 	cache.Set("d", 4)
 	is.Equal(2, cache.ll.Len())
-	is.Equal(2, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.EqualValues(&entry[string, int]{"d", 4}, cache.cache["d"].Value)
+	is.Len(cache.cache, 2)
+	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
+	is.Equal(&entry[string, int]{"d", 4}, cache.cache["d"].Value)
 	is.Equal("d", cache.ll.Front().Value.key)
 	is.Equal("a", cache.ll.Back().Value.key)
 	is.Equal(6, evicted)
@@ -96,6 +98,7 @@ func TestSet(t *testing.T) {
 
 func TestHas(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -113,6 +116,7 @@ func TestHas(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -163,6 +167,7 @@ func TestGet(t *testing.T) {
 
 func TestPeak(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -189,6 +194,7 @@ func TestPeak(t *testing.T) {
 
 func TestKey(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -199,6 +205,7 @@ func TestKey(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -209,6 +216,7 @@ func TestValues(t *testing.T) {
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -222,6 +230,7 @@ func TestInternalState_All(t *testing.T) {
 
 func TestRange(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -240,6 +249,7 @@ func TestRange(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -248,28 +258,29 @@ func TestDelete(t *testing.T) {
 	ok := cache.Delete("a")
 	is.True(ok)
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Len(cache.cache, 1)
+	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
 
 	ok = cache.Delete("b")
 	is.True(ok)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 
 	ok = cache.Delete("b")
 	is.False(ok)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 }
 
 func TestDeleteLeastFrequent(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -281,35 +292,36 @@ func TestDeleteLeastFrequent(t *testing.T) {
 	is.Equal("b", key)
 	is.Equal(2, value)
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
-	is.EqualValues(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Len(cache.cache, 1)
+	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
+	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
 
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.True(ok)
 	is.Equal("a", key)
 	is.Equal(1, value)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.False(ok)
-	is.Zero(key)
+	is.Empty(key)
 	is.Zero(value)
 	is.False(ok)
-	is.Zero(key)
+	is.Empty(key)
 	is.Zero(value)
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 }
 
 func TestLen(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("z", 0)
@@ -332,6 +344,7 @@ func TestLen(t *testing.T) {
 
 func TestPurge(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
 	cache.Set("a", 1)
@@ -348,6 +361,7 @@ func TestPurge(t *testing.T) {
 
 func TestSetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	items := map[string]int{
@@ -378,6 +392,7 @@ func TestSetMany(t *testing.T) {
 
 func TestSetMany_WithEviction(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := 0
 	cache := NewLFUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -397,6 +412,7 @@ func TestSetMany_WithEviction(t *testing.T) {
 
 func TestHasMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -415,16 +431,18 @@ func TestHasMany(t *testing.T) {
 
 func TestHasMany_EmptyKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
 
 	results := cache.HasMany([]string{})
-	is.Len(results, 0)
+	is.Empty(results)
 }
 
 func TestGetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -445,17 +463,19 @@ func TestGetMany(t *testing.T) {
 
 func TestGetMany_EmptyKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
 
 	found, missing := cache.GetMany([]string{})
-	is.Len(found, 0)
-	is.Len(missing, 0)
+	is.Empty(found)
+	is.Empty(missing)
 }
 
 func TestPeekMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -476,17 +496,19 @@ func TestPeekMany(t *testing.T) {
 
 func TestPeekMany_EmptyKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
 
 	found, missing := cache.PeekMany([]string{})
-	is.Len(found, 0)
-	is.Len(missing, 0)
+	is.Empty(found)
+	is.Empty(missing)
 }
 
 func TestDeleteMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -509,16 +531,18 @@ func TestDeleteMany(t *testing.T) {
 
 func TestDeleteMany_EmptyKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
 
 	results := cache.DeleteMany([]string{})
-	is.Len(results, 0)
+	is.Empty(results)
 }
 
 func TestCapacity(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](42)
 	is.Equal(42, cache.Capacity())
@@ -526,6 +550,7 @@ func TestCapacity(t *testing.T) {
 
 func TestAlgorithm(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](42)
 	is.Equal("lfu", cache.Algorithm())
@@ -533,6 +558,7 @@ func TestAlgorithm(t *testing.T) {
 
 func TestInterfaceCompliance(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 
@@ -551,6 +577,7 @@ func TestInterfaceCompliance(t *testing.T) {
 
 func TestRange_AllItems(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -571,6 +598,7 @@ func TestRange_AllItems(t *testing.T) {
 
 func TestKeys(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -586,6 +614,7 @@ func TestKeys(t *testing.T) {
 
 func TestEvictionCallback_WithSetMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewLFUCacheWithEvictionCallback(2, func(reason base.EvictionReason, k string, v int) {
@@ -603,12 +632,13 @@ func TestEvictionCallback_WithSetMany(t *testing.T) {
 	cache.SetMany(items)
 
 	// Should have evicted some items
-	is.Greater(len(evicted), 0)
+	is.NotEmpty(evicted)
 	is.Equal(2, cache.Len())
 }
 
 func TestEvictionCallback_WithDeleteMany(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewLFUCacheWithEvictionCallback(5, func(reason base.EvictionReason, k string, v int) {
@@ -623,16 +653,17 @@ func TestEvictionCallback_WithDeleteMany(t *testing.T) {
 	// DeleteMany should not trigger eviction callback
 	cache.DeleteMany([]string{"a", "b"})
 
-	is.Len(evicted, 0) // No eviction callback should be called
+	is.Empty(evicted) // No eviction callback should be called
 	is.Equal(1, cache.Len())
 }
 
-// Helper function to verify LFU linked list order
+// Helper function to verify LFU linked list order.
 func verifyLFUOrder[K comparable, V any](t *testing.T, cache *LFUCache[K, V]) []K {
+	t.Helper()
 	is := assert.New(t)
 
 	// Verify list length matches cache map
-	is.Equal(cache.ll.Len(), len(cache.cache))
+	is.Len(cache.cache, cache.ll.Len())
 
 	if cache.ll.Len() == 0 {
 		is.Nil(cache.ll.Front())
@@ -658,12 +689,13 @@ func verifyLFUOrder[K comparable, V any](t *testing.T, cache *LFUCache[K, V]) []
 
 func TestInternalState_InitialState(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 
 	// Verify initial state
 	is.Equal(0, cache.ll.Len())
-	is.Equal(0, len(cache.cache))
+	is.Empty(cache.cache)
 	is.Nil(cache.ll.Front())
 	is.Nil(cache.ll.Back())
 
@@ -673,13 +705,14 @@ func TestInternalState_InitialState(t *testing.T) {
 
 func TestInternalState_SingleElement(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
 
 	// Verify single element state
 	is.Equal(1, cache.ll.Len())
-	is.Equal(1, len(cache.cache))
+	is.Len(cache.cache, 1)
 	is.NotNil(cache.ll.Front())
 	is.NotNil(cache.ll.Back())
 	is.Equal(cache.ll.Front(), cache.ll.Back()) // Same element
@@ -694,6 +727,7 @@ func TestInternalState_SingleElement(t *testing.T) {
 
 func TestInternalState_MultipleElements(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -702,7 +736,7 @@ func TestInternalState_MultipleElements(t *testing.T) {
 
 	// Verify multiple elements state
 	is.Equal(3, cache.ll.Len())
-	is.Equal(3, len(cache.cache))
+	is.Len(cache.cache, 3)
 
 	// Order should be: c (most recent) -> b -> a (least recent)
 	order := verifyLFUOrder(t, cache)
@@ -721,6 +755,7 @@ func TestInternalState_MultipleElements(t *testing.T) {
 
 func TestInternalState_GetUpdatesFrequency(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -761,6 +796,7 @@ func TestInternalState_GetUpdatesFrequency(t *testing.T) {
 
 func TestInternalState_PeekDoesNotUpdateFrequency(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -792,6 +828,7 @@ func TestInternalState_PeekDoesNotUpdateFrequency(t *testing.T) {
 
 func TestInternalState_SetExistingKey(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -815,6 +852,7 @@ func TestInternalState_SetExistingKey(t *testing.T) {
 
 func TestInternalState_Eviction(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewLFUCacheWithEvictionCallback(3, func(reason base.EvictionReason, k string, v int) {
@@ -844,6 +882,7 @@ func TestInternalState_Eviction(t *testing.T) {
 
 func TestInternalState_EvictionWithFrequency(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	evicted := make(map[string]int)
 	cache := NewLFUCacheWithEvictionCallback(3, func(reason base.EvictionReason, k string, v int) {
@@ -880,6 +919,7 @@ func TestInternalState_EvictionWithFrequency(t *testing.T) {
 
 func TestInternalState_Delete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -920,6 +960,7 @@ func TestInternalState_Delete(t *testing.T) {
 
 func TestInternalState_DeleteLeastFrequent(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -963,12 +1004,13 @@ func TestInternalState_DeleteLeastFrequent(t *testing.T) {
 	// Try to delete from empty cache
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.False(ok)
-	is.Equal("", key)
+	is.Empty(key)
 	is.Equal(0, value)
 }
 
 func TestInternalState_ElementRelationships(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
@@ -998,6 +1040,8 @@ func TestInternalState_ElementRelationships(t *testing.T) {
 }
 
 func TestInternalState_ComplexOperations(t *testing.T) {
+	t.Parallel()
+
 	cache := NewLFUCache[string, int](4)
 
 	// Add elements
@@ -1046,6 +1090,8 @@ func TestInternalState_ComplexOperations(t *testing.T) {
 }
 
 func TestInternalState_FrequencyOrdering(t *testing.T) {
+	t.Parallel()
+
 	cache := NewLFUCache[string, int](5)
 
 	// Add elements

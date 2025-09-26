@@ -8,6 +8,7 @@ import (
 
 func TestNew2QCache(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Panics(func() {
 		_ = New2QCache[string, int](0)
@@ -26,6 +27,7 @@ func TestNew2QCache(t *testing.T) {
 
 func TestNew2QCacheWithRatio(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	is.Panics(func() {
 		_ = New2QCacheWithRatio[string, int](0, 0.5, 0.25)
@@ -56,6 +58,7 @@ func TestNew2QCacheWithRatio(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
@@ -73,6 +76,7 @@ func TestSet(t *testing.T) {
 
 func TestHas(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 1, 1)
 	cache.Set("a", 1)
@@ -104,6 +108,7 @@ func TestHas(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 1, 1)
 	cache.Set("a", 1)
@@ -144,6 +149,7 @@ func printKeys(keys []string) {
 
 func TestKey(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
@@ -192,6 +198,7 @@ func TestKey(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
@@ -204,6 +211,7 @@ func TestValues(t *testing.T) {
 
 func TestRange(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
@@ -220,11 +228,11 @@ func TestRange(t *testing.T) {
 	})
 	is.ElementsMatch([]string{"a", "c"}, keys)
 	is.ElementsMatch([]int{1, 3}, values)
-
 }
 
 func TestDelete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
@@ -247,6 +255,7 @@ func TestDelete(t *testing.T) {
 
 func TestLen(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](2, 0.5, 0.5)
 	cache.Set("a", 1)
@@ -267,6 +276,7 @@ func TestLen(t *testing.T) {
 
 func TestPurge(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)
@@ -281,8 +291,9 @@ func TestPurge(t *testing.T) {
 	is.False(cache.Has("b"))
 }
 
-// Helper function to verify 2Q cache internal state
+// Helper function to verify 2Q cache internal state.
 func verify2QState[K comparable, V any](t *testing.T, cache *TwoQueueCache[K, V]) ([]K, []K, []K) {
+	t.Helper()
 	is := assert.New(t)
 
 	// Verify total length
@@ -303,6 +314,7 @@ func verify2QState[K comparable, V any](t *testing.T, cache *TwoQueueCache[K, V]
 
 func TestInternalState_InitialState(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 
@@ -320,6 +332,7 @@ func TestInternalState_InitialState(t *testing.T) {
 
 func TestInternalState_SingleElement(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)
@@ -396,6 +409,7 @@ func TestInternalState_SingleElement(t *testing.T) {
 
 func TestInternalState_UpdateExistingInFrequent(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)
@@ -424,6 +438,7 @@ func TestInternalState_UpdateExistingInFrequent(t *testing.T) {
 
 func TestInternalState_UpdateExistingInRecent(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)
@@ -451,6 +466,7 @@ func TestInternalState_UpdateExistingInRecent(t *testing.T) {
 
 func TestInternalState_Delete(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)
@@ -486,6 +502,7 @@ func TestInternalState_Delete(t *testing.T) {
 
 func TestInternalState_CapacityAndRatios(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCacheWithRatio[string, int](10, 0.3, 0.2)
 
@@ -500,6 +517,7 @@ func TestInternalState_CapacityAndRatios(t *testing.T) {
 
 func TestInternalState_Algorithm(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	is.Equal("2q", cache.Algorithm())
@@ -507,6 +525,7 @@ func TestInternalState_Algorithm(t *testing.T) {
 
 func TestInternalState_KeysAndValues(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)
@@ -530,6 +549,7 @@ func TestInternalState_KeysAndValues(t *testing.T) {
 
 func TestInternalState_All(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)
@@ -543,6 +563,7 @@ func TestInternalState_All(t *testing.T) {
 
 func TestInternalState_Range(t *testing.T) {
 	is := assert.New(t)
+	t.Parallel()
 
 	cache := New2QCache[string, int](10)
 	cache.Set("a", 1)

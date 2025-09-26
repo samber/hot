@@ -19,12 +19,12 @@ func NewSafeInMemoryCache[K comparable, V any](cache base.InMemoryCache[K, V]) b
 // SafeInMemoryCache is a thread-safe wrapper around any cache implementation.
 // It uses a read-write mutex to protect all cache operations, allowing multiple
 // concurrent readers but only one writer at a time.
-type SafeInMemoryCache[K comparable, V any] struct {
+type SafeInMemoryCache[K comparable, V any] struct { //nolint:revive
 	base.InMemoryCache[K, V] // Embedded cache implementation
 	sync.RWMutex             // Read-write mutex for thread safety
 }
 
-// Ensure SafeInMemoryCache implements InMemoryCache interface
+// Ensure SafeInMemoryCache implements InMemoryCache interface.
 var _ base.InMemoryCache[string, int] = (*SafeInMemoryCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache with exclusive write lock.

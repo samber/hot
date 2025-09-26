@@ -8,6 +8,7 @@ import (
 	"github.com/samber/hot"
 )
 
+//nolint:funlen
 func main() {
 	fmt.Println("🛡️ Thread Safety Example")
 	fmt.Println("=========================")
@@ -55,7 +56,7 @@ func main() {
 			defer wg.Done()
 			for j := 0; j < itemsPerGoroutine; j++ {
 				key := fmt.Sprintf("goroutine:%d:item:%d", goroutineID, j)
-				_, _, _ = cache.Get(key) //nolint:errcheck
+				_, _, _ = cache.Get(key)
 			}
 		}(i)
 	}
@@ -89,7 +90,7 @@ func main() {
 			defer wg.Done()
 			for j := 0; j < 1000; j++ {
 				key := fmt.Sprintf("initial:%d", j%50)
-				_, _, _ = rwCache.Get(key) //nolint:errcheck
+				_, _, _ = rwCache.Get(key)
 			}
 		}(i)
 	}
@@ -169,9 +170,9 @@ func main() {
 	wg.Wait()
 	evictionDuration := time.Since(start)
 
-	current, max := smallCache.Capacity()
+	current, mAx := smallCache.Capacity()
 	fmt.Printf("✅ Eviction test completed\n")
-	fmt.Printf("📊 Final cache state: %d/%d items\n", current, max)
+	fmt.Printf("📊 Final cache state: %d/%d items\n", current, mAx)
 	fmt.Printf("⏱️ Total time: %v\n", evictionDuration)
 
 	fmt.Println("\n🎉 Example completed!")

@@ -24,7 +24,7 @@ func newItemWithValue[V any](v V, ttlNano int64, staleNano int64) *item[V] {
 	var staleExpiryNano int64
 	if ttlNano != 0 {
 		// @TODO: Current time should be passed as an argument to make it faster in batch operations
-		expiryNano = int64(internal.NowNano()) + ttlNano
+		expiryNano = internal.NowNano() + ttlNano
 		staleExpiryNano = expiryNano + staleNano
 	}
 
@@ -44,7 +44,7 @@ func newItemNoValue[V any](ttlNano int64, staleNano int64) *item[V] {
 	var staleExpiryNano int64
 	if ttlNano != 0 {
 		// @TODO: Current time should be passed as an argument to make it faster in batch operations
-		expiryNano = int64(internal.NowNano()) + ttlNano
+		expiryNano = internal.NowNano() + ttlNano
 		staleExpiryNano = expiryNano + staleNano
 	}
 
@@ -107,7 +107,7 @@ func itemMapsToValues[K comparable, V any](copyOnRead func(V) V, maps ...map[K]*
 		}
 	}
 
-	return
+	return found, missing
 }
 
 // applyJitter applies exponential jitter to the TTL duration.

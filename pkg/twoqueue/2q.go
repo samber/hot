@@ -90,7 +90,7 @@ func New2QCacheWithRatioAndEvictionCallback[K comparable, V any](capacity int, r
 // The algorithm adds some additional tracking overhead but provides better cache performance
 // for workloads with temporal locality patterns.
 // TwoQueueCache is not safe for concurrent access.
-type TwoQueueCache[K comparable, V any] struct {
+type TwoQueueCache[K comparable, V any] struct { //nolint:revive
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
 	capacity         int     // Total cache capacity
@@ -107,7 +107,7 @@ type TwoQueueCache[K comparable, V any] struct {
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
 
-// Ensure TwoQueueCache implements InMemoryCache interface
+// Ensure TwoQueueCache implements InMemoryCache interface.
 var _ base.InMemoryCache[string, int] = (*TwoQueueCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache using the 2Q algorithm.
@@ -115,7 +115,7 @@ var _ base.InMemoryCache[string, int] = (*TwoQueueCache[string, int])(nil)
 // 1. If the key is already in the frequent cache, update its value
 // 2. If the key is in the recent cache, promote it to the frequent cache
 // 3. If the key is in the ghost cache, add it directly to the frequent cache
-// 4. Otherwise, add it to the recent cache
+// 4. Otherwise, add it to the recent cache.
 func (c *TwoQueueCache[K, V]) Set(key K, value V) {
 	// Check if the key is already in the frequent cache
 	if c.frequent.Has(key) {

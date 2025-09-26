@@ -39,7 +39,7 @@ func NewLRUCacheWithEvictionCallback[K comparable, V any](capacity int, onEvicti
 
 // LRUCache is a Least Recently Used cache implementation.
 // It is not safe for concurrent access and should be wrapped with a thread-safe layer if needed.
-type LRUCache[K comparable, V any] struct {
+type LRUCache[K comparable, V any] struct { //nolint:revive
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
 	capacity int                               // Maximum number of items the cache can hold (0 = unlimited)
@@ -49,7 +49,7 @@ type LRUCache[K comparable, V any] struct {
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
 
-// Ensure LRUCache implements InMemoryCache interface
+// Ensure LRUCache implements InMemoryCache interface.
 var _ base.InMemoryCache[string, int] = (*LRUCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache.
