@@ -67,11 +67,10 @@ func NewLFUCacheWithEvictionSizeAndCallback[K comparable, V any](capacity int, e
 type LFUCache[K comparable, V any] struct {
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	capacity     int // Maximum number of items the cache can hold
-	evictionSize int // Number of items to evict when cache is full
-	// @TODO: build a custom list.List implementation
-	ll    *list.List[*entry[K, V]]          // Doubly-linked list maintaining frequency order (least frequent at front)
-	cache map[K]*list.Element[*entry[K, V]] // Map for O(1) key lookups to list elements
+	capacity     int                               // Maximum number of items the cache can hold
+	evictionSize int                               // Number of items to evict when cache is full
+	ll           *list.List[*entry[K, V]]          // Doubly-linked list maintaining frequency order (least frequent at front)
+	cache        map[K]*list.Element[*entry[K, V]] // Map for O(1) key lookups to list elements
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
