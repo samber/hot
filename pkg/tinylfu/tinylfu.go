@@ -2,6 +2,7 @@ package tinylfu
 
 import (
 	"github.com/samber/hot/internal/container/list"
+	"github.com/samber/hot/internal/sketch"
 
 	"github.com/DmitriyVTitov/size"
 	"github.com/samber/hot/internal"
@@ -38,7 +39,7 @@ func NewTinyLFUCacheWithEvictionCallback[K comparable, V any](capacity int, onEv
 	}
 
 	return &TinyLFUCache[K, V]{
-		sketch: newCountMinSketch[K](capacity, cmsDepth),
+		sketch: sketch.NewCountMinSketch[K](capacity, cmsDepth),
 
 		mainCapacity:      mainCapacity,
 		admissionCapacity: admissionCapacity,
@@ -57,7 +58,7 @@ func NewTinyLFUCacheWithEvictionCallback[K comparable, V any](capacity int, onEv
 type TinyLFUCache[K comparable, V any] struct {
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	sketch *countMinSketch[K]
+	sketch *sketch.CountMinSketch[K]
 
 	mainCapacity      int // Maximum number of items the cache can hold
 	admissionCapacity int // Maximum number of items the cache can hold for admission

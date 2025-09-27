@@ -1,4 +1,4 @@
-package tinylfu
+package sketch
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ func TestNewCountMinSketch(t *testing.T) {
 	t.Parallel()
 
 	// Test with valid parameters
-	cms := newCountMinSketch[string](100, 4)
+	cms := NewCountMinSketch[string](100, 4)
 	is.Equal(100, cms.width)
 	is.Equal(4, cms.depth)
 	is.Len(cms.counters, 4)
@@ -31,7 +31,7 @@ func TestNewCountMinSketch(t *testing.T) {
 	}
 
 	// Test with different parameters
-	cms2 := newCountMinSketch[string](50, 2)
+	cms2 := NewCountMinSketch[string](50, 2)
 	is.Equal(50, cms2.width)
 	is.Equal(2, cms2.depth)
 	is.Len(cms2.counters, 2)
@@ -42,7 +42,7 @@ func TestCountMinSketch_Inc(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Test incrementing a single key
 	cms.Inc("test")
@@ -79,7 +79,7 @@ func TestCountMinSketch_Estimate(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Test estimate for non-existent key
 	estimate := cms.Estimate("nonexistent")
@@ -106,7 +106,7 @@ func TestCountMinSketch_Reset(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Add some data
 	cms.Inc("test")
@@ -136,7 +136,7 @@ func TestCountMinSketch_Hash(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Test hash consistency
 	hashes1 := cms.hash("test")
@@ -166,7 +166,7 @@ func TestCountMinSketch_Overflow(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Test counter overflow behavior
 	// Increment the same key many times to potentially cause overflow
@@ -190,7 +190,7 @@ func TestCountMinSketch_Accuracy(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](100, 4)
+	cms := NewCountMinSketch[string](100, 4)
 
 	// Test with known frequencies
 	testCases := []struct {
@@ -227,7 +227,7 @@ func TestCountMinSketch_CollisionHandling(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](5, 2) // Small sketch to increase collision probability
+	cms := NewCountMinSketch[string](5, 2) // Small sketch to increase collision probability
 
 	// Add many different keys to cause collisions
 	keys := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
@@ -246,7 +246,7 @@ func TestCountMinSketch_EmptyKey(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Test with empty string
 	cms.Inc("")
@@ -264,7 +264,7 @@ func TestCountMinSketch_LongKey(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Test with very long key
 	longKey := "this_is_a_very_long_key_that_might_cause_issues_with_hashing_but_should_still_work_correctly"
@@ -282,7 +282,7 @@ func TestCountMinSketch_SpecialCharacters(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Test with various special characters
 	specialKeys := []string{
@@ -305,7 +305,7 @@ func TestCountMinSketch_ConcurrentAccess(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](100, 4)
+	cms := NewCountMinSketch[string](100, 4)
 
 	// Test that the sketch can handle rapid successive operations
 	// (Note: This doesn't test actual concurrency since the sketch isn't thread-safe)
@@ -327,7 +327,7 @@ func TestCountMinSketch_EstimateAccuracy(t *testing.T) {
 	t.Parallel()
 
 	// Use a larger sketch for better accuracy
-	cms := newCountMinSketch[string](1000, 4)
+	cms := NewCountMinSketch[string](1000, 4)
 
 	// Test with a single key to minimize collisions
 	cms.Inc("single_key")
@@ -346,7 +346,7 @@ func TestCountMinSketch_ResetBehavior(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	cms := newCountMinSketch[string](10, 3)
+	cms := NewCountMinSketch[string](10, 3)
 
 	// Add data
 	cms.Inc("key1")

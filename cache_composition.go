@@ -11,6 +11,7 @@ import (
 	"github.com/samber/hot/pkg/sharded"
 	"github.com/samber/hot/pkg/tinylfu"
 	"github.com/samber/hot/pkg/twoqueue"
+	"github.com/samber/hot/pkg/wtinylfu"
 )
 
 //
@@ -92,6 +93,8 @@ func composeInternalCache[K comparable, V any](
 		cache = lfu.NewLFUCacheWithEvictionCallback(capacity, onItemEviction)
 	case TinyLFU:
 		cache = tinylfu.NewTinyLFUCacheWithEvictionCallback(capacity, onItemEviction)
+	case WTinyLFU:
+		cache = wtinylfu.NewWTinyLFUCacheWithEvictionCallback(capacity, onItemEviction)
 	case TwoQueue:
 		cache = twoqueue.New2QCacheWithEvictionCallback(capacity, onItemEviction)
 	case ARC:
