@@ -960,7 +960,7 @@ func TestPeek(t *testing.T) {
 	is.LessOrEqual(cache.Len(), 100)
 }
 
-// TestTinyLFUCacheEdgeCases tests edge cases and boundary conditions
+// TestTinyLFUCacheEdgeCases tests edge cases and boundary conditions.
 func TestTinyLFUCacheEdgeCases(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -993,7 +993,7 @@ func TestTinyLFUCacheEdgeCases(t *testing.T) {
 	is.LessOrEqual(cache2.Len(), 2)
 }
 
-// TestTinyLFUCacheStress tests high-frequency access patterns
+// TestTinyLFUCacheStress tests high-frequency access patterns.
 func TestTinyLFUCacheStress(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1020,12 +1020,12 @@ func TestTinyLFUCacheStress(t *testing.T) {
 		if cache.Has(key) {
 			val, ok := cache.Get(key)
 			is.True(ok)
-			is.Greater(val, 0)
+			is.Positive(val)
 		}
 	}
 }
 
-// TestTinyLFUCacheFrequencyBasedAdmission tests the frequency-based admission behavior
+// TestTinyLFUCacheFrequencyBasedAdmission tests the frequency-based admission behavior.
 func TestTinyLFUCacheFrequencyBasedAdmission(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1065,7 +1065,7 @@ func TestTinyLFUCacheFrequencyBasedAdmission(t *testing.T) {
 	}
 }
 
-// TestTinyLFUCacheEvictionCallback tests eviction callback behavior in detail
+// TestTinyLFUCacheEvictionCallback tests eviction callback behavior in detail.
 func TestTinyLFUCacheEvictionCallback(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1085,8 +1085,8 @@ func TestTinyLFUCacheEvictionCallback(t *testing.T) {
 	}
 
 	// Verify evictions occurred
-	is.Greater(len(evictedItems), 0)
-	is.Greater(len(evictionReasons), 0)
+	is.NotEmpty(evictedItems)
+	is.NotEmpty(evictionReasons)
 
 	// All evictions should be due to capacity
 	for _, reason := range evictionReasons {
@@ -1099,7 +1099,7 @@ func TestTinyLFUCacheEvictionCallback(t *testing.T) {
 	}
 }
 
-// TestTinyLFUCacheDifferentDataTypes tests with various key and value types
+// TestTinyLFUCacheDifferentDataTypes tests with various key and value types.
 func TestTinyLFUCacheDifferentDataTypes(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1155,7 +1155,7 @@ func TestTinyLFUCacheDifferentDataTypes(t *testing.T) {
 	is.GreaterOrEqual(cache2.Len(), 1)
 }
 
-// TestTinyLFUCacheAlgorithmName verifies the algorithm name
+// TestTinyLFUCacheAlgorithmName verifies the algorithm name.
 func TestTinyLFUCacheAlgorithmName(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1164,7 +1164,7 @@ func TestTinyLFUCacheAlgorithmName(t *testing.T) {
 	is.Equal("tinylfu", cache.Algorithm())
 }
 
-// TestTinyLFUCacheZeroCapacityPanics verifies panics for invalid capacities
+// TestTinyLFUCacheZeroCapacityPanics verifies panics for invalid capacities.
 func TestTinyLFUCacheZeroCapacityPanics(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1182,7 +1182,7 @@ func TestTinyLFUCacheZeroCapacityPanics(t *testing.T) {
 	})
 }
 
-// TestTinyLFUCacheCountMinSketchBehavior tests the Count-Min Sketch functionality
+// TestTinyLFUCacheCountMinSketchBehavior tests the Count-Min Sketch functionality.
 func TestTinyLFUCacheCountMinSketchBehavior(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1192,7 +1192,7 @@ func TestTinyLFUCacheCountMinSketchBehavior(t *testing.T) {
 	// Access the same key many times to build frequency
 	key := "popular_key"
 	for i := 0; i < 100; i++ {
-		cache.Get(key) // This increments the counter in the sketch
+		cache.Get(key)    // This increments the counter in the sketch
 		cache.Set(key, i) // This also increments the counter
 	}
 
@@ -1218,7 +1218,7 @@ func TestTinyLFUCacheCountMinSketchBehavior(t *testing.T) {
 	}
 }
 
-// TestTinyLFUCachePurgeBehavior tests the purge functionality
+// TestTinyLFUCachePurgeBehavior tests the purge functionality.
 func TestTinyLFUCachePurgeBehavior(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1232,7 +1232,7 @@ func TestTinyLFUCachePurgeBehavior(t *testing.T) {
 	}
 
 	// Verify cache has items
-	is.Greater(cache.Len(), 0)
+	is.Positive(cache.Len())
 
 	// Access some items to build frequency
 	cache.Get("item_0")
@@ -1253,7 +1253,7 @@ func TestTinyLFUCachePurgeBehavior(t *testing.T) {
 	is.Equal(0, cache.sketch.Estimate("item_1"))
 }
 
-// TestTinyLFUCachePromotionLogic tests the promotion logic from admission to main cache
+// TestTinyLFUCachePromotionLogic tests the promotion logic from admission to main cache.
 func TestTinyLFUCachePromotionLogic(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
@@ -1289,7 +1289,7 @@ func TestTinyLFUCachePromotionLogic(t *testing.T) {
 	}
 }
 
-// TestTinyLFUCacheSetGetUpdatePattern tests common set-get-update patterns
+// TestTinyLFUCacheSetGetUpdatePattern tests common set-get-update patterns.
 func TestTinyLFUCacheSetGetUpdatePattern(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
