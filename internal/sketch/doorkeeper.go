@@ -10,25 +10,25 @@ import (
 // The Doorkeeper is a Bloom filter that tracks singletons to avoid updating
 // the Count-Min Sketch for items seen only once, improving efficiency.
 type DoorkeeperCountMinSketch[K comparable] struct {
-	width         int       // Width of each hash table
-	depth         int       // Number of hash functions
-	counters      [][]uint8 // 2D array of counters
-	seeds         []uint64  // Seeds for hash functions
+	width    int       // Width of each hash table
+	depth    int       // Number of hash functions
+	counters [][]uint8 // 2D array of counters
+	seeds    []uint64  // Seeds for hash functions
 
 	// Doorkeeper Bloom filter for singleton tracking
-	doorkeeper    []uint64  // Bloom filter bit array
+	doorkeeper      []uint64 // Bloom filter bit array
 	doorkeeperSeeds []uint64 // Seeds for doorkeeper hash functions
-	doorkeeperSize int      // Size of doorkeeper bloom filter
+	doorkeeperSize  int      // Size of doorkeeper bloom filter
 }
 
 // NewDoorkeeperCountMinSketch creates a new Count-Min Sketch with Doorkeeper optimization.
 // According to TinyLFU paper, this combination provides better efficiency for singleton tracking.
 func NewDoorkeeperCountMinSketch[K comparable](width, depth int) *DoorkeeperCountMinSketch[K] {
 	cms := &DoorkeeperCountMinSketch[K]{
-		width:         width,
-		depth:         depth,
-		counters:      make([][]byte, depth),
-		seeds:         make([]uint64, depth),
+		width:           width,
+		depth:           depth,
+		counters:        make([][]byte, depth),
+		seeds:           make([]uint64, depth),
 		doorkeeperSeeds: make([]uint64, 4), // 4 hash functions for doorkeeper
 	}
 
@@ -51,7 +51,7 @@ func NewDoorkeeperCountMinSketch[K comparable](width, depth int) *DoorkeeperCoun
 	cms.doorkeeper = make([]uint64, (cms.doorkeeperSize+63)/64) // Round up to 64-bit words
 
 	for i := 0; i < 4; i++ {
-		cms.doorkeeperSeeds[i] = uint64(i * 2000 + 1000)
+		cms.doorkeeperSeeds[i] = uint64(i*2000 + 1000)
 	}
 
 	return cms

@@ -92,7 +92,6 @@ var _ base.InMemoryCache[string, int] = (*WTinyLFUCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache.
 func (c *WTinyLFUCache[K, V]) Set(key K, value V) {
-
 	// Check if key exists in protected segment
 	if e, ok := c.protectedMap[key]; ok {
 		c.protectedLl.MoveToFront(e)
