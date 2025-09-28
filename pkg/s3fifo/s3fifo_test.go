@@ -8,6 +8,8 @@ import (
 )
 
 func TestNewS3FIFOCache(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](10)
 	assert.NotNil(t, cache)
 	assert.Equal(t, 10, cache.Capacity())
@@ -16,6 +18,8 @@ func TestNewS3FIFOCache(t *testing.T) {
 }
 
 func TestNewS3FIFOCacheWithEvictionCallback(t *testing.T) {
+	t.Parallel()
+
 	var evictedKey string
 	var evictedValue int
 	var evictionReason base.EvictionReason
@@ -44,6 +48,8 @@ func TestNewS3FIFOCacheWithEvictionCallback(t *testing.T) {
 }
 
 func TestS3FIFOCache_SetAndGet(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](10)
 
 	// Test basic set and get
@@ -69,6 +75,8 @@ func TestS3FIFOCache_SetAndGet(t *testing.T) {
 }
 
 func TestS3FIFOCache_SmallQueuePromotion(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](10)
 
 	// Add item to small queue
@@ -83,6 +91,8 @@ func TestS3FIFOCache_SmallQueuePromotion(t *testing.T) {
 }
 
 func TestS3FIFOCache_GhostQueueReinsertion(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](3) // Use smaller capacity to force eviction
 
 	// Fill cache to capacity
@@ -110,6 +120,8 @@ func TestS3FIFOCache_GhostQueueReinsertion(t *testing.T) {
 }
 
 func TestS3FIFOCache_EvictionPolicy(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](5)
 
 	// Fill small queue
@@ -135,6 +147,8 @@ func TestS3FIFOCache_EvictionPolicy(t *testing.T) {
 }
 
 func TestS3FIFOCache_Peek(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](5)
 
 	// Test peek non-existent key
@@ -155,6 +169,8 @@ func TestS3FIFOCache_Peek(t *testing.T) {
 }
 
 func TestS3FIFOCache_Delete(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](5)
 
 	// Test delete non-existent key
@@ -175,6 +191,8 @@ func TestS3FIFOCache_Delete(t *testing.T) {
 }
 
 func TestS3FIFOCache_Purge(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](5)
 
 	cache.Set("a", 1)
@@ -187,6 +205,8 @@ func TestS3FIFOCache_Purge(t *testing.T) {
 }
 
 func TestS3FIFOCache_KeysValues(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](5)
 
 	assert.Empty(t, cache.Keys())
@@ -207,6 +227,8 @@ func TestS3FIFOCache_KeysValues(t *testing.T) {
 }
 
 func TestS3FIFOCache_All(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](3)
 	cache.Set("a", 1)
 	cache.Set("b", 2)
@@ -218,6 +240,8 @@ func TestS3FIFOCache_All(t *testing.T) {
 }
 
 func TestS3FIFOCache_Range(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](3)
 
 	cache.Set("a", 1)
@@ -242,6 +266,8 @@ func TestS3FIFOCache_Range(t *testing.T) {
 }
 
 func TestS3FIFOCache_BatchOperations(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](10)
 
 	// SetMany
@@ -272,6 +298,8 @@ func TestS3FIFOCache_BatchOperations(t *testing.T) {
 }
 
 func TestS3FIFOCache_SizeBytes(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, string](3)
 
 	assert.Equal(t, int64(0), cache.SizeBytes())
@@ -284,6 +312,8 @@ func TestS3FIFOCache_SizeBytes(t *testing.T) {
 }
 
 func TestS3FIFOCache_FrequencyCapping(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](5)
 
 	cache.Set("a", 1)
@@ -298,6 +328,8 @@ func TestS3FIFOCache_FrequencyCapping(t *testing.T) {
 }
 
 func TestS3FIFOCache_SmallCapacity(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](3)
 
 	cache.Set("a", 1) // small: ["a"]
@@ -319,6 +351,8 @@ func TestS3FIFOCache_SmallCapacity(t *testing.T) {
 }
 
 func TestS3FIFOCache_UpdateExistingKey(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](5)
 
 	// Add items
@@ -337,6 +371,8 @@ func TestS3FIFOCache_UpdateExistingKey(t *testing.T) {
 }
 
 func TestS3FIFOCache_CacheMissGhostTracking(t *testing.T) {
+	t.Parallel()
+
 	cache := NewS3FIFOCache[string, int](1) // Use capacity 1 to force eviction
 
 	// Add and evict an item to put it in ghost
