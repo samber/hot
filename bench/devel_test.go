@@ -22,7 +22,9 @@ import (
 //go:linkname nanotime runtime.nanotime
 func nanotime() int64
 
-// go test -benchmem -benchtime=100000000x -bench=Time.
+var startTime = time.Now()
+
+// go test -benchmem -benchtime=100000000x -bench=Time ./bench/.
 func BenchmarkDevelTime(b *testing.B) {
 	b.Run("TimeGo", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
@@ -50,6 +52,13 @@ func BenchmarkDevelTime(b *testing.B) {
 	b.Run("TimeRuntimeMonotonicTime", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			_ = nanotime()
+		}
+	})
+
+	// time.Since(startTime) use monotonic time
+	b.Run("TimeRuntimeMonotonicTimeSince", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			_ = time.Since(startTime).Nanoseconds()
 		}
 	})
 }
