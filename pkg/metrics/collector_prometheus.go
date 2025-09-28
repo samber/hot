@@ -115,7 +115,7 @@ func NewPrometheusCollector(name string, shard int, mode base.CacheMode, capacit
 	// Algorithm is always set (non-pointer)
 	collector.settingsAlgorithm = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name:        "hot_settings_algorithm",
-		Help:        "Eviction algorithm type (0=lru, 1=lfu, 2=arc, 3=2q, 4=fifo, 5=tinylfu)",
+		Help:        "Eviction algorithm type (0=lru, 1=lfu, 2=arc, 3=2q, 4=fifo, 5=tinylfu, 6=wtinylfu, 7=s3fifo)",
 		ConstLabels: labels,
 	})
 	// Convert algorithm string to numeric value for the gauge
@@ -133,6 +133,10 @@ func NewPrometheusCollector(name string, shard int, mode base.CacheMode, capacit
 		algorithmValue = 4.0
 	case "tinylfu":
 		algorithmValue = 5.0
+	case "wtinylfu":
+		algorithmValue = 6.0
+	case "s3fifo":
+		algorithmValue = 7.0
 	}
 	collector.settingsAlgorithm.Set(algorithmValue)
 
