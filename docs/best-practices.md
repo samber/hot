@@ -18,11 +18,11 @@ This guide covers best practices for using HOT in production environments.
 | **FIFO**      | Very simple; available everywhere                                                          | Usually the worst hit rate                      | Only when simplicity matters              |
 
 **Takeaways:**
-- Default: W-TinyLFU — works well in almost every scenario.
-- Frequency-heavy workloads: TinyLFU or LFU.
-- Changing patterns: W-TinyLFU or ARC
-- Recency-heavy: LRU
-- Mostly stable and throughput-critical: S3-FIFO
+- Default: **W-TinyLFU** — works well in almost every scenario.
+- Frequency-heavy workloads: **TinyLFU** or **LFU**.
+- Changing patterns: **W-TinyLFU** or **ARC**
+- Recency-heavy: **LRU**
+- Mostly stable and throughput-critical: **S3-FIFO**
 
 ### Set Appropriate TTL Values
 
