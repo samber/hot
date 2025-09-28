@@ -12,7 +12,7 @@ Welcome to the HOT (Hot Object Tracker) documentation. This guide will help you 
 
 HOT is a high-performance, feature-complete in-memory caching library for Go applications. It provides:
 
-- **Multiple Eviction Policies**: LRU, LFU, ARC, 2Q, and FIFO algorithms
+- **Multiple Eviction Policies**: LRU, LFU, TinyLFU, W-TinyLFU, S3FIFO, ARC, 2Q, and FIFO algorithms
 - **Advanced Features**: TTL with jitter, stale-while-revalidate, missing key caching
 - **High Performance**: Nanosecond-precision timestamps, zero-allocation operations
 - **Scalability**: Sharded architecture for high concurrency
@@ -21,15 +21,15 @@ HOT is a high-performance, feature-complete in-memory caching library for Go app
 
 ## Quick Comparison
 
-| Feature            | HOT                     | Standard Go Maps | Redis | Memcached |
-| ------------------ | ----------------------- | ---------------- | ----- | --------- |
-| Eviction Policies  | LRU, LFU, ARC, 2Q, FIFO | None             | LRU   | LRU       |
-| TTL Support        | ✅                       | ❌                | ✅     | ✅         |
-| Thread Safety      | ✅                       | ❌                | ✅     | ✅         |
-| Prometheus Metrics | ✅                       | ❌                | ✅     | ✅         |
-| Go Generics        | ✅                       | ✅                | ❌     | ❌         |
-| In-Memory          | ✅                       | ✅                | ❌     | ❌         |
-| Distributed        | ❌                       | ❌                | ✅     | ✅         |
+| Feature            | HOT                                                 | Standard Go Maps | Redis | Memcached |
+| ------------------ | --------------------------------------------------- | ---------------- | ----- | --------- |
+| Eviction Policies  | LRU, LFU, TinyLFU, W-TinyLFU, S3FIFO, ARC, 2Q, FIFO | None             | LRU   | LRU       |
+| TTL Support        | ✅                                                   | ❌                | ✅     | ✅         |
+| Thread Safety      | ✅                                                   | ❌                | ✅     | ✅         |
+| Prometheus Metrics | ✅                                                   | ❌                | ✅     | ✅         |
+| Go Generics        | ✅                                                   | ✅                | ❌     | ❌         |
+| In-Memory          | ✅                                                   | ✅                | ❌     | ❌         |
+| Distributed        | ❌                                                   | ❌                | ✅     | ✅         |
 
 ## Getting Started
 
@@ -51,6 +51,9 @@ value, found, _ := cache.Get("key")
 ### Eviction Policies
 - **LRU (Least Recently Used)**: Evicts items that haven't been accessed recently
 - **LFU (Least Frequently Used)**: Evicts items with the lowest access frequency
+- **S3FIFO (Segmented 3-Level FIFO)**: An extension of FIFO with three segments to reduce cache pollution and better handle varying access patterns.
+- **TinyLFU**: Uses a small, approximate frequency histogram to track item popularity and decide eviction efficiently.
+- **W-TinyLFU (Windowed TinyLFU)**: Combines a small “window” cache with TinyLFU to handle both recency and frequency, improving hit rates.
 - **ARC (Adaptive Replacement Cache)**: Automatically adapts between LRU and LFU
 - **2Q (Two Queue)**: Uses two queues to separate frequently and infrequently accessed items
 - **FIFO (First In, First Out)**: Evicts items in the order they were added
