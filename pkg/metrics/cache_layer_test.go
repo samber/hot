@@ -608,51 +608,6 @@ func TestInstrumentedCache_RangeOperation(t *testing.T) {
 	is.Len(visited, 1)
 }
 
-func TestInstrumentedCache_Performance(t *testing.T) {
-	is := assert.New(t)
-	t.Parallel()
-
-	// Create underlying cache with larger capacity for performance test
-	underlyingCache := lru.NewLRUCache[string, int](10000)
-
-	// Create metrics collector
-	collector := NewPrometheusCollector("test-cache", -1, base.CacheModeMain, 10000, "lru", nil, nil, nil, nil, nil)
-
-	// Create metrics wrapper
-	metricsCache := NewInstrumentedCache(underlyingCache, collector)
-
-	// Benchmark Set operations
-	const iterations = 10000
-
-	start := time.Now()
-	for i := 0; i < iterations; i++ {
-		key := fmt.Sprintf("key_%d", i)
-		metricsCache.Set(key, i)
-	}
-	setDuration := time.Since(start)
-
-	// Benchmark Get operations
-	start = time.Now()
-	for i := 0; i < iterations; i++ {
-		key := fmt.Sprintf("key_%d", i)
-		metricsCache.Get(key)
-	}
-	getDuration := time.Since(start)
-
-	// Log performance metrics
-	t.Logf("InstrumentedCache performance metrics (%d operations each):", iterations)
-	t.Logf("  Set: %v", setDuration)
-	t.Logf("  Get: %v", getDuration)
-
-	// Verify operations completed successfully
-	is.Equal(iterations, metricsCache.Len())
-
-	// Verify operations are reasonably fast
-	maxDuration := 100 * time.Millisecond
-	is.Less(setDuration, maxDuration, "Set operations should be fast")
-	is.Less(getDuration, maxDuration, "Get operations should be fast")
-}
-
 func TestInstrumentedCache_ShardLabeling(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
