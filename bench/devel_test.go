@@ -55,7 +55,7 @@ func BenchmarkDevelTime(b *testing.B) {
 		}
 	})
 
-	// time.Since(startTime) use monotonic time
+	// time.Since(startTime) uses monotonic time
 	b.Run("TimeRuntimeMonotonicTimeSince", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			_ = time.Since(startTime).Nanoseconds()

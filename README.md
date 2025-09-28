@@ -46,11 +46,11 @@
 
 HOT is optimized for high-performance scenarios:
 
-- **Cheap clock lookup** (2.5x faster than `time.Now()`)
 - **Zero-allocation operations** where possible
 - **Lock-free operations** when thread safety is disabled
 - **Batch operations** for better throughput
 - **Sharded architecture** for high concurrency
+- **Monotonic clock lookup** (2.5x faster)
 
 ## 📦 Installation
 
@@ -164,7 +164,7 @@ Eviction algorithms:
 hot.LRU
 hot.LFU
 hot.TinyLFU
-hot.W-TinyLFU
+hot.WTinyLFU
 hot.S3FIFO
 hot.TwoQueue
 hot.ARC
