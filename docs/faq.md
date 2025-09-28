@@ -50,11 +50,11 @@ HOT is optimized for high performance:
 
 ### Which eviction policy should I use?
 
-- **LRU**: General purpose, good balance of performance and hit rate
-- **LFU**: Better for data with varying access patterns
-- **ARC**: Automatically adapts to access patterns
-- **2Q**: Good for datasets larger than cache capacity
-- **FIFO**: Simple and predictable, evicts oldest items first
+- Default: **W-TinyLFU** — works well in almost every scenario.
+- Frequency-heavy workloads: **TinyLFU** or **LFU**.
+- Changing patterns: **W-TinyLFU** or **ARC**
+- Recency-heavy: **LRU**
+- Mostly stable and throughput-critical: **S3-FIFO**
 
 ### How do I optimize HOT performance?
 
