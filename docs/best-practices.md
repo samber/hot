@@ -6,17 +6,6 @@ This guide covers best practices for using HOT in production environments.
 
 ### Choose the Right Eviction Policy
 
-| Recommended algorithm | Reason                                        |
-| --------------------- | --------------------------------------------- |
-| LRU                   | Good balance of performance and hit rate      |
-| LFU                   | Better for data with varying access patterns  |
-| TinyLFU               | Skewed workloads with many rare items         |
-| W-TinyLFU             | Mixed recency, frequency workloads            |
-| S3FIFO                | High-throughput, skewed workloads             |
-| ARC                   | Automatically adapts to access patterns       |
-| 2Q                    | Good for datasets larger than cache capacity  |
-| FIFO                  | Evicts oldest items first, easy to understand |
-
 | Algorithm     | Pros                                                                                       | Cons                                            | Best for                                  |
 | ------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------- | ----------------------------------------- |
 | **W-TinyLFU** | Excellent hit rate across many workloads; adapts automatically between recency & frequency | Slightly higher memory use                      | General-purpose, most robust choice       |
