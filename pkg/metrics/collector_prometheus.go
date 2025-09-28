@@ -46,7 +46,7 @@ type PrometheusCollector struct {
 
 // NewPrometheusCollector creates a new Prometheus-based metric collector.
 //
-//nolint:funlen
+//nolint:funlen,gocyclo
 func NewPrometheusCollector(name string, shard int, mode base.CacheMode, capacity int, algorithm string, ttl *time.Duration, jitterLambda *float64, jitterUpperBound *time.Duration, stale *time.Duration, missingCapacity *int) *PrometheusCollector {
 	labels := map[string]string{
 		"name": name,
