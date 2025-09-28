@@ -6,13 +6,34 @@ This guide covers best practices for using HOT in production environments.
 
 ### Choose the Right Eviction Policy
 
-| Use Case                 | Recommended Policy | Reason                                        |
-| ------------------------ | ------------------ | --------------------------------------------- |
-| General purpose          | LRU                | Good balance of performance and hit rate      |
-| Frequently accessed data | LFU                | Better for data with varying access patterns  |
-| Mixed access patterns    | ARC                | Automatically adapts to access patterns       |
-| Large datasets           | 2Q                 | Good for datasets larger than cache capacity  |
-| Simple, predictable      | FIFO               | Evicts oldest items first, easy to understand |
+| Recommended algorithm | Reason                                        |
+| --------------------- | --------------------------------------------- |
+| LRU                   | Good balance of performance and hit rate      |
+| LFU                   | Better for data with varying access patterns  |
+| TinyLFU               | Skewed workloads with many rare items         |
+| W-TinyLFU             | Mixed recency, frequency workloads            |
+| S3FIFO                | High-throughput, skewed workloads             |
+| ARC                   | Automatically adapts to access patterns       |
+| 2Q                    | Good for datasets larger than cache capacity  |
+| FIFO                  | Evicts oldest items first, easy to understand |
+
+| Algorithm     | Pros                                                                                       | Cons                                            | Best for                                  |
+| ------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------- | ----------------------------------------- |
+| **W-TinyLFU** | Excellent hit rate across many workloads; adapts automatically between recency & frequency | Slightly higher memory use                      | General-purpose, most robust choice       |
+| **TinyLFU**   | Great at filtering useless (one-hit) items; improves hit rate when combined with LRU       | Needs pairing with another policy (usually LRU) | Skewed workloads with lots of rare items  |
+| **S3-FIFO**   | High throughput; simple; very strong hit rate in many real workloads                       | Less adaptive if workload changes a lot         | High-throughput systems, stable workloads |
+| **ARC**       | Adjusts automatically to access patterns; no tuning needed                                 | Less commonly available in libraries            | Workloads that change over time           |
+| **LFU**       | Good if some items are consistently popular                                                | Can hold onto stale data                        | Stable popularity (hot keys)              |
+| **LRU**       | Widely supported; predictable behavior                                                     | Easily polluted by one-hit items                | Recency-based workloads                   |
+| **2Q**        | Better than LRU for large datasets                                                         | Not as adaptive as ARC/W-TinyLFU                | Datasets bigger than cache size           |
+| **FIFO**      | Very simple; available everywhere                                                          | Usually the worst hit rate                      | Only when simplicity matters              |
+
+**Takeaways:**
+- Default: W-TinyLFU — works well in almost every scenario.
+- Frequency-heavy workloads: TinyLFU or LFU.
+- Changing patterns: W-TinyLFU or ARC
+- Recency-heavy: LRU
+- Mostly stable and throughput-critical: S3-FIFO
 
 ### Set Appropriate TTL Values
 
