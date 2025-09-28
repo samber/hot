@@ -1,4 +1,4 @@
-package tinylfu
+package sketch
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 // According to the paper, Count-Min Sketch is faster than the Spectral Bloom Filters
 // but less accurate.
 
-type countMinSketch[K comparable] struct {
+type CountMinSketch[K comparable] struct {
 	width    int       // Width of each hash table
 	depth    int       // Number of hash functions
 	counters [][]uint8 // 2D array of counters
@@ -18,8 +18,8 @@ type countMinSketch[K comparable] struct {
 
 // More width = fewer collisions
 // More depth = better estimates.
-func newCountMinSketch[K comparable](width, depth int) *countMinSketch[K] {
-	cms := &countMinSketch[K]{
+func NewCountMinSketch[K comparable](width, depth int) *CountMinSketch[K] {
+	cms := &CountMinSketch[K]{
 		width:    width,
 		depth:    depth,
 		counters: make([][]byte, depth),
@@ -38,7 +38,7 @@ func newCountMinSketch[K comparable](width, depth int) *countMinSketch[K] {
 }
 
 // Inc increments the count for the given key.
-func (cms *countMinSketch[K]) Inc(key K) {
+func (cms *CountMinSketch[K]) Inc(key K) {
 	hashes := cms.hash(key)
 	for i := 0; i < cms.depth; i++ {
 		slot := hashes[i] % uint64(cms.width)
@@ -49,7 +49,7 @@ func (cms *countMinSketch[K]) Inc(key K) {
 }
 
 // Estimate returns the estimated count for the given key.
-func (cms *countMinSketch[K]) Estimate(key K) int {
+func (cms *CountMinSketch[K]) Estimate(key K) int {
 	overflow := math.MaxUint8
 
 	hashes := cms.hash(key)
@@ -64,7 +64,7 @@ func (cms *countMinSketch[K]) Estimate(key K) int {
 }
 
 // Reset resets the counters to 0.
-func (cms *countMinSketch[K]) Reset() {
+func (cms *CountMinSketch[K]) Reset() {
 	for i := 0; i < cms.depth; i++ {
 		for j := 0; j < cms.width; j++ {
 			cms.counters[i][j] = 0
@@ -72,7 +72,7 @@ func (cms *countMinSketch[K]) Reset() {
 	}
 }
 
-func (cms *countMinSketch[K]) hash(key K) []uint64 {
+func (cms *CountMinSketch[K]) hash(key K) []uint64 {
 	keyString := fmt.Sprintf("%v", key)
 
 	hashes := make([]uint64, cms.depth)

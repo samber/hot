@@ -16,7 +16,7 @@
 ## 🚀 Features
 
 - ⚡ **High Performance**: Optimized for speed
-- 🔄 **Multiple Eviction Policies**: LRU, LFU, TinyLFU, ARC, 2Q, and FIFO algorithms
+- 🔄 **Multiple Eviction Policies**: LRU, LFU, TinyLFU, W-TinyLFU, ARC, 2Q, and FIFO algorithms
 - ⏰ **TTL with Jitter**: Prevent cache stampedes with exponential distribution
 - 🔄 **Stale-While-Revalidate**: Serve stale data while refreshing in background
 - ❌ **Missing Key Caching**: Cache negative results to avoid repeated lookups
@@ -143,7 +143,7 @@ WithSharding(shards uint64, hasher sharded.Hasher[K])
 Event callbacks and hooks:
 
 ```go
-// Called when items are evicted (LRU/LFU/TinyLFU/expiration)
+// Called when items are evicted (LRU/LFU/TinyLFU/W-TinyLFU/expiration)
 WithEvictionCallback(callback func(key K, value V))
 // Preload cache on startup with data from loader
 WithWarmUp(loader func() (map[K]V, []K, error))
@@ -164,6 +164,7 @@ Eviction algorithms:
 hot.LRU
 hot.LFU
 hot.TinyLFU
+hot.W-TinyLFU
 hot.TwoQueue
 hot.ARC
 hot.FIFO
@@ -313,6 +314,7 @@ Example:
 │              pkg/lru.LRUCache[K, V]                         │
 │              pkg/lfu.LFUCache[K, V]                         │
 │              pkg/lfu.TinyLFUCache[K, V]                     │
+│              pkg/lfu.WTinyLFUCache[K, V]                    │
 │              pkg/arc.ARCCache[K, V]                         │
 │              pkg/fifo.FIFOCache[K, V]                       │
 │              pkg/twoqueue.TwoQueueCache[K, V]               │
@@ -330,6 +332,7 @@ Packages:
 - `pkg/lru`
 - `pkg/lfu`
 - `pkg/tinylfu`
+- `pkg/wtinylfu`
 - `pkg/twoqueue`
 - `pkg/arc`
 - `pkg/fifo`
@@ -424,7 +427,7 @@ cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
 ```go
 import "github.com/samber/hot"
 
-// Available eviction policies: hot.LRU, hot.LFU, hot.TinyLFU, hot.TwoQueue, hot.ARC, hot.FIFO
+// Available eviction policies: hot.LRU, hot.LFU, hot.TinyLFU, hot.WTinyLFU, hot.TwoQueue, hot.ARC, hot.FIFO
 // Capacity: 100k keys/values
 cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
     Build()
