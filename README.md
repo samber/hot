@@ -16,7 +16,7 @@
 ## 🚀 Features
 
 - ⚡ **High Performance**: Optimized for speed
-- 🔄 **Multiple Eviction Policies**: LRU, LFU, TinyLFU, W-TinyLFU, S3FIFO, ARC, 2Q, and FIFO algorithms
+- 🔄 **Multiple Eviction Policies**: LRU, LFU, TinyLFU, W-TinyLFU, S3FIFO, ARC, 2Q, SIEVE, and FIFO algorithms
 - ⏰ **TTL with Jitter**: Prevent cache stampedes with exponential distribution
 - 🔄 **Stale-While-Revalidate**: Serve stale data while refreshing in background
 - ❌ **Missing Key Caching**: Cache negative results to avoid repeated lookups
@@ -168,6 +168,7 @@ hot.WTinyLFU
 hot.S3FIFO
 hot.TwoQueue
 hot.ARC
+hot.SIEVE
 hot.FIFO
 ```
 
@@ -318,6 +319,7 @@ Example:
 │              pkg/lfu.WTinyLFUCache[K, V]                    │
 │              pkg/lfu.S3FIFOCache[K, V]                      │
 │              pkg/arc.ARCCache[K, V]                         │
+│              pkg/sieve.SIEVECache[K, V]                     │
 │              pkg/fifo.FIFOCache[K, V]                       │
 │              pkg/twoqueue.TwoQueueCache[K, V]               │
 │                   (Eviction policies)                       │
@@ -338,6 +340,7 @@ Packages:
 - `pkg/s3fifo`
 - `pkg/twoqueue`
 - `pkg/arc`
+- `pkg/sieve`
 - `pkg/fifo`
 
 Example:
@@ -430,7 +433,7 @@ cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
 ```go
 import "github.com/samber/hot"
 
-// Available eviction policies: hot.LRU, hot.LFU, hot.TinyLFU, hot.WTinyLFU, hot.S3FIFO, hot.TwoQueue, hot.ARC, hot.FIFO
+// Available eviction policies: hot.LRU, hot.LFU, hot.TinyLFU, hot.WTinyLFU, hot.S3FIFO, hot.TwoQueue, hot.ARC, hot.SIEVE, hot.FIFO
 // Capacity: 100k keys/values
 cache := hot.NewHotCache[string, int](hot.LRU, 100_000).
     Build()
@@ -612,7 +615,7 @@ http.ListenAndServe(":8080", nil)
 
 **Configuration Gauges:**
 - `hot_settings_capacity` - Maximum number of items the cache can hold
-- `hot_settings_algorithm` - Eviction algorithm type (0=lru, 1=lfu, 2=arc, 3=2q, 4=fifo, 5=tinylfu, 6=wtinylfu, 7=s3fifo)
+- `hot_settings_algorithm` - Eviction algorithm type (0=lru, 1=lfu, 2=arc, 3=2q, 4=fifo, 5=tinylfu, 6=wtinylfu, 7=s3fifo, 8=sieve)
 - `hot_settings_ttl_seconds` - Time-to-live duration in seconds (if set)
 - `hot_settings_jitter_lambda` - Jitter lambda parameter for TTL randomization (if set)
 - `hot_settings_jitter_upper_bound_seconds` - Jitter upper bound duration in seconds (if set)
