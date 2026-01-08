@@ -22,6 +22,7 @@ const (
 	TwoQueue EvictionAlgorithm = "2q"
 	ARC      EvictionAlgorithm = "arc"
 	FIFO     EvictionAlgorithm = "fifo"
+	SIEVE    EvictionAlgorithm = "sieve"
 )
 
 // revalidationErrorPolicy defines how to handle errors during revalidation.

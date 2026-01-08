@@ -9,6 +9,7 @@ import (
 	"github.com/samber/hot/pkg/metrics"
 	"github.com/samber/hot/pkg/safe"
 	"github.com/samber/hot/pkg/sharded"
+	"github.com/samber/hot/pkg/sieve"
 	"github.com/samber/hot/pkg/tinylfu"
 	"github.com/samber/hot/pkg/twoqueue"
 	"github.com/samber/hot/pkg/wtinylfu"
@@ -48,6 +49,7 @@ import (
 // │              pkg/arc.ARCCache[K, V]                         │
 // │              pkg/fifo.FIFOCache[K, V]                       │
 // │              pkg/twoqueue.TwoQueueCache[K, V]               │
+// │              pkg/sieve.SIEVECache[K, V]                     │
 // │                   (Eviction policies)                       │
 // └─────────────────────────────────────────────────────────────┘
 //
@@ -101,6 +103,8 @@ func composeInternalCache[K comparable, V any](
 		cache = arc.NewARCCacheWithEvictionCallback(capacity, onItemEviction)
 	case FIFO:
 		cache = fifo.NewFIFOCacheWithEvictionCallback(capacity, onItemEviction)
+	case SIEVE:
+		cache = sieve.NewSIEVECacheWithEvictionCallback(capacity, onItemEviction)
 	default:
 		panic("unknown cache algorithm")
 	}
