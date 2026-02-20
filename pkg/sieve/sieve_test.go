@@ -569,7 +569,7 @@ func TestSizeBytes(t *testing.T) {
 
 	cache.Set("a", 1)
 	cache.Set("b", 2)
-	is.Greater(cache.SizeBytes(), int64(0))
+	is.Positive(cache.SizeBytes())
 }
 
 // verifyVisitedState is a helper to check the visited state of entries.

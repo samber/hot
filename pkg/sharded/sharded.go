@@ -66,7 +66,7 @@ func (c *ShardedInMemoryCache[K, V]) Peek(key K) (value V, ok bool) {
 // The order of keys in the returned slice is not guaranteed.
 // Time complexity: O(n) where n is the total number of keys across all shards.
 func (c *ShardedInMemoryCache[K, V]) Keys() []K {
-	keys := []K{}
+	keys := make([]K, 0, len(c.caches))
 	for i := range c.caches {
 		keys = append(keys, c.caches[i].Keys()...)
 	}
@@ -77,7 +77,7 @@ func (c *ShardedInMemoryCache[K, V]) Keys() []K {
 // The order of values in the returned slice is not guaranteed.
 // Time complexity: O(n) where n is the total number of values across all shards.
 func (c *ShardedInMemoryCache[K, V]) Values() []V {
-	values := []V{}
+	values := make([]V, 0, len(c.caches))
 	for i := range c.caches {
 		values = append(values, c.caches[i].Values()...)
 	}
