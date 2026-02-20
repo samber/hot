@@ -15,7 +15,7 @@ import (
 
 var startTime = time.Now()
 
-// NowNanoMonotonic returns the current time in nanoseconds.
+// NowNano returns the current time in nanoseconds.
 // It is approximately 3 times faster than time.Now() for high-frequency operations.
 func NowNano() int64 {
 	return time.Since(startTime).Nanoseconds()
@@ -24,7 +24,7 @@ func NowNano() int64 {
 // //go:linkname nanotime runtime.nanotime
 // func nanotime() int64
 
-// NowNanoMonotonic returns the current time in nanoseconds.
+// NowNano returns the current time in nanoseconds.
 // It is approximately 3 times faster than time.Now() for high-frequency operations.
 // This function uses runtime.nanotime() for better performance.
 // func NowNano() int64 {
