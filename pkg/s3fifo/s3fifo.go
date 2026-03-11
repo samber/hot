@@ -344,7 +344,7 @@ func (c *S3FIFOCache[K, V]) insert(key K, value V) {
 func (c *S3FIFOCache[K, V]) evict() bool {
 	// Priority 1: Evict from small queue if it's over limit (S3-FIFO paper)
 	if c.small.Len() > c.smallLimit {
-		return c.evictFromSmallToGhost()
+		return c.evictFromSmall()
 	}
 	// Priority 2: Evict from main queue if it's over limit
 	if c.main.Len() > c.mainLimit {
@@ -356,37 +356,44 @@ func (c *S3FIFOCache[K, V]) evict() bool {
 			return c.evictFromMain()
 		} else if c.small.Len() > 0 {
 			// Fallback: evict from small queue if main is empty
-			return c.evictFromSmallToGhost()
+			return c.evictFromSmall()
 		}
 	}
 	return false
 }
 
-// evictFromMain removes the oldest item from the main queue.
+// evictFromMain evicts an item from the main queue using a clock-like second chance.
+// Per S3-FIFO paper: if front item has freq > 0, decrement and reinsert at tail. If freq == 0, evict.
 func (c *S3FIFOCache[K, V]) evictFromMain() bool {
-	if c.main.Len() == 0 {
-		return false
+	for c.main.Len() > 0 {
+		e := c.main.Front()
+		entry := e.Value
+
+		if entry.freq > 0 {
+			// Second chance: decrement frequency and move to back
+			entry.freq--
+			c.freq[entry.key] = entry.freq
+			c.main.MoveToBack(e)
+			continue
+		}
+
+		// freq == 0: evict
+		c.main.Remove(e)
+		delete(c.cache, entry.key)
+		delete(c.freq, entry.key)
+
+		if c.onEviction != nil {
+			c.onEviction(base.EvictionReasonCapacity, entry.key, entry.value)
+		}
+
+		return true
 	}
-
-	e := c.main.Front()
-	entry := e.Value
-
-	// Remove from main queue
-	c.main.Remove(e)
-	delete(c.cache, entry.key)
-	// Clean up frequency map to prevent memory leak
-	delete(c.freq, entry.key)
-
-	// Call eviction callback
-	if c.onEviction != nil {
-		c.onEviction(base.EvictionReasonCapacity, entry.key, entry.value)
-	}
-
-	return true
+	return false
 }
 
-// evictFromSmallToGhost removes the oldest item from small queue and moves it to ghost queue.
-func (c *S3FIFOCache[K, V]) evictFromSmallToGhost() bool {
+// evictFromSmall processes the oldest item from the small queue according to S3-FIFO policy.
+// Per the paper: if freq > 0, promote to main queue (item was accessed). If freq == 0, evict to ghost.
+func (c *S3FIFOCache[K, V]) evictFromSmall() bool {
 	if c.small.Len() == 0 {
 		return false
 	}
@@ -394,16 +401,24 @@ func (c *S3FIFOCache[K, V]) evictFromSmallToGhost() bool {
 	e := c.small.Front()
 	entry := e.Value
 
-	// Remove from small queue and cache
+	// Remove from small queue
 	c.small.Remove(e)
 	delete(c.cache, entry.key)
 
-	// Add to ghost queue
-	c.addToGhost(entry.key)
+	if entry.freq > 0 {
+		// S3-FIFO paper: promote to main if accessed at least once
+		entry.queue = 1
+		entry.freq = 0 // Reset frequency on promotion per paper
+		newE := c.main.PushBack(entry)
+		c.cache[entry.key] = newE
+		c.freq[entry.key] = 0
+	} else {
+		// freq == 0: item was never re-accessed, evict to ghost
+		c.addToGhost(entry.key)
 
-	// Call eviction callback
-	if c.onEviction != nil {
-		c.onEviction(base.EvictionReasonCapacity, entry.key, entry.value)
+		if c.onEviction != nil {
+			c.onEviction(base.EvictionReasonCapacity, entry.key, entry.value)
+		}
 	}
 
 	return true
