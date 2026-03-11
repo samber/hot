@@ -354,11 +354,14 @@ func (c *LFUCache[K, V]) deleteElement(e *list.Element[*entry[K, V]]) {
 	if freqList.Len() == 0 {
 		delete(c.freqMap, freq)
 		if freq == c.minFreq && len(c.cache) > 0 {
-			for f := freq + 1; ; f++ {
-				if _, exists := c.freqMap[f]; exists {
-					c.minFreq = f
-					break
+			minFreq := -1
+			for f := range c.freqMap {
+				if minFreq == -1 || f < minFreq {
+					minFreq = f
 				}
+			}
+			if minFreq >= 0 {
+				c.minFreq = minFreq
 			}
 		}
 	}
