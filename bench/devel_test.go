@@ -269,10 +269,10 @@ func BenchmarkDevelRandParallel(b *testing.B) {
 	b.Run("MathRandV2Float", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				randv1.Int()
-				randv1.Int()
-				randv1.Int()
-				randv1.Int()
+				randv2.Float64()
+				randv2.Float64()
+				randv2.Float64()
+				randv2.Float64()
 			}
 		})
 	})
@@ -280,10 +280,10 @@ func BenchmarkDevelRandParallel(b *testing.B) {
 	b.Run("MathRandV2Int", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				randv1.Int()
-				randv1.Int()
-				randv1.Int()
-				randv1.Int()
+				randv2.Int()
+				randv2.Int()
+				randv2.Int()
+				randv2.Int()
 			}
 		})
 	})

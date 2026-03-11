@@ -54,5 +54,5 @@ func (c *wrappedCache[K, V]) Len() int {
 }
 
 func (c *wrappedCache[K, V]) Purge() {
-	c.InMemoryCache.Len()
+	c.InMemoryCache.Purge()
 }
