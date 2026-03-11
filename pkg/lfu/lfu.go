@@ -73,8 +73,8 @@ type LFUCache[K comparable, V any] struct { //nolint:revive
 	evictionSize int // Number of items to evict when cache is full
 	minFreq      int // Current minimum frequency across all entries
 
-	cache   map[K]*list.Element[*entry[K, V]]   // Map for O(1) key lookups to list elements
-	freqMap map[int]*list.List[*entry[K, V]]     // Map from frequency to doubly-linked list of entries (front=MRU, back=LRU)
+	cache   map[K]*list.Element[*entry[K, V]] // Map for O(1) key lookups to list elements
+	freqMap map[int]*list.List[*entry[K, V]]  // Map from frequency to doubly-linked list of entries (front=MRU, back=LRU)
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
