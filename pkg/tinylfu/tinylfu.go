@@ -94,7 +94,6 @@ func (c *TinyLFUCache[K, V]) Set(key K, value V) {
 	// Check if key exists in admission window
 	if e, ok := c.admissionCache[key]; ok {
 		// Key exists in admission window: check if it should be promoted
-		c.sketch.Inc(key) // Increment again for promotion check
 		if c.shouldPromote(key) {
 			// Promote to main cache
 			c.promoteFromAdmission(e, value)
@@ -362,8 +361,8 @@ func (c *TinyLFUCache[K, V]) SizeBytes() int64 {
 }
 
 // shouldPromote determines if a key should be promoted from admission window to main cache.
-// This is based on the TinyLFU algorithm: promote if the key's frequency is higher than
-// the frequency of the least frequently used item in the main cache.
+// Per TinyLFU: promote if the candidate's frequency exceeds the eviction victim's frequency.
+// The victim is the LRU item at the back of the main cache (the item that would be evicted).
 func (c *TinyLFUCache[K, V]) shouldPromote(key K) bool {
 	if c.mainLl.Len() == 0 {
 		return true // Always promote if main cache is empty
@@ -371,16 +370,11 @@ func (c *TinyLFUCache[K, V]) shouldPromote(key K) bool {
 
 	keyFreq := c.sketch.Estimate(key)
 
-	// Find the least frequently used item in main cache
-	minFreq := int(^uint(0) >> 1) // Max int
-	for e := c.mainLl.Front(); e != nil; e = e.Next() {
-		itemFreq := c.sketch.Estimate(e.Value.key)
-		if itemFreq < minFreq {
-			minFreq = itemFreq
-		}
-	}
+	// Compare against the eviction victim (LRU item at back of main cache)
+	victim := c.mainLl.Back()
+	victimFreq := c.sketch.Estimate(victim.Value.key)
 
-	return keyFreq > minFreq
+	return keyFreq > victimFreq
 }
 
 // promoteFromAdmission promotes an item from admission window to main cache.
