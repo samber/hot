@@ -24,14 +24,14 @@ func TestNewLFUCache(t *testing.T) {
 	cache := NewLFUCache[string, int](42)
 	is.Equal(42, cache.capacity)
 	is.Equal(1, cache.evictionSize)
-	is.NotNil(cache.ll)
 	is.NotNil(cache.cache)
+	is.NotNil(cache.freqMap)
 
 	cache = NewLFUCacheWithEvictionSize[string, int](42, 10)
 	is.Equal(42, cache.capacity)
 	is.Equal(10, cache.evictionSize)
-	is.NotNil(cache.ll)
 	is.NotNil(cache.cache)
+	is.NotNil(cache.freqMap)
 }
 
 func TestSet(t *testing.T) {
@@ -45,40 +45,36 @@ func TestSet(t *testing.T) {
 	})
 
 	cache.Set("a", 1)
-	is.Equal(1, cache.ll.Len())
+	is.Equal(1, cache.Len())
 	is.Len(cache.cache, 1)
-	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
-	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Equal("a", cache.cache["a"].Value.key)
+	is.Equal(1, cache.cache["a"].Value.value)
 	is.Equal(0, evicted)
 
 	cache.Set("b", 2)
-	is.Equal(2, cache.ll.Len())
+	is.Equal(2, cache.Len())
 	is.Len(cache.cache, 2)
-	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
-	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.Equal(1, cache.cache["a"].Value.value)
+	is.Equal(2, cache.cache["b"].Value.value)
 	is.Equal(0, evicted)
 
+	// Set existing key "b" - increments frequency
 	cache.Set("b", 2)
-	is.Equal(2, cache.ll.Len())
+	is.Equal(2, cache.Len())
 	is.Len(cache.cache, 2)
-	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
-	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.Equal(1, cache.cache["b"].Value.freq) // freq incremented
 	is.Equal(0, evicted)
 
+	// Set new key "c" - evicts "a" (freq=0, LRU within freq 0)
 	cache.Set("c", 3)
-	is.Equal(2, cache.ll.Len())
+	is.Equal(2, cache.Len())
 	is.Len(cache.cache, 2)
-	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.Equal(&entry[string, int]{"c", 3}, cache.cache["c"].Value)
-	is.Equal(&entry[string, int]{"c", 3}, cache.ll.Front().Value)
-	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
-	is.Equal(1, evicted)
+	is.NotNil(cache.cache["b"])
+	is.NotNil(cache.cache["c"])
+	is.Nil(cache.cache["a"])
+	is.Equal(1, evicted) // a(1) evicted
 
+	// Test with evictionSize=2
 	cache = NewLFUCacheWithEvictionSizeAndCallback(3, 2, func(reason base.EvictionReason, k string, v int) {
 		is.Equal(base.EvictionReasonCapacity, reason)
 		evicted += v
@@ -86,14 +82,13 @@ func TestSet(t *testing.T) {
 	cache.Set("a", 1)
 	cache.Set("b", 2)
 	cache.Set("c", 3)
+	// All at freq 0. Adding "d" evicts 2 items: "a" (oldest LRU), then "b"
 	cache.Set("d", 4)
-	is.Equal(2, cache.ll.Len())
+	is.Equal(2, cache.Len())
 	is.Len(cache.cache, 2)
-	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.Equal(&entry[string, int]{"d", 4}, cache.cache["d"].Value)
-	is.Equal("d", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
-	is.Equal(6, evicted)
+	is.NotNil(cache.cache["c"])
+	is.NotNil(cache.cache["d"])
+	is.Equal(4, evicted) // prior(1) + a(1) + b(2) = 4
 }
 
 func TestHas(t *testing.T) {
@@ -108,9 +103,10 @@ func TestHas(t *testing.T) {
 	is.True(cache.Has("b"))
 	is.False(cache.Has("c"))
 
+	// Set "c" evicts "a" (freq=0, oldest/LRU within freq 0)
 	cache.Set("c", 3)
-	is.True(cache.Has("a"))
-	is.False(cache.Has("b"))
+	is.False(cache.Has("a"))
+	is.True(cache.Has("b"))
 	is.True(cache.Has("c"))
 }
 
@@ -119,50 +115,38 @@ func TestGet(t *testing.T) {
 	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	is.Equal("b", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
+	cache.Set("a", 1) // a:freq=0
+	cache.Set("b", 2) // b:freq=0
 
-	val, ok := cache.Get("b")
+	val, ok := cache.Get("b") // b:freq=0→1
 	is.True(ok)
 	is.Equal(2, val)
-	is.Equal("a", cache.ll.Front().Value.key)
-	is.Equal("b", cache.ll.Back().Value.key)
 
-	val, ok = cache.Get("a")
+	val, ok = cache.Get("a") // a:freq=0→1
 	is.True(ok)
 	is.Equal(1, val)
-	is.Equal("b", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
 
-	val, ok = cache.Get("c")
+	val, ok = cache.Get("c") // miss
 	is.False(ok)
 	is.Zero(val)
-	is.Equal("b", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
 
-	cache.Set("c", 3)
-	is.Equal("c", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
+	// Set "c" - both a and b at freq=1. LRU within freq 1 is "b" (accessed earlier).
+	cache.Set("c", 3) // evicts "b"
+	is.False(cache.Has("b"))
+	is.True(cache.Has("a"))
+	is.True(cache.Has("c"))
 
-	val, ok = cache.Get("a")
+	val, ok = cache.Get("a") // a:freq=1→2
 	is.True(ok)
 	is.Equal(1, val)
-	is.Equal("c", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
 
-	val, ok = cache.Get("b")
+	val, ok = cache.Get("b") // miss
 	is.False(ok)
 	is.Zero(val)
-	is.Equal("c", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
 
-	val, ok = cache.Get("c")
+	val, ok = cache.Get("c") // c:freq=0→1
 	is.True(ok)
 	is.Equal(3, val)
-	is.Equal("a", cache.ll.Front().Value.key)
-	is.Equal("c", cache.ll.Back().Value.key)
 }
 
 func TestPeak(t *testing.T) {
@@ -176,20 +160,16 @@ func TestPeak(t *testing.T) {
 	val, ok := cache.Peek("a")
 	is.True(ok)
 	is.Equal(1, val)
-	is.Equal("b", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
+	is.Equal(0, cache.cache["a"].Value.freq) // freq unchanged
 
 	val, ok = cache.Peek("b")
 	is.True(ok)
 	is.Equal(2, val)
-	is.Equal("b", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
+	is.Equal(0, cache.cache["b"].Value.freq) // freq unchanged
 
 	val, ok = cache.Peek("c")
 	is.False(ok)
 	is.Zero(val)
-	is.Equal("b", cache.ll.Front().Value.key)
-	is.Equal("a", cache.ll.Back().Value.key)
 }
 
 func TestKey(t *testing.T) {
@@ -257,25 +237,20 @@ func TestDelete(t *testing.T) {
 
 	ok := cache.Delete("a")
 	is.True(ok)
-	is.Equal(1, cache.ll.Len())
+	is.Equal(1, cache.Len())
 	is.Len(cache.cache, 1)
-	is.Equal(&entry[string, int]{"b", 2}, cache.cache["b"].Value)
-	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Front().Value)
-	is.Equal(&entry[string, int]{"b", 2}, cache.ll.Back().Value)
+	is.NotNil(cache.cache["b"])
+	is.Nil(cache.cache["a"])
 
 	ok = cache.Delete("b")
 	is.True(ok)
-	is.Equal(0, cache.ll.Len())
+	is.Equal(0, cache.Len())
 	is.Empty(cache.cache)
-	is.Nil(cache.ll.Front())
-	is.Nil(cache.ll.Back())
 
 	ok = cache.Delete("b")
 	is.False(ok)
-	is.Equal(0, cache.ll.Len())
+	is.Equal(0, cache.Len())
 	is.Empty(cache.cache)
-	is.Nil(cache.ll.Front())
-	is.Nil(cache.ll.Back())
 }
 
 func TestDeleteLeastFrequent(t *testing.T) {
@@ -283,40 +258,32 @@ func TestDeleteLeastFrequent(t *testing.T) {
 	t.Parallel()
 
 	cache := NewLFUCache[string, int](2)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Get("a")
+	cache.Set("a", 1) // a:freq=0
+	cache.Set("b", 2) // b:freq=0
+	cache.Get("a")    // a:freq=1
 
+	// Least frequent is "b" (freq=0)
 	key, value, ok := cache.DeleteLeastFrequent()
 	is.True(ok)
 	is.Equal("b", key)
 	is.Equal(2, value)
-	is.Equal(1, cache.ll.Len())
+	is.Equal(1, cache.Len())
 	is.Len(cache.cache, 1)
-	is.Equal(&entry[string, int]{"a", 1}, cache.cache["a"].Value)
-	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Front().Value)
-	is.Equal(&entry[string, int]{"a", 1}, cache.ll.Back().Value)
+	is.NotNil(cache.cache["a"])
 
+	// Next least frequent is "a" (freq=1)
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.True(ok)
 	is.Equal("a", key)
 	is.Equal(1, value)
-	is.Equal(0, cache.ll.Len())
+	is.Equal(0, cache.Len())
 	is.Empty(cache.cache)
-	is.Nil(cache.ll.Front())
-	is.Nil(cache.ll.Back())
 
+	// Empty cache
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.False(ok)
 	is.Empty(key)
 	is.Zero(value)
-	is.False(ok)
-	is.Empty(key)
-	is.Zero(value)
-	is.Equal(0, cache.ll.Len())
-	is.Empty(cache.cache)
-	is.Nil(cache.ll.Front())
-	is.Nil(cache.ll.Back())
 }
 
 func TestLen(t *testing.T) {
@@ -326,16 +293,14 @@ func TestLen(t *testing.T) {
 	cache := NewLFUCache[string, int](2)
 	cache.Set("z", 0)
 	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Get("b")
-	cache.Get("c")
+	// z:freq=0, a:freq=0. Cache full.
+	cache.Set("b", 2) // evicts z (LRU at freq 0)
+	cache.Get("b")    // b:freq=1
+	cache.Get("c")    // miss
 
 	is.Equal(2, cache.Len())
 
 	cache.Delete("a")
-	is.Equal(2, cache.Len())
-
-	cache.Delete("z")
 	is.Equal(1, cache.Len())
 
 	cache.Delete("b")
@@ -657,50 +622,15 @@ func TestEvictionCallback_WithDeleteMany(t *testing.T) {
 	is.Equal(1, cache.Len())
 }
 
-// Helper function to verify LFU linked list order.
-func verifyLFUOrder[K comparable, V any](t *testing.T, cache *LFUCache[K, V]) []K {
-	t.Helper()
-	is := assert.New(t)
-
-	// Verify list length matches cache map
-	is.Len(cache.cache, cache.ll.Len())
-
-	if cache.ll.Len() == 0 {
-		is.Nil(cache.ll.Front())
-		is.Nil(cache.ll.Back())
-		return []K{}
-	}
-
-	// Verify front and back
-	is.NotNil(cache.ll.Front())
-	is.NotNil(cache.ll.Back())
-
-	// Build order from front to back (most frequently used to least frequently used)
-	var order []K
-	current := cache.ll.Front()
-	for current != nil {
-		entry := current.Value
-		order = append(order, entry.key)
-		current = current.Next()
-	}
-
-	return order
-}
-
 func TestInternalState_InitialState(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
 
-	// Verify initial state
-	is.Equal(0, cache.ll.Len())
+	is.Equal(0, cache.Len())
 	is.Empty(cache.cache)
-	is.Nil(cache.ll.Front())
-	is.Nil(cache.ll.Back())
-
-	order := verifyLFUOrder(t, cache)
-	is.Empty(order)
+	is.Empty(cache.freqMap)
 }
 
 func TestInternalState_SingleElement(t *testing.T) {
@@ -710,19 +640,11 @@ func TestInternalState_SingleElement(t *testing.T) {
 	cache := NewLFUCache[string, int](5)
 	cache.Set("a", 1)
 
-	// Verify single element state
-	is.Equal(1, cache.ll.Len())
+	is.Equal(1, cache.Len())
 	is.Len(cache.cache, 1)
-	is.NotNil(cache.ll.Front())
-	is.NotNil(cache.ll.Back())
-	is.Equal(cache.ll.Front(), cache.ll.Back()) // Same element
-
-	entry := cache.ll.Front().Value
-	is.Equal("a", entry.key)
-	is.Equal(1, entry.value)
-
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"a"}, order)
+	is.Equal("a", cache.cache["a"].Value.key)
+	is.Equal(1, cache.cache["a"].Value.value)
+	is.Equal(0, cache.cache["a"].Value.freq)
 }
 
 func TestInternalState_MultipleElements(t *testing.T) {
@@ -734,20 +656,14 @@ func TestInternalState_MultipleElements(t *testing.T) {
 	cache.Set("b", 2)
 	cache.Set("c", 3)
 
-	// Verify multiple elements state
-	is.Equal(3, cache.ll.Len())
+	is.Equal(3, cache.Len())
 	is.Len(cache.cache, 3)
 
-	// Order should be: c (most recent) -> b -> a (least recent)
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
+	// All at freq 0
+	is.Equal(0, cache.cache["a"].Value.freq)
+	is.Equal(0, cache.cache["b"].Value.freq)
+	is.Equal(0, cache.cache["c"].Value.freq)
 
-	// Verify cache map contains correct elements
-	is.NotNil(cache.cache["a"])
-	is.NotNil(cache.cache["b"])
-	is.NotNil(cache.cache["c"])
-
-	// Verify element values
 	is.Equal(1, cache.cache["a"].Value.value)
 	is.Equal(2, cache.cache["b"].Value.value)
 	is.Equal(3, cache.cache["c"].Value.value)
@@ -758,40 +674,29 @@ func TestInternalState_GetUpdatesFrequency(t *testing.T) {
 	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
+	cache.Set("a", 1) // a:freq=0
+	cache.Set("b", 2) // b:freq=0
+	cache.Set("c", 3) // c:freq=0
 
-	// Initial order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
-
-	// Get "c" - should move to front (higher frequency)
+	// Get "c" - frequency incremented
 	val, ok := cache.Get("c")
 	is.True(ok)
 	is.Equal(3, val)
+	is.Equal(1, cache.cache["c"].Value.freq)
+	is.Equal(0, cache.cache["a"].Value.freq)
+	is.Equal(0, cache.cache["b"].Value.freq)
 
-	// Order should now be: b -> c -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"b", "c", "a"}, order)
-
-	// Get "b" - should move to front
+	// Get "b" - frequency incremented
 	val, ok = cache.Get("b")
 	is.True(ok)
 	is.Equal(2, val)
+	is.Equal(1, cache.cache["b"].Value.freq)
 
-	// Order should now be: c -> b -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
-
-	// Get "a" again - should move to front
+	// Get "a" - frequency incremented
 	val, ok = cache.Get("a")
 	is.True(ok)
 	is.Equal(1, val)
-
-	// Order should now be: c -> b -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
+	is.Equal(1, cache.cache["a"].Value.freq)
 }
 
 func TestInternalState_PeekDoesNotUpdateFrequency(t *testing.T) {
@@ -803,27 +708,16 @@ func TestInternalState_PeekDoesNotUpdateFrequency(t *testing.T) {
 	cache.Set("b", 2)
 	cache.Set("c", 3)
 
-	// Initial order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
-
-	// Peek "a" - should not change order
+	// Peek should not change frequency
 	val, ok := cache.Peek("a")
 	is.True(ok)
 	is.Equal(1, val)
+	is.Equal(0, cache.cache["a"].Value.freq)
 
-	// Order should remain: c -> b -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
-
-	// Peek "b" - should not change order
 	val, ok = cache.Peek("b")
 	is.True(ok)
 	is.Equal(2, val)
-
-	// Order should remain: c -> b -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
+	is.Equal(0, cache.cache["b"].Value.freq)
 }
 
 func TestInternalState_SetExistingKey(t *testing.T) {
@@ -835,19 +729,13 @@ func TestInternalState_SetExistingKey(t *testing.T) {
 	cache.Set("b", 2)
 	cache.Set("c", 3)
 
-	// Initial order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
+	// All at freq 0
+	is.Equal(0, cache.cache["a"].Value.freq)
 
-	// Set existing key "a" with new value - should not change order
+	// Set existing key "a" with new value - increments frequency
 	cache.Set("a", 10)
-
-	// Order should remain: c -> b -> a (no frequency change)
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
-
-	// Verify value was updated
 	is.Equal(10, cache.cache["a"].Value.value)
+	is.Equal(1, cache.cache["a"].Value.freq) // freq incremented
 }
 
 func TestInternalState_Eviction(t *testing.T) {
@@ -860,24 +748,20 @@ func TestInternalState_Eviction(t *testing.T) {
 		evicted[k] = v
 	})
 
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
+	cache.Set("a", 1) // a:freq=0
+	cache.Set("b", 2) // b:freq=0
+	cache.Set("c", 3) // c:freq=0
 
-	// Order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
+	is.Equal(3, cache.Len())
 
-	// Add one more - should evict "c" (least frequently used)
+	// Add "d" - evicts LRU at min freq (freq=0, oldest = "a")
 	cache.Set("d", 4)
-
-	// Order should now be: d -> b -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"d", "b", "a"}, order)
-
-	// Verify "a" was evicted
-	is.Equal(3, evicted["c"])
-	is.Nil(cache.cache["c"])
+	is.Equal(3, cache.Len())
+	is.Equal(1, evicted["a"])
+	is.Nil(cache.cache["a"])
+	is.NotNil(cache.cache["b"])
+	is.NotNil(cache.cache["c"])
+	is.NotNil(cache.cache["d"])
 }
 
 func TestInternalState_EvictionWithFrequency(t *testing.T) {
@@ -890,31 +774,25 @@ func TestInternalState_EvictionWithFrequency(t *testing.T) {
 		evicted[k] = v
 	})
 
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
+	cache.Set("a", 1) // a:freq=0
+	cache.Set("b", 2) // b:freq=0
+	cache.Set("c", 3) // c:freq=0
 
-	// Order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
+	// Access "c" to increase its frequency
+	cache.Get("c") // c:freq=1
 
-	// Access "a" to increase its frequency
-	cache.Get("c")
+	is.Equal(1, cache.cache["c"].Value.freq)
+	is.Equal(0, cache.cache["a"].Value.freq)
+	is.Equal(0, cache.cache["b"].Value.freq)
 
-	// Order should now be: a -> c -> b
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"b", "c", "a"}, order)
-
-	// Add one more - should evict "b" (least frequently used)
+	// Add "d" - evicts from freq=0, LRU = "a" (oldest)
 	cache.Set("d", 4)
-
-	// Order should now be: d -> a -> c
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"d", "c", "a"}, order)
-
-	// Verify "b" was evicted (not "a" because "a" has higher frequency)
-	is.Equal(2, evicted["b"])
-	is.Nil(cache.cache["b"])
+	is.Equal(3, cache.Len())
+	is.Equal(1, evicted["a"])
+	is.Nil(cache.cache["a"])
+	is.NotNil(cache.cache["b"])
+	is.NotNil(cache.cache["c"])
+	is.NotNil(cache.cache["d"])
 }
 
 func TestInternalState_Delete(t *testing.T) {
@@ -926,36 +804,21 @@ func TestInternalState_Delete(t *testing.T) {
 	cache.Set("b", 2)
 	cache.Set("c", 3)
 
-	// Initial order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
+	is.Equal(3, cache.Len())
 
-	// Delete middle element "b"
 	ok := cache.Delete("b")
 	is.True(ok)
-
-	// Order should now be: c -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "a"}, order)
-
-	// Verify "b" is removed from cache map
+	is.Equal(2, cache.Len())
 	is.Nil(cache.cache["b"])
 
-	// Delete front element "c"
 	ok = cache.Delete("c")
 	is.True(ok)
+	is.Equal(1, cache.Len())
 
-	// Order should now be: a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"a"}, order)
-
-	// Delete last element "a"
 	ok = cache.Delete("a")
 	is.True(ok)
-
-	// Order should now be empty
-	order = verifyLFUOrder(t, cache)
-	is.Empty(order)
+	is.Equal(0, cache.Len())
+	is.Empty(cache.cache)
 }
 
 func TestInternalState_DeleteLeastFrequent(t *testing.T) {
@@ -963,49 +826,154 @@ func TestInternalState_DeleteLeastFrequent(t *testing.T) {
 	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
+	cache.Set("a", 1) // a:freq=0
+	cache.Set("b", 2) // b:freq=0
+	cache.Set("c", 3) // c:freq=0
 
-	// Initial order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	is.Equal([]string{"c", "b", "a"}, order)
-
-	// Delete least frequent (front of list)
+	// All at freq 0, LRU order: a (oldest), b, c (newest)
+	// Delete least frequent = a (LRU at freq 0)
 	key, value, ok := cache.DeleteLeastFrequent()
 	is.True(ok)
-	is.Equal("c", key)
-	is.Equal(3, value)
+	is.Equal("a", key)
+	is.Equal(1, value)
+	is.Equal(2, cache.Len())
 
-	// Order should now be: b -> a
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"b", "a"}, order)
-
-	// Delete least frequent again
+	// Next: b (LRU at freq 0)
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.True(ok)
 	is.Equal("b", key)
 	is.Equal(2, value)
+	is.Equal(1, cache.Len())
 
-	// Order should now be: c
-	order = verifyLFUOrder(t, cache)
-	is.Equal([]string{"a"}, order)
-
-	// Delete least frequent again
+	// Next: c
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.True(ok)
-	is.Equal("a", key)
-	is.Equal(1, value)
+	is.Equal("c", key)
+	is.Equal(3, value)
+	is.Equal(0, cache.Len())
 
-	// Order should now be empty
-	order = verifyLFUOrder(t, cache)
-	is.Empty(order)
-
-	// Try to delete from empty cache
+	// Empty cache
 	key, value, ok = cache.DeleteLeastFrequent()
 	is.False(ok)
 	is.Empty(key)
 	is.Equal(0, value)
+}
+
+func TestInternalState_ComplexOperations(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewLFUCache[string, int](4)
+
+	cache.Set("a", 1) // a:0
+	cache.Set("b", 2) // b:0
+	cache.Set("c", 3) // c:0
+
+	is.Equal(3, cache.Len())
+
+	// Get "b" to increase frequency
+	cache.Get("b") // b:1
+
+	is.Equal(1, cache.cache["b"].Value.freq)
+	is.Equal(0, cache.cache["a"].Value.freq)
+	is.Equal(0, cache.cache["c"].Value.freq)
+
+	// Add "d"
+	cache.Set("d", 4) // d:0, cache has a:0, b:1, c:0, d:0
+
+	is.Equal(4, cache.Len())
+	is.True(cache.Has("a"))
+	is.True(cache.Has("b"))
+	is.True(cache.Has("c"))
+	is.True(cache.Has("d"))
+
+	// Update existing "b" (increments freq)
+	cache.Set("b", 30) // b:2
+
+	is.Equal(30, cache.cache["b"].Value.value)
+	is.Equal(2, cache.cache["b"].Value.freq)
+
+	// Add "e" - evicts from freq=0, LRU = "a" (oldest at freq 0)
+	cache.Set("e", 5)
+	is.Equal(4, cache.Len())
+	is.False(cache.Has("a")) // evicted
+	is.True(cache.Has("b"))
+	is.True(cache.Has("c"))
+	is.True(cache.Has("d"))
+	is.True(cache.Has("e"))
+
+	// Delete "c"
+	cache.Delete("c")
+	is.Equal(3, cache.Len())
+	is.False(cache.Has("c"))
+}
+
+func TestInternalState_FrequencyOrdering(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewLFUCache[string, int](5)
+
+	cache.Set("a", 1) // a:0
+	cache.Set("b", 2) // b:0
+	cache.Set("c", 3) // c:0
+
+	// Access "c" multiple times
+	cache.Get("c") // c:1
+	cache.Get("c") // c:2
+	cache.Get("c") // c:3
+
+	is.Equal(3, cache.cache["c"].Value.freq)
+	is.Equal(0, cache.cache["a"].Value.freq)
+	is.Equal(0, cache.cache["b"].Value.freq)
+
+	// Access "b" once
+	cache.Get("b") // b:1
+
+	is.Equal(1, cache.cache["b"].Value.freq)
+
+	// Eviction order should be: a (freq=0), then b (freq=1), then c (freq=3)
+	key, _, ok := cache.DeleteLeastFrequent()
+	is.True(ok)
+	is.Equal("a", key) // freq=0
+
+	key, _, ok = cache.DeleteLeastFrequent()
+	is.True(ok)
+	is.Equal("b", key) // freq=1
+
+	key, _, ok = cache.DeleteLeastFrequent()
+	is.True(ok)
+	is.Equal("c", key) // freq=3
+}
+
+func TestInternalState_FrequencyTiebreaking(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	cache := NewLFUCache[string, int](5)
+
+	cache.Set("a", 1) // a:0
+	cache.Set("b", 2) // b:0
+	cache.Set("c", 3) // c:0
+
+	// Access all once
+	cache.Get("a") // a:1
+	cache.Get("b") // b:1
+	cache.Get("c") // c:1
+
+	// All at freq=1. LRU tiebreaking: a was moved to MRU first, then b, then c.
+	// Within freq=1 bucket: front=[c, b, a]=back. LRU = a (back).
+	key, _, ok := cache.DeleteLeastFrequent()
+	is.True(ok)
+	is.Equal("a", key) // LRU at freq=1
+
+	key, _, ok = cache.DeleteLeastFrequent()
+	is.True(ok)
+	is.Equal("b", key)
+
+	key, _, ok = cache.DeleteLeastFrequent()
+	is.True(ok)
+	is.Equal("c", key)
 }
 
 func TestInternalState_ElementRelationships(t *testing.T) {
@@ -1013,118 +981,21 @@ func TestInternalState_ElementRelationships(t *testing.T) {
 	t.Parallel()
 
 	cache := NewLFUCache[string, int](5)
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
+	cache.Set("a", 1) // a:0
+	cache.Set("b", 2) // b:0
+	cache.Set("c", 3) // c:0
 
-	// Verify element relationships
-	front := cache.ll.Front()
-	back := cache.ll.Back()
+	// All in freq=0 bucket
+	is.Equal(0, cache.minFreq)
+	freqList, exists := cache.freqMap[0]
+	is.True(exists)
+	is.Equal(3, freqList.Len())
 
-	// Front should be "c" (most recent)
-	is.Equal("c", front.Value.key)
+	// Get "a" to move to freq=1
+	cache.Get("a") // a:1
 
-	// Back should be "a" (least recent)
-	is.Equal("a", back.Value.key)
-
-	// Verify Next/Prev relationships
-	middle := front.Next()
-	is.Equal("b", middle.Value.key)
-	is.Equal(front, middle.Prev())
-	is.Equal(back, middle.Next())
-
-	// Verify back element
-	is.Equal(middle, back.Prev())
-	is.Nil(back.Next())
-	is.Nil(front.Prev())
-}
-
-func TestInternalState_ComplexOperations(t *testing.T) {
-	t.Parallel()
-
-	cache := NewLFUCache[string, int](4)
-
-	// Add elements
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
-
-	// Order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"c", "b", "a"}, order)
-
-	// Get middle element to increase frequency
-	cache.Get("b")
-
-	// Order: c -> a -> b
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"c", "a", "b"}, order)
-
-	// Add another element
-	cache.Set("d", 4)
-
-	// Order: d -> c -> a -> b
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"d", "c", "a", "b"}, order)
-
-	// Update existing element (should not change frequency)
-	cache.Set("b", 30)
-
-	// Order should remain: d -> c -> a -> b
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"d", "c", "a", "b"}, order)
-
-	// Add one more - should evict "d"
-	cache.Set("e", 5)
-
-	// Order: e -> c -> a -> b
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"e", "c", "a", "b"}, order)
-
-	// Delete middle element
-	cache.Delete("c")
-
-	// Order: e -> a -> b
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"e", "a", "b"}, order)
-}
-
-func TestInternalState_FrequencyOrdering(t *testing.T) {
-	t.Parallel()
-
-	cache := NewLFUCache[string, int](5)
-
-	// Add elements
-	cache.Set("a", 1)
-	cache.Set("b", 2)
-	cache.Set("c", 3)
-
-	// Initial order: c -> b -> a
-	order := verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"c", "b", "a"}, order)
-
-	// Access "a" multiple times to increase its frequency
-	cache.Get("c") // a becomes most frequent
-	cache.Get("c") // a stays most frequent
-	cache.Get("c") // a stays most frequent
-
-	// Order should be: b -> a -> c
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"b", "a", "c"}, order)
-
-	// Access "b" to increase its frequency
-	cache.Get("b") // b becomes more frequent than c
-
-	// Order should be: a -> b -> c
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"a", "b", "c"}, order)
-
-	// Access "c" to make it most frequent
-	cache.Get("c")
-	cache.Get("c")
-	cache.Get("c")
-
-	// Order should be: a -> b -> c
-	order = verifyLFUOrder(t, cache)
-	assert.Equal(t, []string{"a", "b", "c"}, order)
+	// freq=0 has b, c; freq=1 has a
+	is.Equal(0, cache.minFreq)
+	is.Equal(2, cache.freqMap[0].Len())
+	is.Equal(1, cache.freqMap[1].Len())
 }

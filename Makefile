@@ -5,7 +5,7 @@ build:
 test:
 	go test -race -v ./...
 watch-test:
-	reflex -t 50ms -s -- sh -c 'gotest -race -v ./...'
+	reflex -t 50ms -s -- sh -c 'gotest -race ./...'
 
 bench:
 	go test -benchmem -benchtime=10000000x -bench=. ./...

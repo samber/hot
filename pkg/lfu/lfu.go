@@ -15,10 +15,11 @@ const (
 )
 
 // entry represents a key-value pair stored in the LFU cache.
-// Each entry is stored as a list element to maintain frequency order.
+// Each entry tracks its own access frequency for O(1) LFU eviction.
 type entry[K comparable, V any] struct {
-	key   K // The cache key
-	value V // The cached value
+	key   K   // The cache key
+	value V   // The cached value
+	freq  int // Access frequency counter
 }
 
 // NewLFUCache creates a new LFU cache with the specified capacity.
@@ -54,23 +55,26 @@ func NewLFUCacheWithEvictionSizeAndCallback[K comparable, V any](capacity int, e
 	return &LFUCache[K, V]{
 		capacity:     capacity,
 		evictionSize: evictionSize,
-		ll:           list.New[*entry[K, V]](), // sorted from least to most frequent
+		minFreq:      0,
 		cache:        make(map[K]*list.Element[*entry[K, V]]),
+		freqMap:      make(map[int]*list.List[*entry[K, V]]),
 
 		onEviction: onEviction,
 	}
 }
 
-// LFUCache is a Least Frequently Used cache implementation.
+// LFUCache is a Least Frequently Used cache implementation using O(1) frequency tracking.
+// Items are evicted by lowest access frequency, with LRU tiebreaking within the same frequency.
 // It is not safe for concurrent access and should be wrapped with a thread-safe layer if needed.
-// Items are ordered by their access frequency, with least frequently used items at the front.
 type LFUCache[K comparable, V any] struct { //nolint:revive
 	noCopy internal.NoCopy // Prevents accidental copying of the cache
 
-	capacity     int                               // Maximum number of items the cache can hold
-	evictionSize int                               // Number of items to evict when cache is full
-	ll           *list.List[*entry[K, V]]          // Doubly-linked list maintaining frequency order (least frequent at front)
-	cache        map[K]*list.Element[*entry[K, V]] // Map for O(1) key lookups to list elements
+	capacity     int // Maximum number of items the cache can hold
+	evictionSize int // Number of items to evict when cache is full
+	minFreq      int // Current minimum frequency across all entries
+
+	cache   map[K]*list.Element[*entry[K, V]]   // Map for O(1) key lookups to list elements
+	freqMap map[int]*list.List[*entry[K, V]]     // Map from frequency to doubly-linked list of entries (front=MRU, back=LRU)
 
 	onEviction base.EvictionCallback[K, V] // Optional callback called when items are evicted
 }
@@ -84,16 +88,14 @@ var _ base.InMemoryCache[string, int] = (*LFUCache[string, int])(nil)
 // Time complexity: O(1) average case, O(evictionSize) worst case when eviction occurs.
 func (c *LFUCache[K, V]) Set(key K, value V) {
 	if e, ok := c.cache[key]; ok {
-		// Key exists: increment frequency by moving after next element
-		if e.Next() != nil {
-			c.ll.MoveAfter(e, e.Next())
-		}
+		// Key exists: update value and increment frequency
 		e.Value.value = value
+		c.incrementFreq(e)
 		return
 	}
 
 	// Evict least frequently used items if cache is full
-	if c.ll.Len() >= c.capacity {
+	if len(c.cache) >= c.capacity {
 		for i := 0; i < c.evictionSize; i++ {
 			k, v, ok := c.DeleteLeastFrequent()
 			if ok && c.onEviction != nil {
@@ -102,9 +104,12 @@ func (c *LFUCache[K, V]) Set(key K, value V) {
 		}
 	}
 
-	// Add new entry at front (least frequent position)
-	e := c.ll.PushFront(&entry[K, V]{key, value})
+	// Add new entry with frequency 0
+	ent := &entry[K, V]{key: key, value: value, freq: 0}
+	freqList := c.getOrCreateFreqList(0)
+	e := freqList.PushFront(ent)
 	c.cache[key] = e
+	c.minFreq = 0
 }
 
 // Has checks if a key exists in the cache.
@@ -116,13 +121,10 @@ func (c *LFUCache[K, V]) Has(key K) bool {
 
 // Get retrieves a value from the cache and increments its frequency count.
 // Returns the value and a boolean indicating if the key was found.
-// Time complexity: O(1) average case.
+// Time complexity: O(1).
 func (c *LFUCache[K, V]) Get(key K) (value V, ok bool) {
 	if e, hit := c.cache[key]; hit {
-		// Increment frequency by moving after next element
-		if e.Next() != nil {
-			c.ll.MoveAfter(e, e.Next())
-		}
+		c.incrementFreq(e)
 		return e.Value.value, true
 	}
 	return value, false
@@ -139,9 +141,8 @@ func (c *LFUCache[K, V]) Peek(key K) (value V, ok bool) {
 }
 
 // Keys returns all keys currently in the cache.
-// The order of keys in the returned slice is not guaranteed to match frequency order.
 func (c *LFUCache[K, V]) Keys() []K {
-	all := make([]K, 0, c.ll.Len())
+	all := make([]K, 0, len(c.cache))
 	for k := range c.cache {
 		all = append(all, k)
 	}
@@ -149,9 +150,8 @@ func (c *LFUCache[K, V]) Keys() []K {
 }
 
 // Values returns all values currently in the cache.
-// The order of values in the returned slice is not guaranteed to match frequency order.
 func (c *LFUCache[K, V]) Values() []V {
-	all := make([]V, 0, c.ll.Len())
+	all := make([]V, 0, len(c.cache))
 	for _, v := range c.cache {
 		all = append(all, v.Value.value)
 	}
@@ -169,7 +169,6 @@ func (c *LFUCache[K, V]) All() map[K]V {
 
 // Range iterates over all key-value pairs in the cache.
 // The iteration stops if the function returns false.
-// The iteration order is not guaranteed to match frequency order.
 func (c *LFUCache[K, V]) Range(f func(K, V) bool) {
 	all := c.All()
 	for k, v := range all {
@@ -181,7 +180,7 @@ func (c *LFUCache[K, V]) Range(f func(K, V) bool) {
 
 // Delete removes a key from the cache.
 // Returns true if the key was found and removed, false otherwise.
-// Time complexity: O(1) average case.
+// Time complexity: O(1).
 func (c *LFUCache[K, V]) Delete(key K) bool {
 	if e, hit := c.cache[key]; hit {
 		c.deleteElement(e)
@@ -194,12 +193,12 @@ func (c *LFUCache[K, V]) Delete(key K) bool {
 // This operation resets the cache to its initial state.
 // Time complexity: O(1) - just reallocates the data structures.
 func (c *LFUCache[K, V]) Purge() {
-	c.ll = list.New[*entry[K, V]]()
 	c.cache = make(map[K]*list.Element[*entry[K, V]])
+	c.freqMap = make(map[int]*list.List[*entry[K, V]])
+	c.minFreq = 0
 }
 
 // SetMany stores multiple key-value pairs in the cache.
-// This is more efficient than calling Set multiple times.
 // Each key-value pair is processed individually, so frequency counts are updated correctly.
 func (c *LFUCache[K, V]) SetMany(items map[K]V) {
 	for k, v := range items {
@@ -266,45 +265,101 @@ func (c *LFUCache[K, V]) Capacity() int {
 }
 
 // Algorithm returns the name of the eviction algorithm used by the cache.
-// This is used for debugging and monitoring purposes.
 func (c *LFUCache[K, V]) Algorithm() string {
 	return "lfu"
 }
 
 // Len returns the current number of items in the cache.
-// Time complexity: O(1) - the list maintains its length.
+// Time complexity: O(1).
 func (c *LFUCache[K, V]) Len() int {
-	return c.ll.Len()
+	return len(c.cache)
 }
 
 // SizeBytes returns the total size of all cache entries in bytes.
-// For generic caches, this returns 0 as the size cannot be determined without type information.
-// Specialized implementations should override this method.
 func (c *LFUCache[K, V]) SizeBytes() int64 {
 	return int64(size.Of(c.cache))
 }
 
 // DeleteLeastFrequent removes and returns the least frequently used item from the cache.
+// Among items with the same frequency, the least recently used is evicted.
 // Returns the key, value, and a boolean indicating if an item was removed.
-// This method is used internally for eviction when the cache reaches capacity.
-// Time complexity: O(1) - removes from the front of the list.
+// Time complexity: O(1).
 func (c *LFUCache[K, V]) DeleteLeastFrequent() (k K, v V, ok bool) {
-	e := c.ll.Front()
-	if e != nil {
-		c.deleteElement(e)
-		kv := e.Value
-		return kv.key, kv.value, true
+	if len(c.cache) == 0 {
+		return k, v, false
 	}
 
-	return k, v, false
+	freqList := c.freqMap[c.minFreq]
+	e := freqList.Back() // LRU within the minimum frequency bucket
+	if e == nil {
+		return k, v, false
+	}
+
+	kv := e.Value
+	c.deleteElement(e)
+	return kv.key, kv.value, true
 }
 
-// deleteElement removes an element from both the list and the map.
-// This is an internal helper method that ensures consistency between
-// the list and map data structures.
-// Time complexity: O(1) average case.
+// incrementFreq moves an entry from its current frequency bucket to the next one.
+// If the old bucket becomes empty and was the minimum, minFreq is updated.
+// Time complexity: O(1).
+func (c *LFUCache[K, V]) incrementFreq(e *list.Element[*entry[K, V]]) {
+	ent := e.Value
+	oldFreq := ent.freq
+	newFreq := oldFreq + 1
+
+	// Remove from old frequency bucket
+	oldList := c.freqMap[oldFreq]
+	oldList.Remove(e)
+
+	// Clean up empty frequency bucket
+	if oldList.Len() == 0 {
+		delete(c.freqMap, oldFreq)
+		if c.minFreq == oldFreq {
+			c.minFreq = newFreq
+		}
+	}
+
+	// Add to new frequency bucket (at front = MRU position)
+	ent.freq = newFreq
+	newList := c.getOrCreateFreqList(newFreq)
+	newE := newList.PushFront(ent)
+	c.cache[ent.key] = newE
+}
+
+// getOrCreateFreqList returns the list for the given frequency, creating it if needed.
+func (c *LFUCache[K, V]) getOrCreateFreqList(freq int) *list.List[*entry[K, V]] {
+	if l, ok := c.freqMap[freq]; ok {
+		return l
+	}
+	l := list.New[*entry[K, V]]()
+	c.freqMap[freq] = l
+	return l
+}
+
+// deleteElement removes an element from its frequency bucket and the cache map.
+// Time complexity: O(1) amortized.
 func (c *LFUCache[K, V]) deleteElement(e *list.Element[*entry[K, V]]) {
-	c.ll.Remove(e)
-	kv := e.Value
-	delete(c.cache, kv.key)
+	ent := e.Value
+	freq := ent.freq
+
+	// Remove from frequency bucket
+	freqList := c.freqMap[freq]
+	freqList.Remove(e)
+
+	// Remove from cache map
+	delete(c.cache, ent.key)
+
+	// Clean up empty frequency bucket and update minFreq
+	if freqList.Len() == 0 {
+		delete(c.freqMap, freq)
+		if freq == c.minFreq && len(c.cache) > 0 {
+			for f := freq + 1; ; f++ {
+				if _, exists := c.freqMap[f]; exists {
+					c.minFreq = f
+					break
+				}
+			}
+		}
+	}
 }
