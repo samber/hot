@@ -92,6 +92,9 @@ var _ base.InMemoryCache[string, int] = (*WTinyLFUCache[string, int])(nil)
 
 // Set stores a key-value pair in the cache.
 func (c *WTinyLFUCache[K, V]) Set(key K, value V) {
+	// Increment frequency exactly ONCE per cache access (W-TinyLFU paper spec)
+	c.sketch.Inc(key)
+
 	// Check if key exists in protected segment
 	if e, ok := c.protectedMap[key]; ok {
 		c.protectedLl.MoveToFront(e)
@@ -381,7 +384,7 @@ func (c *WTinyLFUCache[K, V]) promoteToProtected(e *list.Element[*entry[K, V]]) 
 	} else {
 		// Protected is full, compete with least recently used protected item
 		protectedVictim := c.protectedLl.Back()
-		if protectedVictim != nil && entry.freq > protectedVictim.Value.freq {
+		if protectedVictim != nil && c.sketch.Estimate(entry.key) > c.sketch.Estimate(protectedVictim.Value.key) {
 			// Evict protected victim, promote this item
 			c.evictFromProtected()
 			newElement := c.protectedLl.PushFront(entry)
