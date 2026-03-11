@@ -351,7 +351,7 @@ func (c *LFUCache[K, V]) deleteElement(e *list.Element[*entry[K, V]]) {
 	delete(c.cache, ent.key)
 
 	// Clean up empty frequency bucket and update minFreq
-	if freqList.Len() == 0 {
+	if freqList.Len() == 0 { //nolint:nestif
 		delete(c.freqMap, freq)
 		if freq == c.minFreq && len(c.cache) > 0 {
 			minFreq := -1
