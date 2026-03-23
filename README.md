@@ -56,6 +56,9 @@ HOT is optimized for high-performance scenarios:
 
 ```bash
 go get github.com/samber/hot
+
+# AI Agent Skill:
+npx skills add https://github.com/samber/cc-skills-golang --skill golang-samber-hot
 ```
 
 This library is v0 and follows SemVer strictly.
