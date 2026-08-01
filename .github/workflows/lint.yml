@@ -20,7 +20,7 @@ jobs:
       security-events: write
 
     steps:
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
       - uses: actions/checkout@v7
