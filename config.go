@@ -1,7 +1,7 @@
 package hot
 
 import (
-	"errors"
+	"context"
 	"time"
 
 	"github.com/samber/hot/pkg/base"
@@ -67,7 +67,8 @@ type HotCacheConfig[K comparable, V any] struct {
 	cacheName                string
 	collectors               []metrics.Collector
 
-	warmUpFn                func() (map[K]V, []K, error)
+	preloadFn               func() (map[K]V, []K, error)
+	preloadPeriod           time.Duration
 	loaderFns               LoaderChain[K, V]
 	revalidationLoaderFns   LoaderChain[K, V]
 	revalidationErrorPolicy revalidationErrorPolicy
@@ -140,37 +141,45 @@ func (cfg HotCacheConfig[K, V]) WithSharding(nbr uint64, fn sharded.Hasher[K]) H
 	return cfg
 }
 
-// WithWarmUp preloads the cache with data from the provided function.
-// This is useful for initializing the cache with frequently accessed data.
-func (cfg HotCacheConfig[K, V]) WithWarmUp(fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
-	cfg.warmUpFn = fn
+// WithPreload loads the cache with data from the provided loader.
+// This is useful for eagerly set the cache with frequently access data.
+func (cfg HotCacheConfig[K, V]) WithPreload(preloader Preloader[K, V]) HotCacheConfig[K, V] {
+	if preloader.Timeout > 0 {
+		cfg.preloadFn = func() (map[K]V, []K, error) {
+			done := make(chan struct{}, 1)
+
+			var result map[K]V
+			var missing []K
+			var err error
+
+			go func() {
+				result, missing, err = preloader.Fn()
+				done <- struct{}{}
+				close(done)
+			}()
+
+			select {
+			case <-time.After(preloader.Timeout):
+				return nil, nil, context.DeadlineExceeded
+			case <-done:
+				return result, missing, err
+			}
+		}
+	} else {
+		cfg.preloadFn = preloader.Fn
+	}
+	cfg.preloadPeriod = preloader.Period
 	return cfg
 }
 
-// WithWarmUpWithTimeout preloads the cache with data from the provided function with a timeout.
-// This is useful when the inner callback does not have its own timeout strategy.
+// Deprecated: Use [HotCacheConfig.WithPreload] instead.
+func (cfg HotCacheConfig[K, V]) WithWarmUp(fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
+	return cfg.WithPreload(Preloader[K, V]{Fn: fn})
+}
+
+// Deprecated: Use [HotCacheConfig.WithPreload] instead.
 func (cfg HotCacheConfig[K, V]) WithWarmUpWithTimeout(timeout time.Duration, fn func() (map[K]V, []K, error)) HotCacheConfig[K, V] {
-	cfg.warmUpFn = func() (map[K]V, []K, error) {
-		done := make(chan struct{}, 1)
-
-		var result map[K]V
-		var missing []K
-		var err error
-
-		go func() {
-			result, missing, err = fn()
-			done <- struct{}{}
-			close(done)
-		}()
-
-		select {
-		case <-time.After(timeout):
-			return nil, nil, errors.New("WarmUp timeout")
-		case <-done:
-			return result, missing, err
-		}
-	}
-	return cfg
+	return cfg.WithPreload(Preloader[K, V]{Fn: fn, Timeout: timeout})
 }
 
 // WithoutLocking disables mutex for the cache and improves internal performance.
@@ -267,9 +276,14 @@ func (cfg HotCacheConfig[K, V]) Build() *HotCache[K, V] {
 		cfg.collectors,
 	)
 
-	if cfg.warmUpFn != nil {
+	if cfg.preloadFn != nil {
+		hot.preloadFn = cfg.preloadFn
 		// @TODO: Check error?
-		hot.WarmUp(cfg.warmUpFn) //nolint:errcheck
+		hot.Preload(cfg.preloadFn) //nolint:errcheck
+
+		if cfg.preloadPeriod > 0 {
+			hot.StartPeriodicPreload(cfg.preloadPeriod)
+		}
 	}
 
 	if cfg.janitorEnabled {
@@ -298,4 +312,22 @@ func (cfg *HotCacheConfig[K, V]) buildPrometheusCollector(mode base.CacheMode) f
 
 		return collector
 	}
+}
+
+// Preloader holds the configuration for preloading the cache.
+type Preloader[K comparable, V any] struct {
+	// Fn is the function that returns the data to preload into the cache.
+	// It returns a map of key-value pairs to load, a list of missing keys, and
+	// an error if any.
+	Fn func() (map[K]V, []K, error)
+
+	// Timeout is an optional duration to limit how long the preload function
+	// can run.
+	// If zero, no timeout is applied.
+	Timeout time.Duration
+
+	// Period is an optional duration for periodic cache refresh.
+	// If set, the perload function will be called repeatedly at this interval
+	// to refresh the cache.
+	Period time.Duration
 }

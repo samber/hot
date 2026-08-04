@@ -70,6 +70,14 @@ type HotCache[K comparable, V any] struct {
 	stopJanitor  chan struct{}
 	janitorDone  chan struct{}
 
+	// preloadMutex protects the periodic preload state
+	preloadMutex    sync.RWMutex
+	preloadTicker   *time.Ticker
+	preloadStopOnce *sync.Once
+	stopPreload     chan struct{}
+	preloadDone     chan struct{}
+	preloadFn       func() (map[K]V, []K, error)
+
 	cache              base.InMemoryCache[K, *item[V]]
 	missingSharedCache bool
 	missingCache       base.InMemoryCache[K, *item[V]]
@@ -508,10 +516,10 @@ func (c *HotCache[K, V]) Len() int {
 	return c.cache.Len()
 }
 
-// WarmUp preloads the cache with data from the provided loader function.
+// Preload preloads the cache with data from the provided loader function.
 // This is useful for initializing the cache with frequently accessed data.
 // The loader function should return a map of key-value pairs and a slice of missing keys.
-func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
+func (c *HotCache[K, V]) Preload(loader func() (map[K]V, []K, error)) error {
 	if loader == nil {
 		return nil
 	}
@@ -533,6 +541,71 @@ func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
 	c.setManyUnsafe(items, missing, c.ttlNano)
 
 	return nil
+}
+
+// Deprecated: Use [HotCache.Preload] instead.
+func (c *HotCache[K, V]) WarmUp(loader func() (map[K]V, []K, error)) error {
+	return c.Preload(loader)
+}
+
+// StartPeriodicPreload starts a background goroutine that periodically preloads
+// the cache.
+// This method is safe to call multiple times but only the first call will start
+// the periodic preload.
+func (c *HotCache[K, V]) StartPeriodicPreload(period time.Duration) {
+	c.preloadMutex.Lock()
+	defer c.preloadMutex.Unlock()
+
+	if c.preloadTicker != nil {
+		return
+	}
+
+	if c.preloadFn == nil {
+		return
+	}
+
+	c.preloadTicker = time.NewTicker(period)
+	c.preloadStopOnce = &sync.Once{}
+	c.stopPreload = make(chan struct{})
+	c.preloadDone = make(chan struct{})
+
+	// Start the periodic preload goroutine
+	go func() {
+		defer func() {
+			c.preloadMutex.Lock()
+			c.preloadTicker = nil
+			c.preloadMutex.Unlock()
+			close(c.preloadDone)
+		}()
+
+		for {
+			select {
+			case <-c.stopPreload:
+				return
+			case <-c.preloadTicker.C:
+				c.Preload(c.preloadFn) //nolint:errcheck
+			}
+		}
+	}()
+}
+
+// StopPeriodicPreload stops the background periodic preload goroutine and
+// cleans up resources.
+// This method is safe to call multiple times and will wait for the periodic
+// preload to fully stop.
+func (c *HotCache[K, V]) StopPeriodicPreload() {
+	c.preloadMutex.RLock()
+	if c.preloadTicker == nil {
+		c.preloadMutex.RUnlock()
+		return
+	}
+	c.preloadMutex.RUnlock()
+
+	c.preloadStopOnce.Do(func() {
+		close(c.stopPreload)
+		c.preloadTicker.Stop()
+		<-c.preloadDone
+	})
 }
 
 // Janitor starts a background goroutine that periodically removes expired items from the cache.
