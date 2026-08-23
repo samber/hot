@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "samber/hot: Blazing fast in-memory caching for Go"
+abstract: >-
+  HOT (Hot Object Tracker) is a feature-complete, high-performance in-memory caching
+  library for read-intensive Go applications. It ships nine eviction policies (LRU, LFU,
+  TinyLFU, W-TinyLFU, S3FIFO, ARC, 2Q, SIEVE, FIFO) behind a single generic API, plus TTL
+  with jitter to prevent cache stampedes, stale-while-revalidate, negative caching, sharding
+  for high concurrency, chained loaders with in-flight deduplication, cache warmup, batch
+  operations and built-in metrics. Its layered design lets each concern - eviction, thread
+  safety, instrumentation, sharding - be composed or replaced independently.
+type: software
+authors:
+  - family-names: Berthe
+    given-names: Samuel
+    email: hello@samuel-berthe.fr
+    orcid: "https://orcid.org/0009-0000-2060-7721"
+doi: 10.5281/zenodo.22071906
+repository-code: "https://github.com/samber/hot"
+url: "https://github.com/samber/hot"
+license: MIT
+date-released: "2024-04-02"
+keywords:
+  - go
+  - golang
+  - cache
+  - in-memory
+  - lru
+  - lfu
+  - arc
+  - s3fifo
+  - sieve
+  - sharding
+  - ttl
+  - generics
+  - performance
