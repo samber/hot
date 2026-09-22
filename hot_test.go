@@ -30,7 +30,16 @@ func TestNewHotCache(t *testing.T) {
 
 	// ttl, stale, jitter
 	cache = newHotCache(safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, nil)
-	is.Equal(&HotCache[int, int]{sync.RWMutex{}, nil, nil, nil, nil, safeLru, false, nil, 42_000, 21_000, 2, time.Second, nil, nil, DropOnError, nil, nil, nil, singleflightx.Group[int, int]{}, nil}, cache)
+	is.Equal(&HotCache[int, int]{
+		janitorMutex: sync.RWMutex{}, ticker: nil, stopOnce: nil, stopJanitor: nil, janitorDone: nil,
+		preloadMutex: sync.RWMutex{}, preloadTicker: nil, preloadStopOnce: nil, stopPreload: nil, preloadDone: nil, preloadFn: nil,
+		cache: safeLru, missingSharedCache: false, missingCache: nil,
+		ttlNano: 42_000, staleNano: 21_000, jitterLambda: 2, jitterUpperBound: time.Second,
+		loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
+		group: singleflightx.Group[int, int]{}, prometheusCollectors: nil},
+		cache,
+	)
 
 	// @TODO: test locks
 	// @TODO: more tests
@@ -1224,18 +1233,22 @@ func TestHotCache_Len(t *testing.T) {
 	is.Equal(4, cache.Len())
 }
 
-func TestHotCache_WarmUp(t *testing.T) {
+func TestHotCache_Preload(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
+
+	preloader := Preloader[string, int]{
+		Fn: func() (map[string]int, []string, error) {
+			return map[string]int{"a": 1}, []string{"b"}, nil
+		},
+	}
 
 	is.Panics(func() {
 		_ = NewHotCache[string, int](LRU, 10).
 			WithCopyOnWrite(func(nb int) int {
 				return nb * 2
 			}).
-			WithWarmUp(func() (map[string]int, []string, error) {
-				return map[string]int{"a": 1}, []string{"b"}, nil
-			}).
+			WithPreload(preloader).
 			Build()
 	})
 
@@ -1244,8 +1257,10 @@ func TestHotCache_WarmUp(t *testing.T) {
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 2
 		}).
-		WithWarmUp(func() (map[string]int, []string, error) {
-			return map[string]int{"a": 1}, []string{}, nil
+		WithPreload(Preloader[string, int]{
+			Fn: func() (map[string]int, []string, error) {
+				return map[string]int{"a": 1}, []string{}, nil
+			},
 		}).
 		Build()
 	time.Sleep(5 * time.Millisecond)
@@ -1259,9 +1274,7 @@ func TestHotCache_WarmUp(t *testing.T) {
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 2
 		}).
-		WithWarmUp(func() (map[string]int, []string, error) {
-			return map[string]int{"a": 1}, []string{"b"}, nil
-		}).
+		WithPreload(preloader).
 		WithMissingSharedCache().
 		Build()
 	time.Sleep(5 * time.Millisecond)
@@ -1279,9 +1292,7 @@ func TestHotCache_WarmUp(t *testing.T) {
 		WithCopyOnWrite(func(nb int) int {
 			return nb * 2
 		}).
-		WithWarmUp(func() (map[string]int, []string, error) {
-			return map[string]int{"a": 1}, []string{"b"}, nil
-		}).
+		WithPreload(preloader).
 		WithMissingCache(LRU, 10).
 		Build()
 	time.Sleep(5 * time.Millisecond)
@@ -1293,6 +1304,25 @@ func TestHotCache_WarmUp(t *testing.T) {
 	is.True(ok2)
 	is.False(v2.hasValue)
 	is.Equal(0, v2.value)
+
+	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
+}
+
+func TestHotCache_WarmUp(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	// Minimal test for backward compatibility - deprecated API
+	cache := NewHotCache[string, int](LRU, 10).
+		WithWarmUp(func() (map[string]int, []string, error) {
+			return map[string]int{"a": 1}, []string{}, nil
+		}).
+		Build()
+	time.Sleep(5 * time.Millisecond)
+	v, ok, err := cache.Get("a")
+	is.True(ok)
+	is.NoError(err)
+	is.Equal(1, v)
 
 	time.Sleep(10 * time.Millisecond) // purge revalidation goroutine
 }

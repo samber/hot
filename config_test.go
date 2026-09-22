@@ -35,7 +35,7 @@ func TestHotCacheConfig(t *testing.T) {
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: "", missingCacheCapacity: 0,
 		ttl: 0, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
-		warmUpFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		preloadFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
 		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
 	}, opts)
 
@@ -44,7 +44,7 @@ func TestHotCacheConfig(t *testing.T) {
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: true, missingCacheAlgo: "", missingCacheCapacity: 0,
 		ttl: 0, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
-		warmUpFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		preloadFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
 		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
 	}, opts)
 
@@ -53,7 +53,7 @@ func TestHotCacheConfig(t *testing.T) {
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 0, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
-		warmUpFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		preloadFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
 		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
 	}, opts)
 
@@ -65,7 +65,7 @@ func TestHotCacheConfig(t *testing.T) {
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 0, jitterUpperBound: 0, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
-		warmUpFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		preloadFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
 		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
 	}, opts)
 
@@ -84,7 +84,7 @@ func TestHotCacheConfig(t *testing.T) {
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 2, jitterUpperBound: time.Second, shards: 0, shardingFn: nil,
 		lockingDisabled: false, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
-		warmUpFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		preloadFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
 		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
 	}, opts)
 
@@ -96,7 +96,7 @@ func TestHotCacheConfig(t *testing.T) {
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 2, jitterUpperBound: time.Second, shards: 0, shardingFn: nil,
 		lockingDisabled: true, janitorEnabled: false, prometheusMetricsEnabled: false, cacheName: "",
-		warmUpFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		preloadFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
 		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
 	}, opts)
 
@@ -105,7 +105,7 @@ func TestHotCacheConfig(t *testing.T) {
 		cacheAlgo: LRU, cacheCapacity: 42, missingSharedCache: false, missingCacheAlgo: LFU, missingCacheCapacity: 21,
 		ttl: 42 * time.Second, stale: 0, jitterLambda: 2, jitterUpperBound: time.Second, shards: 0, shardingFn: nil,
 		lockingDisabled: true, janitorEnabled: true, prometheusMetricsEnabled: false, cacheName: "",
-		warmUpFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
+		preloadFn: nil, loaderFns: nil, revalidationLoaderFns: nil, revalidationErrorPolicy: DropOnError,
 		onEviction: nil, copyOnRead: nil, copyOnWrite: nil,
 	}, opts)
 
@@ -159,28 +159,64 @@ func TestWithWarmUpWithTimeout(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
+	// Minimal test for backward compatibility - deprecated API
 	opts := NewHotCache[string, int](LRU, 42)
-
-	// Test successful warmup
-	warmUpFn := func() (map[string]int, []string, error) {
-		return map[string]int{"key1": 1, "key2": 2}, []string{"missing1"}, nil
-	}
-
-	opts = opts.WithWarmUpWithTimeout(100*time.Millisecond, warmUpFn)
-	is.NotNil(opts.warmUpFn)
-
-	// Test timeout
-	slowWarmUpFn := func() (map[string]int, []string, error) {
-		time.Sleep(200 * time.Millisecond)
+	preloadFn := func() (map[string]int, []string, error) {
 		return map[string]int{"key1": 1}, []string{}, nil
 	}
 
-	opts = opts.WithWarmUpWithTimeout(50*time.Millisecond, slowWarmUpFn)
-	result, missing, err := opts.warmUpFn()
-	is.Nil(result)
-	is.Nil(missing)
-	is.Error(err)
-	is.Contains(err.Error(), "WarmUp timeout")
+	opts = opts.WithWarmUpWithTimeout(100*time.Millisecond, preloadFn)
+	is.NotNil(opts.preloadFn)
+}
+
+func TestWithPreload(t *testing.T) {
+	is := assert.New(t)
+	t.Parallel()
+
+	counter := 0
+	preloadFn := func() (map[string]int, []string, error) {
+		counter++
+		if counter > 5 {
+			time.Sleep(200 * time.Millisecond)
+		}
+		return map[string]int{"key1": counter}, []string{}, nil
+	}
+
+	cache := NewHotCache[string, int](LRU, 42).
+		WithTTL(500 * time.Millisecond).WithPreload(Preloader[string, int]{
+		Fn:      preloadFn,
+		Timeout: 100 * time.Millisecond,
+		Period:  50 * time.Millisecond,
+	}).Build()
+
+	// Verify initial preload
+	v, ok, err := cache.Get("key1")
+	is.True(ok)
+	is.NoError(err)
+	is.Equal(1, v)
+
+	// Wait for periodic refresh
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify cache was refreshed
+	v, ok, err = cache.Get("key1")
+	is.True(ok)
+	is.NoError(err)
+	is.Greater(v, 1)
+
+	// Stop periodic preload
+	cache.StopPeriodicPreload()
+	vAfterStop, ok, err := cache.Get("key1")
+	is.True(ok)
+	is.NoError(err)
+
+	time.Sleep(150 * time.Millisecond)
+
+	// Verify cache was NOT refreshed after stop
+	vFinal, ok, err := cache.Get("key1")
+	is.True(ok)
+	is.NoError(err)
+	is.Equal(vAfterStop, vFinal, "Cache should not be refreshed after StopPeriodicPreload")
 }
 
 func TestWithEvictionCallback(t *testing.T) {
@@ -272,23 +308,23 @@ func TestBuildWithJanitorAndLockingConflict(t *testing.T) {
 	})
 }
 
-func TestBuildWithWarmUp(t *testing.T) {
+func TestBuildWithPreload(t *testing.T) {
 	is := assert.New(t)
 	t.Parallel()
 
-	warmUpFn := func() (map[string]int, []string, error) {
+	preloader := Preloader[string, int]{Fn: func() (map[string]int, []string, error) {
 		return map[string]int{"key1": 1, "key2": 2}, []string{"missing1"}, nil
-	}
+	}}
 
 	is.Panics(func() {
 		_ = NewHotCache[string, int](LRU, 42).
-			WithWarmUp(warmUpFn).
+			WithPreload(preloader).
 			Build()
 	})
 
 	cache := NewHotCache[string, int](LRU, 42).
 		WithMissingCache(LFU, 21).
-		WithWarmUp(warmUpFn).Build()
+		WithPreload(preloader).Build()
 	is.NotNil(cache)
 }
 
