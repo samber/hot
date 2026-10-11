@@ -73,7 +73,7 @@ func composeInternalCache[K comparable, V any](
 		return sharded.NewShardedInMemoryCache(
 			shards,
 			func(shardIndex int) base.InMemoryCache[K, *item[V]] {
-				return composeInternalCache(false, algorithm, capacity, 0, shardIndex, nil, onEviction, collectorBuilder)
+				return composeInternalCache(locking, algorithm, capacity, 0, shardIndex, nil, onEviction, collectorBuilder)
 			},
 			shardingFn,
 		)
